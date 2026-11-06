@@ -4,6 +4,11 @@ const links = [
   { href: "/llms.txt", label: "llms.txt" },
   { href: "/llms-full.txt", label: "llms-full.txt" },
   { href: siteConfig.github, label: "GitHub", external: true },
+  {
+    href: "https://usetuff.com/?utm_source=tuffui&utm_medium=site&utm_campaign=footer",
+    label: "Tuff",
+    external: true,
+  },
 ];
 
 export function SiteFooter() {

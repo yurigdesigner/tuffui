@@ -1,6 +1,7 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { Promo } from "./promo";
 import { TableOfContents, type TocItem } from "./toc";
 
 type PagerLink = { href: string; name: string };
@@ -49,6 +50,7 @@ export function DocsPage({
         <aside className="hidden w-52 shrink-0 xl:block">
           <div className="sticky top-24">
             <TableOfContents items={toc} />
+            <Promo className="mt-8" />
           </div>
         </aside>
       )}

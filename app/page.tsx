@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { ComponentCard } from "@/components/site/component-card";
+import { PromoCorner } from "@/components/site/promo-corner";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { catalog } from "@/lib/catalog";
@@ -89,6 +90,7 @@ export default function Home() {
         </section>
       </main>
       <SiteFooter />
+      <PromoCorner />
     </>
   );
 }
