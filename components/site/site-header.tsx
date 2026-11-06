@@ -1,13 +1,16 @@
 import { Heart } from "lucide-react";
 import Link from "next/link";
 import { siteConfig } from "@/lib/site";
+import { buildStars } from "@/lib/github-stars";
 import { CommandMenu } from "./command-menu";
+import { GitHubStars } from "./github-stars";
 import { GitHubIcon } from "./icons";
 import { Logo } from "./logo";
 import { MobileNav } from "./mobile-nav";
 import { ThemeToggle } from "./theme-toggle";
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const stars = await buildStars();
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto grid h-14 max-w-[90rem] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:px-6">
@@ -43,9 +46,13 @@ export function SiteHeader() {
             target="_blank"
             rel="noreferrer"
             aria-label="GitHub repository"
-            className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-[color,background-color,scale] duration-150 ease-ui-out hover:bg-foreground/[0.06] hover:text-foreground active:scale-[0.97]"
+            className="inline-flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-full px-2 text-sm text-muted-foreground transition-[color,background-color,scale] duration-150 ease-ui-out hover:bg-foreground/[0.06] hover:text-foreground active:scale-[0.97]"
           >
             <GitHubIcon className="size-4" />
+            <GitHubStars
+              initial={stars}
+              className="hidden font-mono text-xs tabular-nums sm:inline"
+            />
           </a>
           <ThemeToggle />
         </div>

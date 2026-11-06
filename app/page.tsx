@@ -1,10 +1,12 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Star } from "lucide-react";
 import Link from "next/link";
 import { ComponentCard } from "@/components/site/component-card";
+import { GitHubStars } from "@/components/site/github-stars";
 import { PromoCorner } from "@/components/site/promo-corner";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { catalog } from "@/lib/catalog";
+import { buildStars } from "@/lib/github-stars";
 import { absoluteUrl, JsonLd, pageMetadata } from "@/lib/seo";
 import { siteConfig } from "@/lib/site";
 
@@ -32,7 +34,8 @@ const structured = {
   ],
 };
 
-export default function Home() {
+export default async function Home() {
+  const stars = await buildStars();
   return (
     <>
       <JsonLd data={structured} />
@@ -61,9 +64,18 @@ export default function Home() {
                   </Link>
                   <a
                     href={siteConfig.github}
-                    className="inline-flex h-10 items-center rounded-full bg-surface-raised px-5 text-sm font-medium transition-[background-color,scale] hover:bg-[color-mix(in_oklab,var(--surface-raised),var(--foreground)_7%)] active:scale-[0.97]"
+                    className="inline-flex h-10 items-center gap-2 rounded-full bg-surface-raised px-5 text-sm font-medium transition-[background-color,scale] hover:bg-[color-mix(in_oklab,var(--surface-raised),var(--foreground)_7%)] active:scale-[0.97]"
                   >
+                    <Star
+                      className="size-4 text-[#ffd60a]"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    />
                     Star on GitHub
+                    <GitHubStars
+                      initial={stars}
+                      className="-mr-1.5 rounded-full bg-foreground/[0.07] px-2 py-0.5 font-mono text-xs text-muted-foreground tabular-nums"
+                    />
                   </a>
                 </div>
               </div>
