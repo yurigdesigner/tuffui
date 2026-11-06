@@ -279,175 +279,198 @@ export function ToolApprovalQueue({
             />
           )}
           <div className={cn("p-1.5", pending.length === 0 && "hidden")}>
-            {groups.map((g) => (
-              <div
-                key={g.risk ?? "all"}
-                role="group"
-                aria-label={g.risk ? risks[g.risk].label : "Requests"}
-              >
-                {g.risk && <GroupLabel risk={g.risk} count={g.items.length} />}
-                <AnimatePresence initial={false}>
-                  {g.items.map((r) => {
-                    const Kind = kindIcons[r.payload.kind];
-                    const Risk = risks[r.risk].icon;
-                    const open = expanded === r.id;
-                    const checked = selectedIds.includes(r.id);
-                    const scope = scopeById[r.id] ?? "once";
-                    return (
-                      <motion.div
-                        key={r.id}
-                        layout="position"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{
-                          opacity: 0,
-                          height: 0,
-                          transition: reduce ? instant : exitFast,
-                        }}
-                        transition={
-                          reduce ? instant : { ...reveal, layout: reveal.height }
-                        }
-                        className="overflow-hidden"
-                      >
-                        <div
-                          className={cn(
-                            "rounded-xl transition-colors",
-                            (open || checked) && "bg-foreground/[0.035]",
-                          )}
+            {/* Groups grow and shrink with their rows, so a label never pops in or out
+                and the last row of a group can play its exit. */}
+            <AnimatePresence initial={false}>
+              {groups.map((g) => (
+                <motion.div
+                  key={g.risk ?? "all"}
+                  role="group"
+                  aria-label={g.risk ? risks[g.risk].label : "Requests"}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{
+                    height: 0,
+                    opacity: 0,
+                    transition: reduce ? instant : exitFast,
+                  }}
+                  transition={reduce ? instant : reveal}
+                  className="overflow-hidden"
+                >
+                  {g.risk && <GroupLabel risk={g.risk} count={g.items.length} />}
+                  <AnimatePresence initial={false}>
+                    {g.items.map((r) => {
+                      const Kind = kindIcons[r.payload.kind];
+                      const Risk = risks[r.risk].icon;
+                      const open = expanded === r.id;
+                      const checked = selectedIds.includes(r.id);
+                      const scope = scopeById[r.id] ?? "once";
+                      return (
+                        <motion.div
+                          key={r.id}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{
+                            opacity: 0,
+                            height: 0,
+                            transition: reduce ? instant : exitFast,
+                          }}
+                          transition={reduce ? instant : reveal}
+                          className="overflow-hidden"
                         >
                           <div
-                            ref={(el) => {
-                              if (el) rows.current.set(r.id, el);
-                              else rows.current.delete(r.id);
-                            }}
-                            role="button"
-                            tabIndex={0}
-                            aria-expanded={open}
-                            aria-keyshortcuts="Space Enter ArrowUp ArrowDown"
-                            onClick={() => {
-                              setViaKeys(false);
-                              setExpanded(open ? null : r.id);
-                            }}
-                            onKeyDown={(e) => onRowKey(e, r)}
-                            className="flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2.5 hover:bg-foreground/[0.03]"
+                            className={cn(
+                              "rounded-xl transition-colors",
+                              (open || checked) && "bg-foreground/[0.035]",
+                            )}
                           >
-                            <Checkbox
-                              tabIndex={-1}
-                              checked={checked}
-                              aria-label={`Select ${r.title}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setViaKeys(false);
-                                toggle(r.id);
+                            <div
+                              ref={(el) => {
+                                if (el) rows.current.set(r.id, el);
+                                else rows.current.delete(r.id);
                               }}
-                            />
-                            <IconTile
-                              icon={Kind}
-                              className="size-8 rounded-lg bg-foreground/[0.05]"
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm">{r.title}</span>
-                              <span className="block truncate font-mono text-xs text-muted-foreground">
-                                {r.tool}
-                                {targetOf(r.payload) && ` · ${targetOf(r.payload)}`}
-                              </span>
-                            </span>
-                            {layout === "flat" && (
-                              <span
-                                className={cn(
-                                  "flex shrink-0 items-center gap-1 text-xs",
-                                  risks[r.risk].text,
-                                )}
-                              >
-                                <Risk
-                                  weight="fill"
-                                  className="size-3.5"
-                                  aria-hidden="true"
-                                />
-                                {risks[r.risk].short}
-                              </span>
-                            )}
-                            <CaretDown
-                              weight="bold"
-                              className={cn(
-                                "size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
-                                open && "rotate-180",
-                              )}
-                              aria-hidden="true"
-                            />
-                          </div>
-                          <AnimatePresence initial={false}>
-                            {open && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{
-                                  height: 0,
-                                  opacity: 0,
-                                  transition: still ? instant : exitFast,
+                              role="button"
+                              tabIndex={0}
+                              aria-expanded={open}
+                              aria-keyshortcuts="Space Enter ArrowUp ArrowDown"
+                              onClick={() => {
+                                setViaKeys(false);
+                                setExpanded(open ? null : r.id);
+                              }}
+                              onKeyDown={(e) => onRowKey(e, r)}
+                              className="flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2.5 hover:bg-foreground/[0.03]"
+                            >
+                              <Checkbox
+                                tabIndex={-1}
+                                checked={checked}
+                                aria-label={`Select ${r.title}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViaKeys(false);
+                                  toggle(r.id);
                                 }}
-                                transition={still ? instant : reveal}
-                                className="overflow-hidden"
-                              >
-                                <div className="px-2.5 pb-2.5">
-                                  <Inset>
-                                    <Payload payload={r.payload} />
-                                  </Inset>
-                                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                                    <Segmented
-                                      label="Grant for"
-                                      className="mr-auto"
-                                      options={scopes.map((x) => ({
-                                        value: x.id,
-                                        label: x.label,
-                                      }))}
-                                      value={scope}
-                                      onValueChange={(v) =>
-                                        setScopeById((m) => ({ ...m, [r.id]: v }))
-                                      }
-                                    />
-                                    <Button onClick={() => decide([r], "denied", scope)}>
-                                      Deny
-                                    </Button>
-                                    <Button
-                                      variant="primary"
-                                      onClick={() => decide([r], "approved", scope)}
-                                    >
-                                      Approve {scopeText(scope)}
-                                    </Button>
+                              />
+                              <IconTile
+                                icon={Kind}
+                                className="size-8 rounded-lg bg-foreground/[0.05]"
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm">{r.title}</span>
+                                <span className="block truncate font-mono text-xs text-muted-foreground">
+                                  {r.tool}
+                                  {targetOf(r.payload) && ` · ${targetOf(r.payload)}`}
+                                </span>
+                              </span>
+                              {layout === "flat" && (
+                                <span
+                                  className={cn(
+                                    "flex shrink-0 items-center gap-1 text-xs",
+                                    risks[r.risk].text,
+                                  )}
+                                >
+                                  <Risk
+                                    weight="fill"
+                                    className="size-3.5"
+                                    aria-hidden="true"
+                                  />
+                                  {risks[r.risk].short}
+                                </span>
+                              )}
+                              <CaretDown
+                                weight="bold"
+                                className={cn(
+                                  "size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
+                                  open && "rotate-180",
+                                )}
+                                aria-hidden="true"
+                              />
+                            </div>
+                            <AnimatePresence initial={false}>
+                              {open && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{
+                                    height: 0,
+                                    opacity: 0,
+                                    transition: still ? instant : exitFast,
+                                  }}
+                                  transition={still ? instant : reveal}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="px-2.5 pb-2.5">
+                                    <Inset>
+                                      <Payload payload={r.payload} />
+                                    </Inset>
+                                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                                      <Segmented
+                                        label="Grant for"
+                                        className="mr-auto"
+                                        options={scopes.map((x) => ({
+                                          value: x.id,
+                                          label: x.label,
+                                        }))}
+                                        value={scope}
+                                        onValueChange={(v) =>
+                                          setScopeById((m) => ({ ...m, [r.id]: v }))
+                                        }
+                                      />
+                                      <Button
+                                        onClick={() => decide([r], "denied", scope)}
+                                      >
+                                        Deny
+                                      </Button>
+                                      <Button
+                                        variant="primary"
+                                        onClick={() => decide([r], "approved", scope)}
+                                      >
+                                        Approve {scopeText(scope)}
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-            ))}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         </Panel>
-        {resolved.length > 0 && (
-          <div className="px-2 pt-2.5 pb-1">
-            <p className="px-1.5 pb-1 text-xs text-muted-foreground">
-              Resolved · {resolved.length}
-            </p>
-            <ul>
-              <AnimatePresence initial={false}>
-                {resolved.map((r) => (
-                  <ResolvedRow
-                    key={r.id}
-                    request={r}
-                    resolution={resolutionOf(r)!}
-                    onUndo={undo}
-                  />
-                ))}
-              </AnimatePresence>
-            </ul>
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {resolved.length > 0 && (
+            <motion.div
+              key="resolved"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0, transition: reduce ? instant : exitFast }}
+              transition={reduce ? instant : reveal}
+              className="overflow-hidden"
+            >
+              <div className="px-2 pt-2.5 pb-1">
+                <p className="px-1.5 pb-1 text-xs text-muted-foreground">
+                  Resolved · {resolved.length}
+                </p>
+                <ul>
+                  <AnimatePresence initial={false}>
+                    {resolved.map((r) => (
+                      <ResolvedRow
+                        key={r.id}
+                        request={r}
+                        resolution={resolutionOf(r)!}
+                        onUndo={undo}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </ul>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <p role="status" aria-live="polite" className="sr-only">
           {announcement}
         </p>
@@ -487,36 +510,37 @@ function ResolvedRow({
   const Icon = ok ? Check : X;
   return (
     <motion.li
-      layout="position"
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, transition: exitFast }}
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0, transition: exitFast }}
       transition={{ duration: 0.2, ease: EASE_OUT }}
-      className="flex min-h-9 items-center gap-2.5 px-1.5 text-[0.8125rem]"
+      className="overflow-hidden"
     >
-      <span
-        className={cn(
-          "flex size-5 shrink-0 items-center justify-center rounded-full",
-          ok ? "bg-positive/15 text-positive" : "bg-negative/15 text-negative",
-        )}
-      >
-        <Icon weight="fill" className="size-3" aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1 truncate text-muted-foreground">
-        <span className="text-foreground">{request.title}</span>
-        {" · "}
-        {ok ? `approved ${scopeText(resolution.scope)}` : "denied"}
-      </span>
-      {resolution.undoable && (
-        <Button
-          icon={ArrowUUpLeft}
-          iconWeight="bold"
-          onClick={() => onUndo(request)}
-          className="h-7 gap-1 px-2.5 text-xs"
+      <div className="flex min-h-9 items-center gap-2.5 px-1.5 text-[0.8125rem]">
+        <span
+          className={cn(
+            "flex size-5 shrink-0 items-center justify-center rounded-full",
+            ok ? "bg-positive/15 text-positive" : "bg-negative/15 text-negative",
+          )}
         >
-          Undo
-        </Button>
-      )}
+          <Icon weight="fill" className="size-3" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-muted-foreground">
+          <span className="text-foreground">{request.title}</span>
+          {" · "}
+          {ok ? `approved ${scopeText(resolution.scope)}` : "denied"}
+        </span>
+        {resolution.undoable && (
+          <Button
+            icon={ArrowUUpLeft}
+            iconWeight="bold"
+            onClick={() => onUndo(request)}
+            className="h-7 gap-1 px-2.5 text-xs"
+          >
+            Undo
+          </Button>
+        )}
+      </div>
     </motion.li>
   );
 }

@@ -74,15 +74,18 @@ const round = (n: number) => Math.round(n * 100) / 100;
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(560);
+  // null until measured: the chart draws once at its real width, so entrance
+  // animations don't tween from a guessed size.
+  const [width, setWidth] = useState<number | null>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    setWidth(el.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return [ref, width] as const;
+  return [ref, width ?? 560, width !== null] as const;
 }
 
 /** Pointy-top hex grid: pixel position → the cell whose centre is nearest. */
@@ -132,7 +135,7 @@ export function HexDensity({
   y: yAxis = {},
   threshold,
   radius = 11,
-  tone = "#1a9e8c",
+  tone = "var(--brand)",
   unit = "points",
   title,
   subtitle,
@@ -141,7 +144,7 @@ export function HexDensity({
   className,
 }: HexDensityProps) {
   const reduce = useReducedMotion();
-  const [ref, width] = useWidth();
+  const [ref, width, measured] = useWidth();
   const [active, setActive] = useState<string | null>(null);
   const [fromKeyboard, setFromKeyboard] = useState(false);
 
@@ -338,6 +341,8 @@ export function HexDensity({
             className="relative rounded-xl outline-offset-4"
           >
             <svg
+              key={measured ? "measured" : "guess"}
+              visibility={measured ? undefined : "hidden"}
               role="img"
               aria-label={`${total} ${unit} in ${bins.length} bins${
                 densest ? `, densest bin ${densest.count} ${unit}` : ""
@@ -382,8 +387,12 @@ export function HexDensity({
                           key={b.key}
                           d={path}
                           transform={`translate(${b.cx} ${b.cy})`}
-                          fill={lit ? tone : "currentColor"}
-                          fillOpacity={level(b.count) * (lit ? 1 : 0.42)}
+                          // Style, not attributes, so new batches ease into their shade
+                          // and fresh bins fade in instead of popping.
+                          style={{
+                            fill: lit ? tone : "currentColor",
+                            fillOpacity: level(b.count) * (lit ? 1 : 0.42),
+                          }}
                           stroke={
                             isActive
                               ? "var(--foreground)"
@@ -394,7 +403,7 @@ export function HexDensity({
                           strokeWidth={isActive ? 2 : 1.5}
                           strokeLinejoin="round"
                           className={cn(
-                            "text-foreground transition-opacity duration-150",
+                            "text-foreground transition-[opacity,fill-opacity,fill] duration-200 ease-ui-out starting:opacity-0",
                             active !== null && !isActive && "opacity-55",
                             fromKeyboard && "duration-0",
                           )}

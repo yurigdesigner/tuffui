@@ -38,7 +38,7 @@ export type DivergingBarsProps = {
 };
 
 // Validated for both themes: blue, teal, purple, ochre, indigo, cyan.
-const palette = ["#0a84ff", "#1a9e8c", "#bf5af2", "#b8862b", "#5e5ce6", "#30b0c7"];
+const palette = ["var(--brand)", "#1a9e8c", "#bf5af2", "#b8862b", "#5e5ce6", "#30b0c7"];
 const PAD = { top: 10, right: 34, bottom: 22, left: 0 };
 const UP_H = 150;
 const DOWN_H = 40;
@@ -61,15 +61,18 @@ function niceMax(value: number) {
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(560);
+  // null until measured: the chart draws once at its real width, so entrance
+  // animations don't tween from a guessed size.
+  const [width, setWidth] = useState<number | null>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    setWidth(el.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return [ref, width] as const;
+  return [ref, width ?? 560, width !== null] as const;
 }
 
 const sum = (values: number[]) => values.reduce((n, v) => n + v, 0);
@@ -92,7 +95,7 @@ export function DivergingBars({
   className,
 }: DivergingBarsProps) {
   const reduce = useReducedMotion();
-  const [ref, width] = useWidth();
+  const [ref, width, measured] = useWidth();
   const [hidden, setHidden] = useState<string[]>([]);
   const [active, setActive] = useState<number | null>(null);
   const [fromKeyboard, setFromKeyboard] = useState(false);
@@ -235,6 +238,8 @@ export function DivergingBars({
             className="relative rounded-xl outline-offset-4"
           >
             <svg
+              key={measured ? "measured" : "guess"}
+              visibility={measured ? undefined : "hidden"}
               role="img"
               aria-label={summary}
               width={width}

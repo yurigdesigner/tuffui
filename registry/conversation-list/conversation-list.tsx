@@ -204,7 +204,6 @@ export function ConversationList({
                   {group.items.map((c) => (
                     <motion.li
                       key={c.id}
-                      layout="position"
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto", transition: enter }}
                       exit={{ opacity: 0, height: 0, transition: exit }}

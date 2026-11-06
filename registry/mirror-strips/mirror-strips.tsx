@@ -51,15 +51,18 @@ const TOP = 22;
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(560);
+  // null until measured: the chart draws once at its real width, so entrance
+  // animations don't tween from a guessed size.
+  const [width, setWidth] = useState<number | null>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    setWidth(el.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return [ref, width] as const;
+  return [ref, width ?? 560, width !== null] as const;
 }
 
 /**
@@ -78,7 +81,7 @@ export function MirrorStrips({
   className,
 }: MirrorStripsProps) {
   const reduce = useReducedMotion();
-  const [ref, width] = useWidth();
+  const [ref, width, measured] = useWidth();
   const [active, setActive] = useState<number | null>(null);
   const [fromKeyboard, setFromKeyboard] = useState(false);
 
@@ -161,6 +164,8 @@ export function MirrorStrips({
             className="relative rounded-xl outline-offset-4"
           >
             <svg
+              key={measured ? "measured" : "guess"}
+              visibility={measured ? undefined : "hidden"}
               role="img"
               aria-label={`${title}: ${rows.map((row) => `${row.label} ${total(row)}`).join(", ")}`}
               width={width}

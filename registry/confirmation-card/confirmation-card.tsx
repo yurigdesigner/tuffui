@@ -107,7 +107,6 @@ export function ConfirmationCard({
                     {items.map((item) => (
                       <motion.li
                         key={item.id}
-                        layout="position"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto", transition: spring }}
                         exit={{ opacity: 0, height: 0, transition: exit }}

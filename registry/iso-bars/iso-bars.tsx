@@ -41,7 +41,14 @@ export type IsoBarsProps = {
 };
 
 // Validated for both themes. The front row defaults to the alert colors.
-const backPalette = ["#0a84ff", "#1a9e8c", "#bf5af2", "#b8862b", "#5e5ce6", "#30b0c7"];
+const backPalette = [
+  "var(--brand)",
+  "#1a9e8c",
+  "#bf5af2",
+  "#b8862b",
+  "#5e5ce6",
+  "#30b0c7",
+];
 const frontPalette = ["var(--warning)", "var(--negative)", "#b8862b", "#5e5ce6"];
 
 /** Screen units per floor cell. The svg scales to its container. */
@@ -71,15 +78,18 @@ const compact = (n: number) =>
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(560);
+  // null until measured: the chart draws once at its real width, so entrance
+  // animations don't tween from a guessed size.
+  const [width, setWidth] = useState<number | null>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    setWidth(el.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return [ref, width] as const;
+  return [ref, width ?? 560, width !== null] as const;
 }
 
 type Colored = IsoSeries & { color: string };
@@ -142,7 +152,7 @@ export function IsoBars({
 }: IsoBarsProps) {
   const uid = useId().replace(/:/g, "");
   const reduce = useReducedMotion();
-  const [ref, width] = useWidth();
+  const [ref, width, measured] = useWidth();
   const [active, setActive] = useState<{ row: IsoRow; index: number } | null>(null);
   const [fromKeyboard, setFromKeyboard] = useState(false);
 
@@ -318,6 +328,8 @@ export function IsoBars({
             className="relative rounded-xl outline-offset-4"
           >
             <svg
+              key={measured ? "measured" : "guess"}
+              visibility={measured ? undefined : "hidden"}
               role="img"
               aria-label={summary}
               viewBox={`${round(minX)} ${round(minY)} ${vbW} ${vbH}`}

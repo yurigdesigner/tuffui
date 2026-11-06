@@ -57,7 +57,7 @@ const OUTER = 132;
 const CENTER_R = 22;
 // Share of a parent's sector its children fan across, so neighbouring fans never touch.
 const SPREAD = 0.72;
-const palette = ["#0a84ff", "#1a9e8c", "#bf5af2", "#b8862b", "#5e5ce6", "#30b0c7"];
+const palette = ["var(--brand)", "#1a9e8c", "#bf5af2", "#b8862b", "#5e5ce6", "#30b0c7"];
 
 const round = (n: number) => Math.round(n * 100) / 100;
 

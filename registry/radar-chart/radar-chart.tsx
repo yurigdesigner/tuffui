@@ -54,7 +54,7 @@ const PAD = 6;
 const MAX_R = 124;
 const MIN_R = 48;
 const TIP = 196;
-const palette = ["#0a84ff", "#1a9e8c", "#bf5af2", "#b8862b"];
+const palette = ["var(--brand)", "#1a9e8c", "#bf5af2", "#b8862b"];
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
@@ -65,15 +65,18 @@ const monoW = (s: string) => s.length * 7.3;
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(400);
+  // null until measured: the chart draws once at its real width, so entrance
+  // animations don't tween from a guessed size.
+  const [width, setWidth] = useState<number | null>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    setWidth(el.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return [ref, width] as const;
+  return [ref, width ?? 400, width !== null] as const;
 }
 
 /**
@@ -96,7 +99,7 @@ export function RadarChart({
 }: RadarChartProps) {
   const reduce = useReducedMotion();
   const id = useId();
-  const [ref, width] = useWidth();
+  const [ref, width, measured] = useWidth();
   const [active, setActive] = useState<number | null>(null);
   const [fromKeyboard, setFromKeyboard] = useState(false);
 
@@ -263,6 +266,8 @@ export function RadarChart({
             className="relative rounded-xl outline-offset-4"
           >
             <svg
+              key={measured ? "measured" : "guess"}
+              visibility={measured ? undefined : "hidden"}
               role="img"
               aria-label={`${title}: ${series.label} ${axes.map((a, i) => `${a} ${values[i]}`).join(", ")}. Strongest on ${best}.`}
               width={width}

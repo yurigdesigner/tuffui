@@ -7,7 +7,10 @@ import { cn } from "@/lib/utils";
 const N = 8;
 // Each face has its own greys: lit top, mid left, shaded right.
 const faces = [
-  { matrix: "9.5 -5.5 9.5 5.5 2.5 6.5", stone: ["#a3a5a0", "#8f918d", "#7d7f7b", "#b4b6b0"] },
+  {
+    matrix: "9.5 -5.5 9.5 5.5 2.5 6.5",
+    stone: ["#a3a5a0", "#8f918d", "#7d7f7b", "#b4b6b0"],
+  },
   { matrix: "9.5 5.5 0 11 2.5 6.5", stone: ["#6b6d71", "#5c5e62", "#4e5054", "#7a7c80"] },
   { matrix: "9.5 -5.5 0 11 12 12", stone: ["#45474b", "#3a3c40", "#303236", "#525458"] },
 ];

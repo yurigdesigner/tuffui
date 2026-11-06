@@ -55,7 +55,7 @@ export function RetrievalAnswer({ chunks }: { chunks: Chunk[] }) {
     {
       name: "tone",
       type: "string",
-      default: '"#1a9e8c"',
+      default: '"var(--brand)"',
       description: "Any CSS colour for bins above the threshold, e.g. var(--brand).",
     },
     {

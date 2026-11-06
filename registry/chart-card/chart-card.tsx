@@ -35,7 +35,7 @@ export type ChartCardProps = {
 };
 
 // Validated for both themes: blue, teal, purple, ochre.
-const palette = ["#0a84ff", "#1a9e8c", "#bf5af2", "#b8862b"];
+const palette = ["var(--brand)", "#1a9e8c", "#bf5af2", "#b8862b"];
 const icons = { bar: ChartBar, line: ChartLine, area: ChartLineUp, donut: ChartDonut };
 const H = 200;
 const PAD = { top: 8, right: 8, bottom: 22, left: 36 };
@@ -47,24 +47,29 @@ const compact = (n: number) =>
       ? `${+(n / 1000).toFixed(1)}k`
       : `${+n.toFixed(1)}`;
 
-/** A round upper bound so ticks land on readable numbers. */
-function niceMax(value: number) {
-  if (value <= 0) return 1;
-  const step = 10 ** Math.floor(Math.log10(value));
-  return Math.ceil(value / (step / 2)) * (step / 2);
+/** A round step (1, 2, 2.5 or 5 × 10ⁿ) so about four ticks cover the value. */
+function niceScale(value: number) {
+  if (value <= 0) return { max: 1, step: 0.25 };
+  const raw = value / 4;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw)!;
+  return { max: Math.ceil(value / step - 1e-9) * step, step };
 }
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(560);
+  // null until measured: the chart draws once at its real width, so entrance
+  // animations don't tween from a guessed size.
+  const [width, setWidth] = useState<number | null>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    setWidth(el.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return [ref, width] as const;
+  return [ref, width ?? 560, width !== null] as const;
 }
 
 export function ChartCard({
@@ -80,7 +85,7 @@ export function ChartCard({
 }: ChartCardProps) {
   const uid = useId().replace(/:/g, "");
   const reduce = useReducedMotion();
-  const [ref, width] = useWidth();
+  const [ref, width, measured] = useWidth();
   const [hidden, setHidden] = useState<string[]>([]);
   const [active, setActive] = useState<number | null>(null);
   const [fromKeyboard, setFromKeyboard] = useState(false);
@@ -120,7 +125,7 @@ export function ChartCard({
 
   const innerW = Math.max(width - PAD.left - PAD.right, 40);
   const innerH = H - PAD.top - PAD.bottom;
-  const max = niceMax(Math.max(0, ...visible.flatMap((s) => s.values)));
+  const { max, step } = niceScale(Math.max(0, ...visible.flatMap((s) => s.values)));
   const y = (v: number) => PAD.top + innerH - (v / max) * innerH;
   const band = innerW / Math.max(data.labels.length, 1);
   const x = (i: number) =>
@@ -128,7 +133,7 @@ export function ChartCard({
     (type === "bar"
       ? band * (i + 0.5)
       : (innerW * i) / Math.max(data.labels.length - 1, 1));
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => t * max);
+  const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
   const labelEvery = Math.ceil(data.labels.length / Math.max(Math.floor(innerW / 56), 1));
 
   const summary = donut
@@ -225,6 +230,8 @@ export function ChartCard({
             className="relative rounded-xl outline-offset-4"
           >
             <svg
+              key={measured ? "measured" : "guess"}
+              visibility={measured ? undefined : "hidden"}
               role="img"
               aria-label={summary}
               width={width}

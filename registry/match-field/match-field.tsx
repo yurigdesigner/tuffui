@@ -80,15 +80,18 @@ const initialsOf = (name: string) =>
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(400);
+  // null until measured: the chart draws once at its real width, so entrance
+  // animations don't tween from a guessed size.
+  const [width, setWidth] = useState<number | null>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    setWidth(el.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return [ref, width] as const;
+  return [ref, width ?? 400, width !== null] as const;
 }
 
 /**
@@ -109,7 +112,7 @@ export function MatchField({
   className,
 }: MatchFieldProps) {
   const reduce = useReducedMotion();
-  const [ref, width] = useWidth();
+  const [ref, width, measured] = useWidth();
   const [active, setActive] = useState<string | null>(null);
   const [fromKeyboard, setFromKeyboard] = useState(false);
 
@@ -229,6 +232,8 @@ export function MatchField({
             className="relative aspect-[440/380] w-full rounded-xl outline-offset-4"
           >
             <svg
+              key={measured ? "measured" : "guess"}
+              visibility={measured ? undefined : "hidden"}
               viewBox={`0 0 ${W} ${H}`}
               role="img"
               aria-label={`${title}: ${strong.length} of ${placed.length} above ${pct(threshold)}${best ? `, best ${best.name} at ${pct(best.score)}` : ""}`}

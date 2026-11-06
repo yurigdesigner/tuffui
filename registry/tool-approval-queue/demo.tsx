@@ -97,20 +97,24 @@ export default function ToolApprovalQueueDemo({
   );
 
   return (
-    <ToolApprovalQueue
-      data={state.data}
-      layout={variant === "Flat" ? "flat" : "grouped"}
-      defaultExpanded="publish"
-      selected={state.selected}
-      onSelectedChange={(selected) => setState((s) => ({ ...s, selected }))}
-      onUndo={(request) =>
-        setState((s) => ({
-          ...s,
-          data: s.data.map((r) =>
-            r.id === request.id ? { ...r, status: "pending" } : r,
-          ),
-        }))
-      }
-    />
+    // Fixed height, anchored to the top: the queue grows downward as requests
+    // arrive instead of the whole card re-centering on every change.
+    <div className="flex min-h-[38rem] w-full items-start justify-center">
+      <ToolApprovalQueue
+        data={state.data}
+        layout={variant === "Flat" ? "flat" : "grouped"}
+        defaultExpanded="publish"
+        selected={state.selected}
+        onSelectedChange={(selected) => setState((s) => ({ ...s, selected }))}
+        onUndo={(request) =>
+          setState((s) => ({
+            ...s,
+            data: s.data.map((r) =>
+              r.id === request.id ? { ...r, status: "pending" } : r,
+            ),
+          }))
+        }
+      />
+    </div>
   );
 }

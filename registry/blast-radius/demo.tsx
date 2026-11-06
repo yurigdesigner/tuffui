@@ -6,7 +6,7 @@ import { useMockRun, type MockStep } from "@/registry/use-mock-run/use-mock-run"
 import { BlastRadius, type BlastKind, type BlastNode } from "./blast-radius";
 
 const kinds: Record<string, BlastKind> = {
-  service: { label: "Service", color: "#0a84ff" },
+  service: { label: "Service", color: "var(--brand)" },
   database: { label: "Database", color: "#1a9e8c" },
   bucket: { label: "Bucket", color: "#bf5af2" },
   key: { label: "Secret", color: "#b8862b" },
@@ -112,7 +112,7 @@ const toolKinds: Record<string, BlastKind> = {
   tool: { label: "MCP tool", color: "#5e5ce6" },
   database: { label: "Database", color: "#1a9e8c" },
   bucket: { label: "Bucket", color: "#bf5af2" },
-  service: { label: "Service", color: "#0a84ff" },
+  service: { label: "Service", color: "var(--brand)" },
   key: { label: "Secret", color: "#b8862b" },
 };
 
