@@ -61,6 +61,11 @@ export const viewport: Viewport = {
 // Dark is the default; a stored "light" preference is applied before first paint.
 const themeScript = `(function(){try{if(localStorage.getItem("theme")==="light"){var d=document.documentElement;d.classList.remove("dark");}}catch(e){}})()`;
 
+// A tab opened before a deploy still references the old build's chunks, which the
+// new deploy removed. When one fails to load, do a full reload onto the current
+// build, at most once a minute so a real outage can't loop.
+const staleBuildScript = `(function(){function stale(m){return /ChunkLoadError|Loading chunk|Failed to load chunk|error loading dynamically imported module/i.test(m||"")}function reload(){try{var k="tuffui:reloaded",t=+sessionStorage.getItem(k)||0;if(Date.now()-t<6e4)return;sessionStorage.setItem(k,String(Date.now()))}catch(e){}location.reload()}addEventListener("error",function(e){if(stale(e.message)||stale(e.error&&e.error.name))reload()});addEventListener("unhandledrejection",function(e){var r=e.reason;if(r&&(stale(r.name)||stale(r.message)))reload()})})()`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -70,6 +75,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: staleBuildScript }} />
       </head>
       <body className="flex min-h-full flex-col">
         <a
