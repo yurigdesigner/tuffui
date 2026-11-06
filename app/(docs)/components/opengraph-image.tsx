@@ -11,6 +11,6 @@ export default function Image() {
   return ogImage({
     eyebrow: `${catalog.length} components`,
     title: "Every component, free",
-    description: "Conversation, tools & approvals, planning, observability, usage.",
+    description: "Chat, tool approvals, plans, traces, memory, usage and charts. Free, with the full source.",
   });
 }
