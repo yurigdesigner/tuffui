@@ -130,6 +130,17 @@
     scrollbar-color: color-mix(in oklab, var(--foreground) 18%, transparent) transparent;
   }
 
+  /* iOS Safari zooms the page into any field set below 16px. Touch devices
+     get 16px text in fields; desktop keeps each component's own size. */
+  @media (pointer: coarse) {
+    input,
+    textarea,
+    select,
+    [contenteditable="true"] {
+      font-size: max(16px, 1em) !important;
+    }
+  }
+
   html {
     color-scheme: light;
     -webkit-text-size-adjust: 100%;
