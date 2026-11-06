@@ -1,12 +1,37 @@
-# TUFFUI
+<p align="center">
+  <a href="https://tuffui.com">
+    <img src=".github/assets/logo.svg" width="72" height="72" alt="TUFFUI logo">
+  </a>
+</p>
 
-Free, MIT-licensed React components for AI-agent interfaces: tool calls, approvals, plans,
-traces and usage. They are distributed as a shadcn registry, so installing one copies its
-source into your project.
+<h1 align="center">TUFFUI</h1>
+
+<p align="center">
+  Free, MIT-licensed React components for AI chat and agent interfaces.
+  <br>
+  <a href="https://tuffui.com"><strong>tuffui.com</strong></a>
+  ·
+  <a href="https://tuffui.com/components">Components</a>
+  ·
+  <a href="https://tuffui.com/docs/installation">Installation</a>
+</p>
+
+<p align="center">
+  <a href="https://tuffui.com/components">
+    <img src=".github/assets/screenshot.png" alt="TUFFUI chart components: bar chart, dot histogram, tick gauge, mirror strips, radial dots, match field, radar chart and diverging bars">
+  </a>
+</p>
+
+76 components for the parts of AI products generic UI kits don't cover: tool-call
+approvals, agent plans and traces, streaming chat, memory, usage meters, charts for
+agent data, and full screens built from them. They are distributed as a shadcn
+registry, so installing one copies its source into your project:
 
 ```bash
 npx shadcn@latest add https://tuffui.com/r/tool-approval-queue.json
 ```
+
+No Pro tier, no signup, nothing locked.
 
 ## Develop
 
