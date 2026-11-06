@@ -1,3 +1,5 @@
+// TUFFUI (https://tuffui.com) · MIT License · Copyright (c) 2026 TUFFUI contributors
+// Free to use. If it helps you, you can support it: https://ko-fi.com/yurigokoryan
 "use client";
 
 import { useReducedMotion } from "motion/react";

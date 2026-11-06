@@ -100,6 +100,16 @@ const items = [
     }),
 ];
 
+// Every shipped file carries the license line, so the notice travels with the
+// code into projects that install it.
+const notice = "// TUFFUI (https://tuffui.com) · MIT License";
+const unmarked = items
+  .flatMap((item) => (("files" in item && item.files) || []).map((file) => file.path))
+  .filter((path) => !readFileSync(path, "utf8").startsWith(notice));
+if (unmarked.length) {
+  throw new Error(`Add the license line to the top of:\n  ${unmarked.join("\n  ")}`);
+}
+
 const registry = {
   $schema: "https://ui.shadcn.com/schema/registry.json",
   name: siteConfig.shortName,

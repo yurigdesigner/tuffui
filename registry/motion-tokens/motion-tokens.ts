@@ -1,3 +1,5 @@
+// TUFFUI (https://tuffui.com) · MIT License · Copyright (c) 2026 TUFFUI contributors
+// Free to use. If it helps you, you can support it: https://ko-fi.com/yurigokoryan
 /**
  * Shared motion values for every component. Strong ease-out for things that
  * enter or leave, ease-in-out for movement on screen, and a bounce-free spring

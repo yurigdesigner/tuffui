@@ -55,7 +55,9 @@ pnpm lint && pnpm typecheck && pnpm format:check
 
 ## Add a component
 
-1. Create `registry/<slug>/<slug>.tsx`, `demo.tsx` and `docs.ts`.
+1. Create `registry/<slug>/<slug>.tsx`, `demo.tsx` and `docs.ts`. Start the component
+   file with the two license lines every component has; the registry build fails
+   without them.
 2. Add an entry to `lib/catalog.ts`.
 3. Import shared primitives as `@/components/ui/<name>` and motion values from
    `@/lib/motion-tokens`. The registry build reads each file's imports and fills in npm
@@ -85,31 +87,7 @@ preview in a device frame (1280 / 768 / 390) on `/components/<slug>` and render 
    to the page. Check: no element with `overflow-x: auto | scroll` and
    `scrollWidth > clientWidth`, and nothing visible outside the screen box.
 
-## Deploy
+## License
 
-The site is a fully static export: `pnpm build` writes every page, the registry JSON
-(`/r/*.json`), `llms.txt` and the OG images to `out/`, plus `out/_headers` with content
-types and cache rules. Any static host works; Cloudflare serves static assets with no
-bandwidth or request charges, which keeps heavy registry traffic free.
-
-### Cloudflare (recommended)
-
-1. Registry install URLs, `registryDependencies`, OG images and `llms.txt` are built from
-   the site URL, which defaults to `https://tuffui.com` (override with `NEXT_PUBLIC_SITE_URL`):
-   `pnpm cf:deploy`
-   This builds and runs `wrangler deploy` with `wrangler.jsonc` (Workers static assets,
-   no Worker script). The first run asks you to log in to Cloudflare.
-2. Or connect the GitHub repo in the Cloudflare dashboard (Workers & Pages → Create →
-   import a repository), with build command `pnpm build`, output directory `out`, and
-   `NEXT_PUBLIC_SITE_URL` set under build variables.
-3. Add the `tuffui.com` custom domain and redeploy.
-
-### Preview locally
-
-`pnpm build && pnpm start` serves `out/` at http://localhost:3000.
-
-### Other hosts
-
-Upload `out/` to Vercel, Netlify, GitHub Pages or S3 + CloudFront. Only Cloudflare reads
-`_headers`; elsewhere set `Content-Type: image/png` for `*/opengraph-image*` and
-`application/json` for `/source/*` in the host's config.
+MIT. Free for personal and commercial use; keep the license line at the top of each file.
+If TUFFUI saves you time, you can support it on [Ko-fi](https://ko-fi.com/yurigokoryan).
