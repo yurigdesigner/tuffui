@@ -14,9 +14,11 @@ export function ComponentCard({ entry }: { entry: CatalogEntry }) {
   return (
     <Link
       href={`/components/${entry.slug}`}
-      onPointerEnter={() => setPlaying(true)}
+      // Preview plays on mouse hover and keyboard focus only. On touch, swapping
+      // the thumbnail on tap makes iOS treat the tap as a hover and drop the click.
+      onPointerEnter={(e) => e.pointerType === "mouse" && setPlaying(true)}
       onPointerLeave={() => setPlaying(false)}
-      onFocus={() => setPlaying(true)}
+      onFocus={(e) => e.currentTarget.matches(":focus-visible") && setPlaying(true)}
       onBlur={() => setPlaying(false)}
       className={cn(
         "group flex stagger-in flex-col rounded-[1.375rem] bg-surface p-1.5 transition-[background-color,scale] duration-200 ease-ui-out active:scale-[0.99] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color-mix(in_oklab,var(--surface),var(--foreground)_5%)]",
