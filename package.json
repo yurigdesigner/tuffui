@@ -1,0 +1,46 @@
+{
+  "name": "tuffui",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "pnpm registry:build && next build && node scripts/static-headers.mts",
+    "start": "pnpm dlx serve@14 out",
+    "lint": "eslint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "registry:build": "node scripts/build-registry.mts",
+    "cf:deploy": "pnpm build && pnpm dlx wrangler@4 deploy"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@shikijs/transformers": "4.6.0",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "lucide-react": "^1.66.0",
+    "motion": "^14.9.0",
+    "next": "16.4.4",
+    "radix-ui": "^1.8.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "shiki": "^4.6.0",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.4",
+    "prettier": "^3.9.10",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "shadcn": "^4.23.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "license": "MIT",
+  "type": "module"
+}

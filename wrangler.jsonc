@@ -1,0 +1,10 @@
+// Cloudflare Workers static assets: the whole site is the `out` folder from
+// `pnpm build`. No Worker script runs, so requests are served from the CDN for free.
+{
+  "name": "free-components",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "404-page",
+  },
+}

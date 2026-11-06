@@ -1,0 +1,2117 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "tuffui",
+  "homepage": "https://tuffui.com",
+  "items": [
+    {
+      "name": "theme",
+      "type": "registry:theme",
+      "title": "Theme tokens",
+      "description": "Surface, accent and status tokens shared by every component.",
+      "cssVars": {
+        "light": {
+          "surface": "oklch(0.948 0.002 286)",
+          "surface-inset": "oklch(1 0 0)",
+          "surface-raised": "oklch(0.912 0.003 286)",
+          "brand": "#0071e3",
+          "brand-foreground": "#ffffff",
+          "positive": "#248a3d",
+          "negative": "#d70015",
+          "warning": "#c93400",
+          "button": "linear-gradient(0deg, #fff 0%, #e6e6e6 100%)",
+          "button-hover": "linear-gradient(0deg, #fff 0%, #eeeeee 100%)",
+          "button-foreground": "#111111",
+          "button-edge": "rgba(0, 0, 0, 0.1)",
+          "button-shadow": "0 0 #0000",
+          "button-secondary": "linear-gradient(180deg, #e2e2e2 0%, #ececec 100%)",
+          "button-secondary-hover": "linear-gradient(180deg, #dadada 0%, #e4e4e4 100%)"
+        },
+        "dark": {
+          "surface": "oklch(0.212 0 0)",
+          "surface-inset": "oklch(0.172 0 0)",
+          "surface-raised": "oklch(0.265 0 0)",
+          "brand": "#0a84ff",
+          "brand-foreground": "#ffffff",
+          "positive": "#30d158",
+          "negative": "#ff453a",
+          "warning": "#ff9f0a",
+          "button": "linear-gradient(0deg, #fff 0%, #ababab 100%)",
+          "button-hover": "linear-gradient(0deg, #fff 0%, #c2c2c2 100%)",
+          "button-foreground": "#111111",
+          "button-edge": "rgba(255, 255, 255, 0.5)",
+          "button-shadow": "0 2px 2px 0 rgba(0, 0, 0, 0.1)",
+          "button-secondary": "linear-gradient(180deg, #1d1d1d 0%, #262626 100%)",
+          "button-secondary-hover": "linear-gradient(180deg, #242424 0%, #2d2d2d 100%)"
+        }
+      }
+    },
+    {
+      "name": "motion-tokens",
+      "type": "registry:lib",
+      "title": "Motion tokens",
+      "description": "Shared easing curves, springs and enter/exit transitions.",
+      "files": [
+        {
+          "path": "registry/motion-tokens/motion-tokens.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
+      "name": "use-mock-run",
+      "type": "registry:hook",
+      "title": "useMockRun",
+      "description": "Plays scripted agent runs for demos and tests.",
+      "files": [
+        {
+          "path": "registry/use-mock-run/use-mock-run.ts",
+          "type": "registry:hook"
+        }
+      ]
+    },
+    {
+      "name": "surface",
+      "type": "registry:ui",
+      "title": "Surface",
+      "description": "Shell, Panel, Inset, IconTile and ShellHeader — the borderless layers every component is framed with.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/surface/surface.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "action-button",
+      "type": "registry:ui",
+      "title": "Action Button",
+      "description": "Silver primary, secondary, quiet and danger buttons in two sizes, with icons, loading and icon-only buttons.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/tooltip-hint.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/action-button/action-button.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "choice-controls",
+      "type": "registry:ui",
+      "title": "Choice Controls",
+      "description": "Switch, borderless Checkbox with a mixed state, and a RadioGroup with arrow-key navigation.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/choice-controls/choice-controls.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "status-pill",
+      "type": "registry:ui",
+      "title": "Status Pill",
+      "description": "Tinted status pills in five tones with icon or dot, plus a mono Tag for models, branches and transports.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/status-pill/status-pill.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "segmented-control",
+      "type": "registry:ui",
+      "title": "Segmented Control",
+      "description": "Radio-style segmented switch with a sliding active pill that jumps instantly from the keyboard.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/segmented-control/segmented-control.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "progress-bar",
+      "type": "registry:ui",
+      "title": "Progress Bar",
+      "description": "Progress and meter bars in five tones with optional stripes, plus a stacked SegmentedBar.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/progress-bar/progress-bar.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "rolling-number",
+      "type": "registry:ui",
+      "title": "Rolling Number",
+      "description": "Odometer-style number: each digit rolls to its new value, units and separators stay put.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/rolling-number/rolling-number.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "text-field",
+      "type": "registry:ui",
+      "title": "Text Field",
+      "description": "Borderless TextField, SearchField with clear and TextArea, with label, description and error wiring.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/text-field/text-field.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "tooltip-hint",
+      "type": "registry:ui",
+      "title": "Tooltip",
+      "description": "Hint anchored to its trigger: scales in from the trigger side, opens instantly once one is warm.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/tooltip-hint/tooltip-hint.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "action-menu",
+      "type": "registry:ui",
+      "title": "Action Menu",
+      "description": "Dropdown and right-click menus — items with icons and shortcuts, submenus, checkable items and a destructive group.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion",
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/action-menu/action-menu.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "popover-panel",
+      "type": "registry:ui",
+      "title": "Popover Panel",
+      "description": "A panel anchored to its trigger — grows from it, closes on outside click or Esc, keeps focus inside.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion",
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/popover-panel/popover-panel.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "modal-sheet",
+      "type": "registry:ui",
+      "title": "Modal Sheet",
+      "description": "Centered dialog and edge sheet (drawer) — focus trap, scroll lock, Esc and backdrop to close.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion",
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/modal-sheet/modal-sheet.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "toast-stack",
+      "type": "registry:ui",
+      "title": "Toast Stack",
+      "description": "Notifications that stack, expand on hover, pause while hovered, swipe or click to dismiss, with actions.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/toast-stack/toast-stack.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "select-field",
+      "type": "registry:ui",
+      "title": "Select Field",
+      "description": "Select and searchable combobox — options with icons and hints, groups, keyboard typeahead.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion",
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/loader.json"
+      ],
+      "files": [
+        {
+          "path": "registry/select-field/select-field.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "tab-panels",
+      "type": "registry:ui",
+      "title": "Tab Panels",
+      "description": "Tabs with panels — sliding indicator, keyboard navigation, lazy panels and counts.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/tab-panels/tab-panels.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "disclosure",
+      "type": "registry:ui",
+      "title": "Disclosure",
+      "description": "Accordion and single collapsible sections with smooth height animation.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/disclosure/disclosure.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "agent-avatar",
+      "type": "registry:ui",
+      "title": "Agent Avatar",
+      "description": "Avatars for agents and people — initials or image, presence and activity state, stacked groups.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/tooltip-hint.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/agent-avatar/agent-avatar.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "loading-skeleton",
+      "type": "registry:ui",
+      "title": "Loading Skeleton",
+      "description": "Placeholders for answers, lists and cards while they load.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/loading-skeleton/loading-skeleton.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "range-slider",
+      "type": "registry:ui",
+      "title": "Range Slider",
+      "description": "Single and range sliders with steps, marks and value labels — for temperature, length, budgets.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/range-slider/range-slider.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "key-hint",
+      "type": "registry:ui",
+      "title": "Key Hint",
+      "description": "Keyboard shortcut hints that adapt to the platform — Cmd on Mac, Ctrl elsewhere.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/key-hint/key-hint.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "loader",
+      "type": "registry:ui",
+      "title": "Loader",
+      "description": "Spinner and thinking indicators in a few sizes, with an accessible label.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/loader/loader.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "empty-state",
+      "type": "registry:ui",
+      "title": "Empty State",
+      "description": "Empty, no-results and error states with an icon, message and actions.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/empty-state/empty-state.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "date-field",
+      "type": "registry:ui",
+      "title": "Date Field",
+      "description": "Calendar and date picker — month grid, ranges, keyboard navigation and min / max.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/popover-panel.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/date-field/date-field.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "drop-zone",
+      "type": "registry:ui",
+      "title": "Drop Zone",
+      "description": "Drag-and-drop file target for a chat — accepts types and size limits, shows why a file was rejected.",
+      "categories": [
+        "foundations"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/drop-zone/drop-zone.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "ai-chat",
+      "type": "registry:block",
+      "title": "AI Chat",
+      "description": "A complete chat app screen — history sidebar, a thread with tool calls, cited answers and feedback, follow-up chips and a composer with a context meter.",
+      "categories": [
+        "screens"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/agent-composer.json",
+        "https://tuffui.com/r/agent-avatar.json",
+        "https://tuffui.com/r/key-hint.json",
+        "https://tuffui.com/r/chat-thread.json",
+        "https://tuffui.com/r/context-window-meter.json",
+        "https://tuffui.com/r/conversation-list.json",
+        "https://tuffui.com/r/prompt-suggestions.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/tooltip-hint.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/response-feedback.json",
+        "https://tuffui.com/r/source-list.json",
+        "https://tuffui.com/r/streaming-message.json",
+        "https://tuffui.com/r/tool-call-block.json"
+      ],
+      "files": [
+        {
+          "path": "registry/ai-chat/ai-chat.tsx",
+          "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "coding-agent",
+      "type": "registry:block",
+      "title": "Coding Agent",
+      "description": "An agent working in a repo — chat with plan and permission requests on one side, file changes, terminal and a live preview on the other.",
+      "categories": [
+        "screens"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/agent-avatar.json",
+        "https://tuffui.com/r/agent-composer.json",
+        "https://tuffui.com/r/agent-status.json",
+        "https://tuffui.com/r/chat-thread.json",
+        "https://tuffui.com/r/checkpoint-timeline.json",
+        "https://tuffui.com/r/file-changes.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/tab-panels.json",
+        "https://tuffui.com/r/terminal-output.json",
+        "https://tuffui.com/r/tooltip-hint.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/streaming-message.json",
+        "https://tuffui.com/r/tool-approval-queue.json",
+        "https://tuffui.com/r/tool-call-block.json"
+      ],
+      "files": [
+        {
+          "path": "registry/coding-agent/coding-agent.tsx",
+          "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "data-answer",
+      "type": "registry:block",
+      "title": "Data Answer",
+      "description": "An analytics question answered with KPI cards, a chart and a table, plus follow-up questions to dig further.",
+      "categories": [
+        "screens"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/agent-composer.json",
+        "https://tuffui.com/r/agent-avatar.json",
+        "https://tuffui.com/r/chat-thread.json",
+        "https://tuffui.com/r/prompt-suggestions.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/tooltip-hint.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/chart-card.json",
+        "https://tuffui.com/r/data-table.json",
+        "https://tuffui.com/r/source-list.json",
+        "https://tuffui.com/r/stat-grid.json",
+        "https://tuffui.com/r/streaming-message.json",
+        "https://tuffui.com/r/tool-call-block.json"
+      ],
+      "files": [
+        {
+          "path": "registry/data-answer/data-answer.tsx",
+          "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "booking-assistant",
+      "type": "registry:block",
+      "title": "Booking Assistant",
+      "description": "An assistant that acts — compares options, picks a time, fills a form and confirms before it books.",
+      "categories": [
+        "screens"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/agent-composer.json",
+        "https://tuffui.com/r/agent-avatar.json",
+        "https://tuffui.com/r/chat-thread.json",
+        "https://tuffui.com/r/progress-bar.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/tooltip-hint.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/agent-question.json",
+        "https://tuffui.com/r/confirmation-card.json",
+        "https://tuffui.com/r/form-card.json",
+        "https://tuffui.com/r/result-carousel.json",
+        "https://tuffui.com/r/slot-picker.json"
+      ],
+      "files": [
+        {
+          "path": "registry/booking-assistant/booking-assistant.tsx",
+          "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "agent-console",
+      "type": "registry:block",
+      "title": "Agent Console",
+      "description": "A team view of agents in production — background runs, a trace, eval results, usage and rate limits.",
+      "categories": [
+        "screens"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/agent-avatar.json",
+        "https://tuffui.com/r/background-agents.json",
+        "https://tuffui.com/r/context-window-meter.json",
+        "https://tuffui.com/r/eval-results.json",
+        "https://tuffui.com/r/rate-limits.json",
+        "https://tuffui.com/r/run-trace.json",
+        "https://tuffui.com/r/stat-grid.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/toast-stack.json",
+        "https://tuffui.com/r/tool-approval-queue.json",
+        "https://tuffui.com/r/tooltip-hint.json",
+        "https://tuffui.com/r/usage-summary.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/agent-console/agent-console.tsx",
+          "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "support-widget",
+      "type": "registry:block",
+      "title": "Support Widget",
+      "description": "A support bot embedded on a website — launcher bubble, quick replies, order lookup, handoff to a human and a rating at the end.",
+      "categories": [
+        "screens"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/agent-avatar.json",
+        "https://tuffui.com/r/chat-thread.json",
+        "https://tuffui.com/r/loader.json",
+        "https://tuffui.com/r/prompt-suggestions.json",
+        "https://tuffui.com/r/response-feedback.json",
+        "https://tuffui.com/r/text-field.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/agent-question.json",
+        "https://tuffui.com/r/progress-bar.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json"
+      ],
+      "files": [
+        {
+          "path": "registry/support-widget/support-widget.tsx",
+          "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "handoff-inbox",
+      "type": "registry:block",
+      "title": "Handoff Inbox",
+      "description": "Where people take over from the bot — escalated conversations by urgency, what the bot already did, reply and hand back.",
+      "categories": [
+        "screens"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/agent-composer.json",
+        "https://tuffui.com/r/agent-avatar.json",
+        "https://tuffui.com/r/chat-thread.json",
+        "https://tuffui.com/r/data-table.json",
+        "https://tuffui.com/r/disclosure.json",
+        "https://tuffui.com/r/empty-state.json",
+        "https://tuffui.com/r/key-hint.json",
+        "https://tuffui.com/r/memory-panel.json",
+        "https://tuffui.com/r/prompt-suggestions.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/tool-call-block.json",
+        "https://tuffui.com/r/tooltip-hint.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/handoff-inbox/handoff-inbox.tsx",
+          "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "streaming-message",
+      "type": "registry:ui",
+      "title": "Streaming Message",
+      "description": "Assistant message with token streaming, collapsible reasoning, citation chips and copy / retry actions.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/tooltip-hint.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/streaming-message/streaming-message.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "agent-status",
+      "type": "registry:ui",
+      "title": "Agent Status",
+      "description": "Live activity line for a working agent — current step, rotating detail, elapsed time and a stop action.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/agent-status/agent-status.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "message-branches",
+      "type": "registry:ui",
+      "title": "Message Branches",
+      "description": "Switch between regenerated answers and edited prompts — arrows, a mini branch map, and direction-aware swaps.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/message-branches/message-branches.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "response-feedback",
+      "type": "registry:ui",
+      "title": "Response Feedback",
+      "description": "Thumbs up or down under an answer; a down vote opens reason chips and a note, then settles into a thank-you.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/text-field.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/response-feedback/response-feedback.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "agent-composer",
+      "type": "registry:ui",
+      "title": "Agent Composer",
+      "description": "Prompt input with Ask / Plan / Act modes, a context tray with token counts and messages that queue while the agent works.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/key-hint.json",
+        "https://tuffui.com/r/loader.json"
+      ],
+      "files": [
+        {
+          "path": "registry/agent-composer/agent-composer.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "agent-question",
+      "type": "registry:ui",
+      "title": "Agent Question",
+      "description": "Agent asks with choice cards, marks its own suggestion and reason, and accepts a pick, several picks or free text.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "Something else…",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/agent-question/agent-question.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "tool-approval-queue",
+      "type": "registry:ui",
+      "title": "Tool Approval Queue",
+      "description": "Triage pending tool calls by risk: select several, grant once, for the session or always, and undo from the resolved log.",
+      "categories": [
+        "tools"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/choice-controls.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/empty-state.json"
+      ],
+      "files": [
+        {
+          "path": "registry/tool-approval-queue/tool-approval-queue.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "tool-call-block",
+      "type": "registry:ui",
+      "title": "Tool Call Block",
+      "description": "Inline chat card for a tool call: name, collapsible JSON args, status, duration and a result preview.",
+      "categories": [
+        "tools"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/tool-call-block/tool-call-block.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "file-changes",
+      "type": "registry:ui",
+      "title": "File Changes",
+      "description": "Split review: a file tree on one side, hunks on the other — keep or revert each hunk, then apply the result.",
+      "categories": [
+        "tools"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/file-changes/file-changes.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "terminal-output",
+      "type": "registry:ui",
+      "title": "Terminal Output",
+      "description": "Streaming command output with stdout / stderr lines, exit status, duration, copy and stop.",
+      "categories": [
+        "tools"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/terminal-output/terminal-output.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "mcp-servers",
+      "type": "registry:ui",
+      "title": "MCP Servers",
+      "description": "Connected MCP servers with status, auth prompts and reconnect — expand one to switch individual tools on or off.",
+      "categories": [
+        "tools"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/choice-controls.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/text-field.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/empty-state.json"
+      ],
+      "files": [
+        {
+          "path": "registry/mcp-servers/mcp-servers.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "background-agents",
+      "type": "registry:ui",
+      "title": "Background Agents Panel",
+      "description": "Agents working in the background as a grid of live tiles or a compact dock that expands into the selected agent.",
+      "categories": [
+        "planning"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/background-agents/background-agents.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "checkpoint-timeline",
+      "type": "registry:ui",
+      "title": "Checkpoint Timeline",
+      "description": "Checkpoints the agent made along the way — scrub through turns, see what changed, restore to any point.",
+      "categories": [
+        "planning"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/checkpoint-timeline/checkpoint-timeline.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "run-trace",
+      "type": "registry:ui",
+      "title": "Run Trace",
+      "description": "Flame graph of an agent run with click-to-zoom spans, plus a breakdown of where time, tokens and cost went.",
+      "categories": [
+        "observability"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/progress-bar.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/loader.json"
+      ],
+      "files": [
+        {
+          "path": "registry/run-trace/run-trace.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "eval-results",
+      "type": "registry:ui",
+      "title": "Eval Results",
+      "description": "An eval run as a grid of cases — pass, fail or regressed vs the baseline — with per-case input, expected and actual.",
+      "categories": [
+        "observability"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/progress-bar.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/eval-results/eval-results.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "context-window-meter",
+      "type": "registry:ui",
+      "title": "Context Window Meter",
+      "description": "Token usage by segment — system, history, files, tools — with a near-limit warning and a compact action.",
+      "categories": [
+        "usage"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/context-window-meter/context-window-meter.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "memory-panel",
+      "type": "registry:ui",
+      "title": "Memory Panel",
+      "description": "What the agent remembers about the user and project — search, scopes, inline edit and forget.",
+      "categories": [
+        "usage"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/text-field.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/empty-state.json"
+      ],
+      "files": [
+        {
+          "path": "registry/memory-panel/memory-panel.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "usage-summary",
+      "type": "registry:ui",
+      "title": "Usage Summary",
+      "description": "Tokens and cost over time, split by model, against a monthly budget.",
+      "categories": [
+        "usage"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/progress-bar.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/usage-summary/usage-summary.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "rate-limits",
+      "type": "registry:ui",
+      "title": "Rate Limits",
+      "description": "Requests and tokens per minute as refilling buckets, with a retry-after countdown and queued calls when throttled.",
+      "categories": [
+        "usage"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/progress-bar.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/rate-limits/rate-limits.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "chat-thread",
+      "type": "registry:ui",
+      "title": "Chat Thread",
+      "description": "The conversation itself — user and assistant turns, grouping, date dividers, unread marker and a jump-to-latest pill.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/agent-avatar.json"
+      ],
+      "files": [
+        {
+          "path": "registry/chat-thread/chat-thread.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "user-message",
+      "type": "registry:ui",
+      "title": "User Message",
+      "description": "A sent prompt with attachments, edit-in-place and resend, copy, and a delivery state.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/text-field.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/loader.json"
+      ],
+      "files": [
+        {
+          "path": "registry/user-message/user-message.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "conversation-list",
+      "type": "registry:ui",
+      "title": "Conversation List",
+      "description": "Chat history for a sidebar — search, pinned and dated groups, rename inline, archive and delete with undo.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/action-menu.json",
+        "https://tuffui.com/r/empty-state.json",
+        "https://tuffui.com/r/loader.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/text-field.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/conversation-list/conversation-list.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "prompt-suggestions",
+      "type": "registry:ui",
+      "title": "Prompt Suggestions",
+      "description": "Starter prompts for an empty chat and follow-up chips under an answer.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/prompt-suggestions/prompt-suggestions.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "attachment-preview",
+      "type": "registry:ui",
+      "title": "Attachment Preview",
+      "description": "Images and files attached to a prompt — thumbnails, type and size, upload progress, retry and remove.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/progress-bar.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/attachment-preview/attachment-preview.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "code-block",
+      "type": "registry:ui",
+      "title": "Code Block",
+      "description": "Code in an answer — filename, language, line numbers, wrap toggle, copy and collapse for long snippets.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/code-block/code-block.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "source-list",
+      "type": "registry:ui",
+      "title": "Source List",
+      "description": "Citations behind an answer — numbered footnotes with hover previews and a panel of every source used.",
+      "categories": [
+        "conversation"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/tooltip-hint.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/source-list/source-list.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "chart-card",
+      "type": "registry:ui",
+      "title": "Chart Card",
+      "description": "A chart the agent answers with — bar, line, area or donut, with tooltips, legend toggles and animated data.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/chart-card/chart-card.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "dot-histogram",
+      "type": "registry:ui",
+      "title": "Dot Histogram",
+      "description": "A distribution as stacked dots — every sample visible, median and p95 marked, samples past a limit such as a timeout flagged.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/dot-histogram/dot-histogram.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "tick-gauge",
+      "type": "registry:ui",
+      "title": "Tick Gauge",
+      "description": "A meter drawn as ticks around an arc, with a target marker and the shortfall to it in red — success rates, SLOs, budgets.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/tick-gauge/tick-gauge.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "mirror-strips",
+      "type": "registry:ui",
+      "title": "Mirror Strips",
+      "description": "Rows of dot strips with two series mirrored around a line — compare rounds or weeks on one axis, with pinned columns and notes.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/mirror-strips/mirror-strips.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "radial-dots",
+      "type": "registry:ui",
+      "title": "Radial Dots",
+      "description": "A cycle as rings of dots — hours of the day or days of the week, stacked by series, with the headline in the middle.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/radial-dots/radial-dots.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "match-field",
+      "type": "registry:ui",
+      "title": "Match Field",
+      "description": "A fit field — candidates, bots or options placed by score around a centre, grouped into sectors, with threshold rings.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/match-field/match-field.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "radar-chart",
+      "type": "registry:ui",
+      "title": "Radar Chart",
+      "description": "Scores across several axes as a polygon, with a dashed bar to meet and each member's values as dots on the spokes.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/radar-chart/radar-chart.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "diverging-bars",
+      "type": "registry:ui",
+      "title": "Diverging Bars",
+      "description": "Stacked daily columns with one series hanging below zero on its own scale — triaged vs escalated, solved vs handed off.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/diverging-bars/diverging-bars.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "blast-radius",
+      "type": "registry:ui",
+      "title": "Blast Radius",
+      "description": "What a key, agent or tool can reach, hop by hop around a centre, with the affected paths in red.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/blast-radius/blast-radius.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "iso-bars",
+      "type": "registry:ui",
+      "title": "Iso Bars",
+      "description": "Isometric stacked bars in two rows — the main volume behind, rework or failures in front.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/iso-bars/iso-bars.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "hex-density",
+      "type": "registry:ui",
+      "title": "Hex Density",
+      "description": "A density map of two measures in hexagons, split by a threshold line — retrieved vs dropped, fast vs slow.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/hex-density/hex-density.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "data-table",
+      "type": "registry:ui",
+      "title": "Data Table",
+      "description": "Tabular results — sortable columns, filter, pagination, row selection and copy as CSV.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/choice-controls.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/text-field.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils",
+        "https://tuffui.com/r/empty-state.json"
+      ],
+      "files": [
+        {
+          "path": "registry/data-table/data-table.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "stat-grid",
+      "type": "registry:ui",
+      "title": "Stat Grid",
+      "description": "KPI cards with rolling numbers, deltas and sparklines for a quick summary answer.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/progress-bar.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/stat-grid/stat-grid.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "form-card",
+      "type": "registry:ui",
+      "title": "Form Card",
+      "description": "A form the agent asks the user to fill — fields, selects, validation and a submitted state.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/choice-controls.json",
+        "https://tuffui.com/r/select-field.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/text-field.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/form-card/form-card.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "result-carousel",
+      "type": "registry:ui",
+      "title": "Result Carousel",
+      "description": "A row of result cards — image, title, meta and an action — with snap scrolling and arrows.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/result-carousel/result-carousel.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "slot-picker",
+      "type": "registry:ui",
+      "title": "Slot Picker",
+      "description": "Pick a time the agent proposed — days, free slots, time zone and a confirm step.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/choice-controls.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/slot-picker/slot-picker.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "confirmation-card",
+      "type": "registry:ui",
+      "title": "Confirmation Card",
+      "description": "A summary of what the agent is about to do — line items, totals and confirm or edit before it acts.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/progress-bar.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/confirmation-card/confirmation-card.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "json-viewer",
+      "type": "registry:ui",
+      "title": "JSON Viewer",
+      "description": "Structured output as a collapsible tree — types, counts, search, copy path and copy value.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/code-block.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/text-field.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/json-viewer/json-viewer.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "artifact-panel",
+      "type": "registry:ui",
+      "title": "Artifact Panel",
+      "description": "A side canvas for what the agent made — live preview and source tabs, version history and download.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/artifact-panel/artifact-panel.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    }
+  ]
+}

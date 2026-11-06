@@ -1,0 +1,225 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Theme tokens.
+ *
+ * Names that already exist in shadcn/ui (background, foreground, border,
+ * muted-foreground, ring) keep the same meaning, so components installed into
+ * a shadcn project pick up that project's theme. Everything else is additive
+ * and never collides.
+ *
+ * Depth without borders, shadows or glows: a component is a `surface` shell
+ * holding `surface-inset` panels, and controls on those panels are
+ * `surface-raised`. Layers separate only by background steps.
+ *
+ * Primary buttons use the silver `button` gradient — the one place a hairline
+ * edge and a small drop shadow are allowed.
+ *
+ * The accent (--brand) is blue; status colors are saturated system hues.
+ */
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.975 0.0015 286);
+  --foreground: oklch(0.2 0.004 286);
+  --surface: oklch(0.948 0.002 286);
+  --surface-inset: oklch(1 0 0);
+  --surface-raised: oklch(0.912 0.003 286);
+  --border: oklch(0.2 0.004 286 / 0.07);
+  --muted-foreground: oklch(0.5 0.008 286);
+  --ring: color-mix(in oklab, var(--brand) 55%, transparent);
+
+  --brand: #0071e3;
+  --brand-foreground: #ffffff;
+  --positive: #248a3d;
+  --negative: #d70015;
+  --warning: #c93400;
+
+  --button: linear-gradient(0deg, #fff 0%, #e6e6e6 100%);
+  --button-hover: linear-gradient(0deg, #fff 0%, #eeeeee 100%);
+  --button-foreground: #111111;
+  --button-edge: rgba(0, 0, 0, 0.1);
+  --button-shadow: 0 0 #0000;
+  --button-secondary: linear-gradient(180deg, #e2e2e2 0%, #ececec 100%);
+  --button-secondary-hover: linear-gradient(180deg, #dadada 0%, #e4e4e4 100%);
+}
+
+.dark {
+  --background: oklch(0.155 0 0);
+  --foreground: oklch(0.97 0 0);
+  --surface: oklch(0.212 0 0);
+  --surface-inset: oklch(0.172 0 0);
+  --surface-raised: oklch(0.265 0 0);
+  --border: oklch(1 0 0 / 0.06);
+  --muted-foreground: oklch(0.68 0.004 286);
+  --ring: color-mix(in oklab, var(--brand) 60%, transparent);
+
+  --brand: #0a84ff;
+  --brand-foreground: #ffffff;
+  --positive: #30d158;
+  --negative: #ff453a;
+  --warning: #ff9f0a;
+
+  --button: linear-gradient(0deg, #fff 0%, #ababab 100%);
+  --button-hover: linear-gradient(0deg, #fff 0%, #c2c2c2 100%);
+  --button-foreground: #111111;
+  --button-edge: rgba(255, 255, 255, 0.5);
+  --button-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.1);
+  --button-secondary: linear-gradient(180deg, #1d1d1d 0%, #262626 100%);
+  --button-secondary-hover: linear-gradient(180deg, #242424 0%, #2d2d2d 100%);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-logo: var(--font-orbitron), var(--font-geist-sans), sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-inset: var(--surface-inset);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-warning: var(--warning);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Site motion curves (registry components inline their own). */
+  --ease-ui-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-ui-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --animate-fade-in: fade-in 150ms var(--ease-ui-out);
+  --animate-fade-up: fade-up 320ms var(--ease-ui-out) both;
+  --animate-slide-in-left: slide-in-left 320ms var(--ease-drawer);
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      translate: 0 8px;
+    }
+  }
+  @keyframes slide-in-left {
+    from {
+      translate: -100% 0;
+    }
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+    /* Thin, trackless scrollbars that only show the thumb. */
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 18%, transparent) transparent;
+  }
+
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-brand) 30%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+@utility label {
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+/* Cards that enter together cascade 40ms apart; interaction is never blocked. */
+@utility stagger-in {
+  animation: var(--animate-fade-up);
+  &:nth-child(2) {
+    animation-delay: 40ms;
+  }
+  &:nth-child(3) {
+    animation-delay: 80ms;
+  }
+  &:nth-child(4) {
+    animation-delay: 120ms;
+  }
+  &:nth-child(5) {
+    animation-delay: 160ms;
+  }
+  &:nth-child(6) {
+    animation-delay: 200ms;
+  }
+  &:nth-child(7) {
+    animation-delay: 240ms;
+  }
+  &:nth-child(n + 8) {
+    animation-delay: 280ms;
+  }
+}
+
+/* Reduced motion keeps fades and drops movement. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+  }
+  .stagger-in,
+  .animate-slide-in-left {
+    animation-name: fade-in;
+  }
+}
+
+/* Shiki: both palettes ship in the markup, the theme class picks one. */
+.code pre {
+  padding: 1rem 3rem 1rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  background: transparent !important;
+  width: max-content;
+  min-width: 100%;
+}
+.code .shiki,
+.code .shiki span {
+  color: var(--shiki-light);
+}
+.dark .code .shiki,
+.dark .code .shiki span {
+  color: var(--shiki-dark);
+}
