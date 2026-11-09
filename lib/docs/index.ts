@@ -40,6 +40,8 @@ import { docs as mirrorStrips } from "@/registry/mirror-strips/docs";
 import { docs as radialDots } from "@/registry/radial-dots/docs";
 import { docs as matchField } from "@/registry/match-field/docs";
 import { docs as radarChart } from "@/registry/radar-chart/docs";
+import { docs as lapTimer } from "@/registry/lap-timer/docs";
+import { docs as evalRace } from "@/registry/eval-race/docs";
 import { docs as divergingBars } from "@/registry/diverging-bars/docs";
 import { docs as blastRadius } from "@/registry/blast-radius/docs";
 import { docs as isoBars } from "@/registry/iso-bars/docs";
@@ -119,6 +121,8 @@ export const componentDocs: Record<string, ComponentDocs> = {
   "radial-dots": radialDots,
   "match-field": matchField,
   "radar-chart": radarChart,
+  "lap-timer": lapTimer,
+  "eval-race": evalRace,
   "diverging-bars": divergingBars,
   "blast-radius": blastRadius,
   "iso-bars": isoBars,

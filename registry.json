@@ -1303,6 +1303,56 @@
       ]
     },
     {
+      "name": "lap-timer",
+      "type": "registry:ui",
+      "title": "Lap Timer",
+      "description": "A pipeline run as a stopwatch — the hand sweeps through each stage's sector, with splits and the delta against the best lap.",
+      "categories": [
+        "observability"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/lap-timer/lap-timer.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "eval-race",
+      "type": "registry:ui",
+      "title": "Eval Race",
+      "description": "Models racing through an eval set on an oval track — one lap per batch of cases, with standings, gaps and the fastest lap.",
+      "categories": [
+        "observability"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/eval-race/eval-race.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "context-window-meter",
       "type": "registry:ui",
       "title": "Context Window Meter",

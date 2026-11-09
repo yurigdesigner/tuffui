@@ -436,6 +436,24 @@ export const catalog: CatalogEntry[] = [
     status: "ready",
   },
   {
+    slug: "lap-timer",
+    name: "Lap Timer",
+    description:
+      "A pipeline run as a stopwatch — the hand sweeps through each stage's sector, with splits and the delta against the best lap.",
+    category: "observability",
+    variants: ["Default"],
+    status: "ready",
+  },
+  {
+    slug: "eval-race",
+    name: "Eval Race",
+    description:
+      "Models racing through an eval set on an oval track — one lap per batch of cases, with standings, gaps and the fastest lap.",
+    category: "observability",
+    variants: ["Race", "Standings"],
+    status: "ready",
+  },
+  {
     slug: "context-window-meter",
     name: "Context Window Meter",
     description:
