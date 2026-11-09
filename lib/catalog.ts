@@ -20,6 +20,8 @@ export type CatalogEntry = {
   variants: string[];
   /** `planned` entries show in nav but have no preview yet. */
   status: "ready" | "planned";
+  /** Release date (YYYY-MM-DD); dated entries lead the home grid, newest first. */
+  added?: string;
 };
 
 export const catalog: CatalogEntry[] = [
@@ -443,6 +445,7 @@ export const catalog: CatalogEntry[] = [
     category: "observability",
     variants: ["Default"],
     status: "ready",
+    added: "2026-11-09",
   },
   {
     slug: "eval-race",
@@ -452,6 +455,7 @@ export const catalog: CatalogEntry[] = [
     category: "observability",
     variants: ["Race", "Standings"],
     status: "ready",
+    added: "2026-11-09",
   },
   {
     slug: "context-window-meter",
@@ -722,6 +726,16 @@ export const catalog: CatalogEntry[] = [
     status: "ready",
   },
 ];
+
+/** The catalog with dated entries first, newest first; the rest keep their order. */
+export function newestFirst() {
+  return catalog.toSorted((a, b) => (b.added ?? "").localeCompare(a.added ?? ""));
+}
+
+/** Released within the last two weeks of the build, so it gets a "New" tag. */
+export function isNew(entry: CatalogEntry, now = Date.now()) {
+  return !!entry.added && now - Date.parse(entry.added) < 14 * 24 * 60 * 60 * 1000;
+}
 
 export function getEntry(slug: string) {
   return catalog.find((entry) => entry.slug === slug);

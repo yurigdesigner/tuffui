@@ -7,7 +7,7 @@ import { getCategory, isScreen } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 import { ComponentThumbnail } from "./component-thumbnail";
 
-export function ComponentCard({ entry }: { entry: CatalogEntry }) {
+export function ComponentCard({ entry, fresh }: { entry: CatalogEntry; fresh?: boolean }) {
   const [playing, setPlaying] = useState(false);
   const screen = isScreen(entry);
 
@@ -36,9 +36,16 @@ export function ComponentCard({ entry }: { entry: CatalogEntry }) {
       </div>
       <div className="flex flex-col gap-1 px-3 pt-3 pb-2.5">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-medium">{entry.name}</h3>
+          <h3 className="flex min-w-0 items-center gap-2 font-medium">
+            <span className="truncate">{entry.name}</span>
+            {fresh && (
+              <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-[0.6875rem] leading-none font-medium text-brand">
+                New
+              </span>
+            )}
+          </h3>
           <span className="font-mono text-xs text-muted-foreground tabular-nums">
-            {screen ? "Screen" : `${entry.variants.length} variants`}
+            {screen ? "Screen" : `${entry.variants.length} ${entry.variants.length === 1 ? "variant" : "variants"}`}
           </span>
         </div>
         <p className="line-clamp-2 text-sm text-muted-foreground">{entry.description}</p>

@@ -5,7 +5,7 @@ import { GitHubStars } from "@/components/site/github-stars";
 import { PromoCorner } from "@/components/site/promo-corner";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
-import { catalog } from "@/lib/catalog";
+import { catalog, isNew, newestFirst } from "@/lib/catalog";
 import { buildStars } from "@/lib/github-stars";
 import { absoluteUrl, JsonLd, pageMetadata } from "@/lib/seo";
 import { siteConfig } from "@/lib/site";
@@ -95,8 +95,8 @@ export default async function Home() {
             </span>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {catalog.map((entry) => (
-              <ComponentCard key={entry.slug} entry={entry} />
+            {newestFirst().map((entry) => (
+              <ComponentCard key={entry.slug} entry={entry} fresh={isNew(entry)} />
             ))}
           </div>
         </section>
