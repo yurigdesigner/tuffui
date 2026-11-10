@@ -2,6 +2,7 @@ import { ArrowRight, Star } from "lucide-react";
 import Link from "next/link";
 import { ComponentCard } from "@/components/site/component-card";
 import { GitHubStars } from "@/components/site/github-stars";
+import { PromoCompact } from "@/components/site/promo";
 import { PromoCorner } from "@/components/site/promo-corner";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
@@ -40,6 +41,13 @@ export default async function Home() {
     <>
       <JsonLd data={structured} />
       <SiteHeader />
+      {/* The corner card needs sm and up; phones get a row under the header. */}
+      <div className="px-4 pt-4 sm:hidden">
+        <PromoCompact
+          campaign="home-mobile"
+          className="bg-surface [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color-mix(in_oklab,var(--surface),var(--foreground)_5%)]"
+        />
+      </div>
       <main id="content" className="flex-1">
         <section className="mx-auto max-w-[90rem] px-4 pt-4 sm:px-6">
           {/* Framed like a component card: a surface shell around an inset panel. */}

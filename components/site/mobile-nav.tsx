@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import { Dialog } from "radix-ui";
 import { useState } from "react";
 import { Logo } from "./logo";
+import { PromoCompact } from "./promo";
 import { SidebarNav } from "./sidebar-nav";
 
 export function MobileNav() {
@@ -42,6 +43,7 @@ export function MobileNav() {
           <div className="flex-1 overflow-y-auto rounded-2xl bg-surface-inset px-2 py-4">
             <SidebarNav onNavigate={() => setOpen(false)} />
           </div>
+          <PromoCompact campaign="mobile-nav" className="mt-1.5" />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

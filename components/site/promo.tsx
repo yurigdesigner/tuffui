@@ -1,4 +1,5 @@
 import { ArrowUpRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const link = (campaign: string) =>
   `https://usetuff.com/?utm_source=tuffui&utm_medium=site&utm_campaign=${campaign}`;
@@ -15,7 +16,7 @@ export function Promo({
     <a
       href={link(campaign)}
       target="_blank"
-      rel="sponsored noopener"
+      rel="noopener"
       className={`group block rounded-2xl bg-surface p-1.5 text-sm transition-[background-color,scale] duration-150 ease-ui-out active:scale-[0.98] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color-mix(in_oklab,var(--surface),var(--foreground)_5%)] ${className ?? ""}`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
@@ -51,6 +52,46 @@ export function Promo({
           From the maker of TUFFUI
         </span>
       </span>
+    </a>
+  );
+}
+
+/** One-row Tuff link for small screens, where the full card has no room. */
+export function PromoCompact({
+  className,
+  campaign = "mobile",
+}: {
+  className?: string;
+  campaign?: string;
+}) {
+  return (
+    <a
+      href={link(campaign)}
+      target="_blank"
+      rel="noopener"
+      className={cn(
+        "group flex items-center gap-3 rounded-2xl bg-surface-inset p-2.5 pr-3.5 transition-[background-color,scale] duration-150 ease-ui-out active:scale-[0.98] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color-mix(in_oklab,var(--surface-inset),var(--foreground)_5%)]",
+        className,
+      )}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- static export */}
+      <img
+        src="/promo/tuff-icon.png"
+        alt=""
+        width={32}
+        height={32}
+        className="size-8 shrink-0 rounded-lg"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">Tuff</span>
+        <span className="block text-xs leading-snug text-pretty text-muted-foreground">
+          Tasks, docs and chat for teams and AI agents
+        </span>
+      </span>
+      <ArrowUpRight
+        className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-150 ease-ui-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+        aria-hidden="true"
+      />
     </a>
   );
 }
