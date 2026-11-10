@@ -458,6 +458,26 @@ export const catalog: CatalogEntry[] = [
     added: "2026-11-09",
   },
   {
+    slug: "tool-call-graph",
+    name: "Tool Call Graph",
+    description:
+      "An agent fanned out to the tools it calls — calls, latency and error rate per edge, with the hottest path picked out.",
+    category: "observability",
+    variants: ["Default"],
+    status: "ready",
+    added: "2026-11-09",
+  },
+  {
+    slug: "deploy-timeline",
+    name: "Deploy Timeline",
+    description:
+      "Prompt and model versions on a timeline over the eval score they shipped with — regressions, rollbacks and the live canary.",
+    category: "observability",
+    variants: ["Default"],
+    status: "ready",
+    added: "2026-11-09",
+  },
+  {
     slug: "context-window-meter",
     name: "Context Window Meter",
     description:

@@ -1353,6 +1353,59 @@
       ]
     },
     {
+      "name": "tool-call-graph",
+      "type": "registry:ui",
+      "title": "Tool Call Graph",
+      "description": "An agent fanned out to the tools it calls — calls, latency and error rate per edge, with the hottest path picked out.",
+      "categories": [
+        "observability"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/tool-call-graph/tool-call-graph.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "deploy-timeline",
+      "type": "registry:ui",
+      "title": "Deploy Timeline",
+      "description": "Prompt and model versions on a timeline over the eval score they shipped with — regressions, rollbacks and the live canary.",
+      "categories": [
+        "observability"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/deploy-timeline/deploy-timeline.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "context-window-meter",
       "type": "registry:ui",
       "title": "Context Window Meter",
