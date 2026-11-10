@@ -465,7 +465,7 @@ export const catalog: CatalogEntry[] = [
     category: "observability",
     variants: ["Default"],
     status: "ready",
-    added: "2026-11-09",
+    added: "2026-11-10",
   },
   {
     slug: "deploy-timeline",
@@ -475,7 +475,7 @@ export const catalog: CatalogEntry[] = [
     category: "observability",
     variants: ["Default"],
     status: "ready",
-    added: "2026-11-09",
+    added: "2026-11-10",
   },
   {
     slug: "context-window-meter",
