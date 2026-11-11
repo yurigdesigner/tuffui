@@ -478,6 +478,26 @@ export const catalog: CatalogEntry[] = [
     added: "2026-11-10",
   },
   {
+    slug: "delivery-heatmap",
+    name: "Delivery Heatmap",
+    description:
+      "Webhook attempts by endpoint and hour — volume as bar height, failing hours picked out, with a dot-column total on top.",
+    category: "observability",
+    variants: ["Default"],
+    status: "ready",
+    added: "2026-11-11",
+  },
+  {
+    slug: "message-log",
+    name: "Message Log",
+    description:
+      "Webhook events over the last hour as a dot timeline you can brush, a filterable log below, and each attempt with its response body.",
+    category: "observability",
+    variants: ["Default"],
+    status: "ready",
+    added: "2026-11-11",
+  },
+  {
     slug: "context-window-meter",
     name: "Context Window Meter",
     description:

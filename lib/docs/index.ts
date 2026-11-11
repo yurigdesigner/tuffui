@@ -44,6 +44,8 @@ import { docs as lapTimer } from "@/registry/lap-timer/docs";
 import { docs as evalRace } from "@/registry/eval-race/docs";
 import { docs as toolCallGraph } from "@/registry/tool-call-graph/docs";
 import { docs as deployTimeline } from "@/registry/deploy-timeline/docs";
+import { docs as deliveryHeatmap } from "@/registry/delivery-heatmap/docs";
+import { docs as messageLog } from "@/registry/message-log/docs";
 import { docs as divergingBars } from "@/registry/diverging-bars/docs";
 import { docs as blastRadius } from "@/registry/blast-radius/docs";
 import { docs as isoBars } from "@/registry/iso-bars/docs";
@@ -127,6 +129,8 @@ export const componentDocs: Record<string, ComponentDocs> = {
   "eval-race": evalRace,
   "tool-call-graph": toolCallGraph,
   "deploy-timeline": deployTimeline,
+  "delivery-heatmap": deliveryHeatmap,
+  "message-log": messageLog,
   "diverging-bars": divergingBars,
   "blast-radius": blastRadius,
   "iso-bars": isoBars,

@@ -3,7 +3,12 @@
 import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
 
-export type DemoProps = { variant?: string; autoplay?: boolean };
+export type DemoProps = {
+  variant?: string;
+  autoplay?: boolean;
+  /** Rendered small on a home-page card: demos can skip details that only make it taller. */
+  thumbnail?: boolean;
+};
 
 // One lazy chunk per component, so a page only ships the demos it shows.
 const demos: Record<string, ComponentType<DemoProps>> = {
@@ -53,6 +58,8 @@ const demos: Record<string, ComponentType<DemoProps>> = {
   "eval-race": dynamic(() => import("@/registry/eval-race/demo")),
   "tool-call-graph": dynamic(() => import("@/registry/tool-call-graph/demo")),
   "deploy-timeline": dynamic(() => import("@/registry/deploy-timeline/demo")),
+  "delivery-heatmap": dynamic(() => import("@/registry/delivery-heatmap/demo")),
+  "message-log": dynamic(() => import("@/registry/message-log/demo")),
   "diverging-bars": dynamic(() => import("@/registry/diverging-bars/demo")),
   "blast-radius": dynamic(() => import("@/registry/blast-radius/demo")),
   "iso-bars": dynamic(() => import("@/registry/iso-bars/demo")),

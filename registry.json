@@ -1406,6 +1406,65 @@
       ]
     },
     {
+      "name": "delivery-heatmap",
+      "type": "registry:ui",
+      "title": "Delivery Heatmap",
+      "description": "Webhook attempts by endpoint and hour — volume as bar height, failing hours picked out, with a dot-column total on top.",
+      "categories": [
+        "observability"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/delivery-heatmap/delivery-heatmap.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "message-log",
+      "type": "registry:ui",
+      "title": "Message Log",
+      "description": "Webhook events over the last hour as a dot timeline you can brush, a filterable log below, and each attempt with its response body.",
+      "categories": [
+        "observability"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/code-block.json",
+        "https://tuffui.com/r/empty-state.json",
+        "https://tuffui.com/r/key-hint.json",
+        "https://tuffui.com/r/segmented-control.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/text-field.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/message-log/message-log.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "context-window-meter",
       "type": "registry:ui",
       "title": "Context Window Meter",

@@ -75,6 +75,7 @@ export function ComponentThumbnail({
             slug={slug}
             variant={variant}
             autoplay={playing}
+            thumbnail
           />
         </div>
       )}
