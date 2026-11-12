@@ -45,6 +45,8 @@ import { docs as evalRace } from "@/registry/eval-race/docs";
 import { docs as toolCallGraph } from "@/registry/tool-call-graph/docs";
 import { docs as deployTimeline } from "@/registry/deploy-timeline/docs";
 import { docs as deliveryHeatmap } from "@/registry/delivery-heatmap/docs";
+import { docs as clausePlaybook } from "@/registry/clause-playbook/docs";
+import { docs as renewalRings } from "@/registry/renewal-rings/docs";
 import { docs as messageLog } from "@/registry/message-log/docs";
 import { docs as divergingBars } from "@/registry/diverging-bars/docs";
 import { docs as blastRadius } from "@/registry/blast-radius/docs";
@@ -130,6 +132,8 @@ export const componentDocs: Record<string, ComponentDocs> = {
   "tool-call-graph": toolCallGraph,
   "deploy-timeline": deployTimeline,
   "delivery-heatmap": deliveryHeatmap,
+  "clause-playbook": clausePlaybook,
+  "renewal-rings": renewalRings,
   "message-log": messageLog,
   "diverging-bars": divergingBars,
   "blast-radius": blastRadius,

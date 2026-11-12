@@ -478,6 +478,26 @@ export const catalog: CatalogEntry[] = [
     added: "2026-11-10",
   },
   {
+    slug: "clause-playbook",
+    name: "Clause Playbook",
+    description:
+      "An agent's negotiation playbook for one clause — market spread as dot columns, walk-away, fallback and preferred zones on a two-handle track, and the settings it acts on.",
+    category: "generative",
+    variants: ["Default"],
+    status: "ready",
+    added: "2026-11-12",
+  },
+  {
+    slug: "renewal-rings",
+    name: "Renewal Rings",
+    description:
+      "Contract renewals on a 12-month clock — one ring per contract from today to its end date, with the notice window hatched and the next deadline picked out.",
+    category: "generative",
+    variants: ["Default"],
+    status: "ready",
+    added: "2026-11-12",
+  },
+  {
     slug: "delivery-heatmap",
     name: "Delivery Heatmap",
     description:

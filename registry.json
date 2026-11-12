@@ -1406,6 +1406,63 @@
       ]
     },
     {
+      "name": "clause-playbook",
+      "type": "registry:ui",
+      "title": "Clause Playbook",
+      "description": "An agent's negotiation playbook for one clause — market spread as dot columns, walk-away, fallback and preferred zones on a two-handle track, and the settings it acts on.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion",
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/choice-controls.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/clause-playbook/clause-playbook.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "renewal-rings",
+      "type": "registry:ui",
+      "title": "Renewal Rings",
+      "description": "Contract renewals on a 12-month clock — one ring per contract from today to its end date, with the notice window hatched and the next deadline picked out.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/renewal-rings/renewal-rings.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "delivery-heatmap",
       "type": "registry:ui",
       "title": "Delivery Heatmap",
