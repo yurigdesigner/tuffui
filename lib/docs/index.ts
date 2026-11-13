@@ -46,6 +46,8 @@ import { docs as toolCallGraph } from "@/registry/tool-call-graph/docs";
 import { docs as deployTimeline } from "@/registry/deploy-timeline/docs";
 import { docs as deliveryHeatmap } from "@/registry/delivery-heatmap/docs";
 import { docs as clausePlaybook } from "@/registry/clause-playbook/docs";
+import { docs as toneRewrite } from "@/registry/tone-rewrite/docs";
+import { docs as inboxCleanup } from "@/registry/inbox-cleanup/docs";
 import { docs as renewalRings } from "@/registry/renewal-rings/docs";
 import { docs as messageLog } from "@/registry/message-log/docs";
 import { docs as divergingBars } from "@/registry/diverging-bars/docs";
@@ -133,6 +135,8 @@ export const componentDocs: Record<string, ComponentDocs> = {
   "deploy-timeline": deployTimeline,
   "delivery-heatmap": deliveryHeatmap,
   "clause-playbook": clausePlaybook,
+  "tone-rewrite": toneRewrite,
+  "inbox-cleanup": inboxCleanup,
   "renewal-rings": renewalRings,
   "message-log": messageLog,
   "diverging-bars": divergingBars,

@@ -15,6 +15,7 @@ import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/
 import { Select as SelectPrimitive } from "radix-ui";
 import { useId, useRef, useState } from "react";
 import { Switch } from "@/components/ui/choice-controls";
+import { Button } from "@/components/ui/action-button";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { StatusPill } from "@/components/ui/status-pill";
 import { Panel, Shell, ShellHeader } from "@/components/ui/surface";
@@ -575,18 +576,15 @@ export function ClausePlaybook({
               </button>
             )}
             {onApply && (
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                icon={Check}
+                iconWeight="bold"
                 disabled={!edits}
                 onClick={apply}
-                className={cn(
-                  pressable,
-                  "gap-1.5 bg-brand pr-3.5 pl-3 text-brand-foreground hover:bg-brand/90",
-                )}
               >
-                <Check weight="bold" aria-hidden="true" className="size-3.5" />
                 Apply
-              </button>
+              </Button>
             )}
           </div>
         )}

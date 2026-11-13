@@ -1406,6 +1406,62 @@
       ]
     },
     {
+      "name": "tone-rewrite",
+      "type": "registry:ui",
+      "title": "Tone Rewrite",
+      "description": "An AI rewrite of a selection — prompt, model and length, a Formal–Casual × Brief–Detailed tone pad, a streamed result and Replace or Insert.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion",
+        "radix-ui"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/key-hint.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/tone-rewrite/tone-rewrite.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "inbox-cleanup",
+      "type": "registry:ui",
+      "title": "Inbox Cleanup",
+      "description": "An agent's answer on which newsletters to drop — senders on a volume × opens scatter, an unsubscribe zone you can resize and a checklist to act on.",
+      "categories": [
+        "generative"
+      ],
+      "dependencies": [
+        "@phosphor-icons/react",
+        "motion"
+      ],
+      "registryDependencies": [
+        "https://tuffui.com/r/theme.json",
+        "https://tuffui.com/r/action-button.json",
+        "https://tuffui.com/r/rolling-number.json",
+        "https://tuffui.com/r/status-pill.json",
+        "https://tuffui.com/r/surface.json",
+        "https://tuffui.com/r/motion-tokens.json",
+        "utils"
+      ],
+      "files": [
+        {
+          "path": "registry/inbox-cleanup/inbox-cleanup.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "clause-playbook",
       "type": "registry:ui",
       "title": "Clause Playbook",
@@ -1421,6 +1477,7 @@
       "registryDependencies": [
         "https://tuffui.com/r/theme.json",
         "https://tuffui.com/r/choice-controls.json",
+        "https://tuffui.com/r/action-button.json",
         "https://tuffui.com/r/rolling-number.json",
         "https://tuffui.com/r/status-pill.json",
         "https://tuffui.com/r/surface.json",

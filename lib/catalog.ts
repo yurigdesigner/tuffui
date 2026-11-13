@@ -478,6 +478,26 @@ export const catalog: CatalogEntry[] = [
     added: "2026-11-10",
   },
   {
+    slug: "tone-rewrite",
+    name: "Tone Rewrite",
+    description:
+      "An AI rewrite of a selection — prompt, model and length, a Formal–Casual × Brief–Detailed tone pad, a streamed result and Replace or Insert.",
+    category: "generative",
+    variants: ["Default"],
+    status: "ready",
+    added: "2026-11-13",
+  },
+  {
+    slug: "inbox-cleanup",
+    name: "Inbox Cleanup",
+    description:
+      "An agent's answer on which newsletters to drop — senders on a volume × opens scatter, an unsubscribe zone you can resize and a checklist to act on.",
+    category: "generative",
+    variants: ["Default"],
+    status: "ready",
+    added: "2026-11-13",
+  },
+  {
     slug: "clause-playbook",
     name: "Clause Playbook",
     description:
