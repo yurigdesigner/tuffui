@@ -69,6 +69,12 @@ export function SignupsAnswer({ result }: { result: SignupsResult }) {
         "Called when a point or slice is hovered, clicked or reached with the arrow keys.",
     },
     {
+      name: "labels",
+      type: "Partial<ChartCardLabels>",
+      description:
+        'Your own UI strings (legend group, Total, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the plot still runs left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

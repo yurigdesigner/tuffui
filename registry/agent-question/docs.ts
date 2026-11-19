@@ -79,6 +79,12 @@ export function Clarify({ question, agent }: { question: PendingQuestion; agent:
       description: "Name shown above the question, e.g. “Claude asks”.",
     },
     {
+      name: "labels",
+      type: "Partial<AgentQuestionLabels>",
+      description:
+        'Your own UI strings (header, suggestion, buttons, free-text field and screen-reader text), for translating. Right-to-left works under `dir="rtl"`.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

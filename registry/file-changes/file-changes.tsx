@@ -4,7 +4,15 @@
 
 import { CaretRight, Check, Folder } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { Button } from "@/components/ui/action-button";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { Segmented } from "@/components/ui/segmented-control";
@@ -48,14 +56,87 @@ export type FileChangesProps = {
   onDiscard?: () => void;
   /** Puts the Apply button in its loading state. */
   applying?: boolean;
+  /** UI strings, for translating the review. */
+  labels?: Partial<FileChangesLabels>;
   className?: string;
 };
 
+export type FileChangesLabels = {
+  status: Record<FileStatus, string>;
+  /** Hunk header, e.g. "Line 12". */
+  line: (n: number) => string;
+  reverted: string;
+  /** Screen-reader name of a hunk. */
+  hunk: (n: number) => string;
+  keepOrRevert: string;
+  keep: string;
+  revert: string;
+  /** Screen-reader prefixes of diff lines. */
+  added: string;
+  removed: string;
+  /** Name of the top folder in the tree. */
+  root: string;
+  /** Previous path of a renamed file. */
+  from: (path: string) => string;
+  files: string;
+  region: string;
+  empty: string;
+  kept: string;
+  revertedStatus: string;
+  applyingStatus: (kept: number, total: number) => string;
+  /** Footer line; `roll` renders an animated number (`strong` for the hunk count). */
+  summary: (
+    kept: number,
+    total: number,
+    files: number,
+    roll: (value: string, strong?: boolean) => ReactNode,
+  ) => ReactNode;
+  discard: string;
+  apply: string;
+  applying: string;
+};
+
+const defaultLabels: FileChangesLabels = {
+  status: {
+    added: "Added",
+    modified: "Modified",
+    deleted: "Deleted",
+    renamed: "Renamed",
+  },
+  line: (n) => `Line ${n}`,
+  reverted: "Reverted",
+  hunk: (n) => `Lines from ${n}`,
+  keepOrRevert: "Keep or revert this hunk",
+  keep: "Keep",
+  revert: "Revert",
+  added: "Added: ",
+  removed: "Removed: ",
+  root: "root",
+  from: (path) => `from ${path}`,
+  files: "Changed files",
+  region: "File changes",
+  empty: "No changes to review",
+  kept: "Hunk kept",
+  revertedStatus: "Hunk reverted",
+  applyingStatus: (kept, total) => `Applying ${kept} of ${total} hunks`,
+  summary: (kept, total, files, roll) => (
+    <>
+      Applying {roll(`${kept} of ${total}`, true)} hunks across {roll(String(files))}{" "}
+      {files === 1 ? "file" : "files"}
+    </>
+  ),
+  discard: "Discard all",
+  apply: "Apply",
+  applying: "Applying…",
+};
+
+const Labels = createContext(defaultLabels);
+
 const statuses = {
-  added: { letter: "A", label: "Added", className: "bg-positive/15 text-positive" },
-  modified: { letter: "M", label: "Modified", className: "bg-brand/15 text-brand" },
-  deleted: { letter: "D", label: "Deleted", className: "bg-negative/15 text-negative" },
-  renamed: { letter: "R", label: "Renamed", className: "bg-[#bf5af2]/15 text-[#bf5af2]" },
+  added: { letter: "A", className: "bg-positive/15 text-positive" },
+  modified: { letter: "M", className: "bg-brand/15 text-brand" },
+  deleted: { letter: "D", className: "bg-negative/15 text-negative" },
+  renamed: { letter: "R", className: "bg-[#bf5af2]/15 text-[#bf5af2]" },
 } as const;
 
 const key = (fileId: string, hunkId: string) => `${fileId}:${hunkId}`;
@@ -77,6 +158,7 @@ const counts = (hunks: DiffHunk[]) =>
 
 function StatusBadge({ status }: { status: FileStatus }) {
   const s = statuses[status];
+  const labels = useContext(Labels);
   return (
     <span
       className={cn(
@@ -85,7 +167,7 @@ function StatusBadge({ status }: { status: FileStatus }) {
       )}
     >
       <span aria-hidden="true">{s.letter}</span>
-      <span className="sr-only">{s.label}</span>
+      <span className="sr-only">{labels.status[status]}</span>
     </span>
   );
 }
@@ -93,7 +175,7 @@ function StatusBadge({ status }: { status: FileStatus }) {
 function Counts({ hunks }: { hunks: DiffHunk[] }) {
   const { add, remove } = counts(hunks);
   return (
-    <span className="shrink-0 font-mono text-[0.6875rem] tabular-nums">
+    <span dir="ltr" className="shrink-0 font-mono text-[0.6875rem] tabular-nums">
       {add > 0 && <span className="text-positive">+{add}</span>}
       {add > 0 && remove > 0 && " "}
       {remove > 0 && <span className="text-negative">−{remove}</span>}
@@ -110,31 +192,34 @@ function Hunk({
   keep: boolean;
   onChange: (keep: boolean) => void;
 }) {
+  const labels = useContext(Labels);
   let oldNo = hunk.oldStart;
   let newNo = hunk.newStart;
   return (
     <Inset
       role="group"
-      aria-label={`Lines from ${hunk.newStart}`}
+      aria-label={labels.hunk(hunk.newStart)}
       className="overflow-hidden"
     >
-      <div className="flex items-center justify-between gap-3 py-1.5 pr-1.5 pl-3">
+      <div className="flex items-center justify-between gap-3 py-1.5 ps-3 pe-1.5">
         <span className="font-mono text-[0.6875rem] text-muted-foreground">
-          Line {hunk.newStart}
-          {!keep && <span className="ml-2 text-warning">· Reverted</span>}
+          {labels.line(hunk.newStart)}
+          {!keep && <span className="ms-2 text-warning">· {labels.reverted}</span>}
         </span>
         <Segmented
-          label="Keep or revert this hunk"
+          label={labels.keepOrRevert}
           className="h-7 text-xs"
           options={[
-            { value: "keep", label: "Keep" },
-            { value: "revert", label: "Revert" },
+            { value: "keep", label: labels.keep },
+            { value: "revert", label: labels.revert },
           ]}
           value={keep ? "keep" : "revert"}
           onValueChange={(v) => onChange(v === "keep")}
         />
       </div>
+      {/* Code reads left to right in any language. */}
       <div
+        dir="ltr"
         className={cn(
           "overflow-hidden pb-1.5 font-mono text-xs leading-5 transition-opacity duration-200 ease-out",
           !keep && "opacity-40",
@@ -172,9 +257,9 @@ function Hunk({
               <span className="[overflow-wrap:anywhere] whitespace-pre-wrap">
                 <span className="sr-only">
                   {line.type === "add"
-                    ? "Added: "
+                    ? labels.added
                     : line.type === "remove"
-                      ? "Removed: "
+                      ? labels.removed
                       : ""}
                 </span>
                 {line.text}
@@ -197,8 +282,10 @@ export function FileChanges({
   onApply,
   onDiscard,
   applying = false,
+  labels: labelOverrides,
   className,
 }: FileChangesProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const [ownId, setOwnId] = useState(defaultSelectedId ?? data[0]?.id);
   const selectedId = controlledId ?? ownId;
   const setSelectedId = (id: string) => {
@@ -237,7 +324,7 @@ export function FileChanges({
   const setKeep = (fileId: string, hunkId: string, keep: boolean) => {
     const k = key(fileId, hunkId);
     setReverted((r) => (keep ? r.filter((x) => x !== k) : r.includes(k) ? r : [...r, k]));
-    setMessage(keep ? "Hunk kept" : "Hunk reverted");
+    setMessage(keep ? labels.kept : labels.revertedStatus);
     onHunkChange?.(fileId, hunkId, keep);
   };
 
@@ -247,7 +334,7 @@ export function FileChanges({
       selection[f.id] = f.hunks
         .filter((h) => !reverted.includes(key(f.id, h.id)))
         .map((h) => h.id);
-    setMessage(`Applying ${kept} of ${total} hunks`);
+    setMessage(labels.applyingStatus(kept, total));
     onApply(selection);
   };
 
@@ -265,9 +352,12 @@ export function FileChanges({
     else if (e.key === "ArrowUp") move(i - 1);
     else if (e.key === "Home") move(0);
     else if (e.key === "End") move(rows.length - 1);
-    else if (type === "dir" && (e.key === "ArrowLeft" || e.key === "ArrowRight"))
-      setClosed((c) => (e.key === "ArrowLeft" ? [...c, id] : c.filter((d) => d !== id)));
-    else if (type === "file" && (e.key === "Enter" || e.key === " ")) {
+    else if (type === "dir" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+      // The arrow toward the start side collapses: left in LTR, right in RTL.
+      const rtl = !!tree.current && getComputedStyle(tree.current).direction === "rtl";
+      const collapse = (e.key === "ArrowLeft") !== rtl;
+      setClosed((c) => (collapse ? [...c, id] : c.filter((d) => d !== id)));
+    } else if (type === "file" && (e.key === "Enter" || e.key === " ")) {
       setKeyboard(true);
       setSelectedId(id);
     } else return;
@@ -278,7 +368,7 @@ export function FileChanges({
     <ul
       ref={tree}
       role="tree"
-      aria-label="Changed files"
+      aria-label={labels.files}
       onKeyDown={onTreeKey}
       className="flex flex-col gap-0.5 p-1.5 text-[0.8125rem]"
     >
@@ -305,17 +395,17 @@ export function FileChanges({
                 weight="bold"
                 aria-hidden="true"
                 className={cn(
-                  "size-3.5 transition-transform duration-150 ease-out",
-                  open && "rotate-90",
+                  "size-3.5 transition-transform duration-150 ease-out rtl:-scale-x-100",
+                  open && "rotate-90 rtl:-rotate-90",
                 )}
               />
               <Folder weight="fill" aria-hidden="true" className="size-3.5" />
               <span className="truncate font-mono text-xs">
-                {dir === "." ? "root" : dir}
+                {dir === "." ? labels.root : dir}
               </span>
             </span>
             {open && (
-              <ul role="group" className="flex flex-col gap-0.5 pl-4">
+              <ul role="group" className="flex flex-col gap-0.5 ps-4">
                 {files.map((f) => (
                   <li
                     key={f.id}
@@ -362,7 +452,7 @@ export function FileChanges({
   const fileTabs = (
     <div
       role="tablist"
-      aria-label="Changed files"
+      aria-label={labels.files}
       className="flex [scrollbar-width:none] gap-1 overflow-x-auto px-1 pb-1.5 [&::-webkit-scrollbar]:hidden"
     >
       {data.map((f) => (
@@ -394,7 +484,7 @@ export function FileChanges({
     <Panel className="min-w-0 p-2">
       <p className="flex items-center gap-2 px-2 pt-1 pb-2.5 font-mono text-xs text-muted-foreground">
         <span className="truncate text-foreground">{selected.path}</span>
-        {selected.from && <span className="truncate">from {selected.from}</span>}
+        {selected.from && <span className="truncate">{labels.from(selected.from)}</span>}
       </p>
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.div
@@ -418,57 +508,58 @@ export function FileChanges({
   );
 
   return (
-    <MotionConfig reducedMotion="user">
-      <Shell
-        aria-label="File changes"
-        className={cn(view === "split" ? "max-w-3xl" : "max-w-xl", className)}
-      >
-        {data.length === 0 ? (
-          <Panel className="px-4 py-10 text-center text-[0.8125rem] text-muted-foreground">
-            No changes to review
-          </Panel>
-        ) : view === "split" ? (
-          <div className="grid gap-1.5 @2xl:grid-cols-[13rem_minmax(0,1fr)]">
-            {fileTree}
-            {hunks}
-          </div>
-        ) : (
-          <>
-            {fileTabs}
-            {hunks}
-          </>
-        )}
-        <div className="flex flex-wrap items-center gap-3 py-1.5 pr-0.5 pl-3 text-[0.8125rem]">
-          <p className="mr-auto text-muted-foreground">
-            Applying{" "}
-            <RollingNumber
-              className="font-mono text-foreground"
-              value={`${kept} of ${total}`}
-            />{" "}
-            hunks across <RollingNumber value={String(keptFiles.length)} />{" "}
-            {keptFiles.length === 1 ? "file" : "files"}
-          </p>
-          {onDiscard && (
-            <Button variant="quiet" onClick={onDiscard} disabled={applying}>
-              Discard all
-            </Button>
+    <Labels.Provider value={labels}>
+      <MotionConfig reducedMotion="user">
+        <Shell
+          aria-label={labels.region}
+          className={cn(view === "split" ? "max-w-3xl" : "max-w-xl", className)}
+        >
+          {data.length === 0 ? (
+            <Panel className="px-4 py-10 text-center text-[0.8125rem] text-muted-foreground">
+              {labels.empty}
+            </Panel>
+          ) : view === "split" ? (
+            <div className="grid gap-1.5 @2xl:grid-cols-[13rem_minmax(0,1fr)]">
+              {fileTree}
+              {hunks}
+            </div>
+          ) : (
+            <>
+              {fileTabs}
+              {hunks}
+            </>
           )}
-          <Button
-            variant="primary"
-            icon={Check}
-            iconWeight="bold"
-            loading={applying}
-            onClick={apply}
-            disabled={kept === 0}
-            className="px-4"
-          >
-            {applying ? "Applying…" : "Apply"}
-          </Button>
-        </div>
-        <p role="status" aria-live="polite" className="sr-only">
-          {message}
-        </p>
-      </Shell>
-    </MotionConfig>
+          <div className="flex flex-wrap items-center gap-3 py-1.5 ps-3 pe-0.5 text-[0.8125rem]">
+            <p className="me-auto text-muted-foreground">
+              {labels.summary(kept, total, keptFiles.length, (value, strong) => (
+                <RollingNumber
+                  className={strong ? "font-mono text-foreground" : undefined}
+                  value={value}
+                />
+              ))}
+            </p>
+            {onDiscard && (
+              <Button variant="quiet" onClick={onDiscard} disabled={applying}>
+                {labels.discard}
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              icon={Check}
+              iconWeight="bold"
+              loading={applying}
+              onClick={apply}
+              disabled={kept === 0}
+              className="px-4"
+            >
+              {applying ? labels.applying : labels.apply}
+            </Button>
+          </div>
+          <p role="status" aria-live="polite" className="sr-only">
+            {message}
+          </p>
+        </Shell>
+      </MotionConfig>
+    </Labels.Provider>
   );
 }

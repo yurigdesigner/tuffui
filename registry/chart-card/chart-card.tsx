@@ -33,7 +33,31 @@ export type ChartCardProps = {
   /** Stripe the last point (bars) — e.g. a period that isn't over yet. */
   partialLast?: boolean;
   onSelect?: (index: number) => void;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<ChartCardLabels>;
   className?: string;
+};
+
+export type ChartCardLabels = {
+  /** Legend group name and the donut table's first column. */
+  series: string;
+  /** First column of the screen-reader table. */
+  label: string;
+  /** Donut middle, tooltip row and table column. */
+  total: string;
+  /** Screen-reader hint on the chart. */
+  instructions: (title: string) => string;
+  /** Screen-reader summary of a bar, line or area chart. */
+  summary: (type: ChartType, series: string[], from: string, to: string) => string;
+};
+
+const defaultLabels: ChartCardLabels = {
+  series: "Series",
+  label: "Label",
+  total: "Total",
+  instructions: (title) => `${title}. Use arrow keys to read values.`,
+  summary: (type, series, from, to) =>
+    `${type} chart of ${series.join(", ")} over ${from} to ${to}`,
 };
 
 // Validated for both themes: blue, teal, purple, ochre.
@@ -83,8 +107,10 @@ export function ChartCard({
   format = compact,
   partialLast = false,
   onSelect,
+  labels: labelOverrides,
   className,
 }: ChartCardProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const uid = useId().replace(/:/g, "");
   const reduce = useReducedMotion();
   const [ref, width, measured] = useWidth();
@@ -140,7 +166,12 @@ export function ChartCard({
 
   const summary = donut
     ? visible.map((s) => `${s.label} ${format(sum(s.values))}`).join(", ")
-    : `${type} chart of ${visible.map((s) => s.label).join(", ")} over ${data.labels[0]} to ${data.labels.at(-1)}`;
+    : labels.summary(
+        type,
+        visible.map((s) => s.label),
+        data.labels[0],
+        data.labels.at(-1) ?? "",
+      );
 
   const tooltip =
     activeIndex === null ? null : donut ? (
@@ -149,7 +180,7 @@ export function ChartCard({
         rows={[
           {
             color: visible[activeIndex]?.color,
-            label: "Total",
+            label: labels.total,
             value: format(sum(visible[activeIndex]?.values ?? [])),
           },
         ]}
@@ -183,7 +214,11 @@ export function ChartCard({
         />
         <Panel className="p-4">
           {series.length > 1 && (
-            <div role="group" aria-label="Series" className="mb-3 flex flex-wrap gap-1.5">
+            <div
+              role="group"
+              aria-label={labels.series}
+              className="mb-3 flex flex-wrap gap-1.5"
+            >
               {series.map((s) => {
                 const on = !hidden.includes(s.id);
                 return (
@@ -226,19 +261,21 @@ export function ChartCard({
             ref={ref}
             tabIndex={0}
             role="group"
-            aria-label={`${title}. Use arrow keys to read values.`}
+            aria-label={labels.instructions(title)}
             onKeyDown={onKeyDown}
             onBlur={() => fromKeyboard && setActive(null)}
             className="relative rounded-xl outline-offset-4"
           >
+            {/* Time runs left to right in every language; labels keep their own direction. */}
             <svg
+              direction="ltr"
               key={measured ? "measured" : "guess"}
               visibility={measured ? undefined : "hidden"}
               role="img"
               aria-label={summary}
               width={width}
               height={donut ? 220 : H}
-              className="block overflow-visible"
+              className="block overflow-visible [&_text]:[unicode-bidi:plaintext]"
               onPointerLeave={() => select(null, false)}
             >
               <defs>
@@ -288,6 +325,7 @@ export function ChartCard({
                   instant={fromKeyboard || !!reduce}
                   onHover={(i) => select(i, false)}
                   format={format}
+                  totalLabel={labels.total}
                 />
               ) : (
                 <>
@@ -481,9 +519,9 @@ export function ChartCard({
             <caption>{title}</caption>
             <thead>
               <tr>
-                <th scope="col">{donut ? "Series" : "Label"}</th>
+                <th scope="col">{donut ? labels.series : labels.label}</th>
                 {donut ? (
-                  <th scope="col">Total</th>
+                  <th scope="col">{labels.total}</th>
                 ) : (
                   visible.map((s) => (
                     <th key={s.id} scope="col">
@@ -558,8 +596,10 @@ function Donut({
   instant,
   onHover,
   format,
+  totalLabel,
 }: {
   format: (value: number) => string;
+  totalLabel: string;
   series: (ChartSeries & { color: string })[];
   width: number;
   activeIndex: number | null;
@@ -583,7 +623,7 @@ function Donut({
         fontSize="11"
         className="fill-muted-foreground"
       >
-        {activeIndex === null ? "Total" : series[activeIndex]?.label}
+        {activeIndex === null ? totalLabel : series[activeIndex]?.label}
       </text>
       <text
         x={width / 2}

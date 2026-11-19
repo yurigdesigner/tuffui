@@ -14,7 +14,7 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button, IconButton } from "@/components/ui/action-button";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { Segmented } from "@/components/ui/segmented-control";
@@ -52,7 +52,52 @@ export type ArtifactPanelProps = {
   /** Defaults to downloading `source` as `filename`. */
   onDownload?: (version: ArtifactVersion) => void;
   onOpen?: (version: ArtifactVersion) => void;
+  /** UI strings, for translating the panel. */
+  labels?: Partial<ArtifactPanelLabels>;
   className?: string;
+};
+
+export type ArtifactPanelLabels = {
+  version: string;
+  previousVersion: string;
+  nextVersion: string;
+  /** Between the version label and the total, as in "v2 of 3". */
+  of: string;
+  view: string;
+  preview: string;
+  source: string;
+  copySource: string;
+  copied: string;
+  download: string;
+  open: string;
+  versions: string;
+  current: string;
+  /** Shown under an older version. */
+  viewing: (label: string, current: string) => string;
+  restore: string;
+  sourceCopied: string;
+  /** Screen-reader status after moving between versions or tabs. */
+  status: (label: string, tab: ArtifactTab) => string;
+};
+
+const defaultLabels: ArtifactPanelLabels = {
+  version: "Version",
+  previousVersion: "Previous version",
+  nextVersion: "Next version",
+  of: "of",
+  view: "View",
+  preview: "Preview",
+  source: "Source",
+  copySource: "Copy source",
+  copied: "Copied",
+  download: "Download",
+  open: "Open in new tab",
+  versions: "Versions",
+  current: "Current",
+  viewing: (label, current) => `Viewing ${label} · current is ${current}`,
+  restore: "Restore this version",
+  sourceCopied: "Source copied",
+  status: (label, tab) => `${label}, ${tab}`,
 };
 
 export function ArtifactPanel({
@@ -67,8 +112,11 @@ export function ArtifactPanel({
   onCopy,
   onDownload,
   onOpen,
+  labels: labelOverrides,
   className,
 }: ArtifactPanelProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const canvasRef = useRef<HTMLDivElement>(null);
   const { versions } = data;
   const latest = versions.length - 1;
   const [innerIndex, setInnerIndex] = useState(latest);
@@ -86,7 +134,10 @@ export function ArtifactPanel({
   const go = (next: number, fromKeyboard = false) => {
     const clamped = Math.min(Math.max(next, 0), latest);
     if (clamped === index) return;
-    setDirection(clamped > index ? 1 : -1);
+    // Slides follow reading order: newer versions enter from the end side.
+    const rtl =
+      canvasRef.current && getComputedStyle(canvasRef.current).direction === "rtl";
+    setDirection((clamped > index ? 1 : -1) * (rtl ? -1 : 1));
     setKeyboard(fromKeyboard);
     setInnerIndex(clamped);
     onVersionChange?.(versions[clamped]);
@@ -113,7 +164,7 @@ export function ArtifactPanel({
   };
 
   const canvas = (
-    <div className="relative min-h-64 overflow-hidden">
+    <div ref={canvasRef} className="relative min-h-64 overflow-hidden">
       <AnimatePresence mode="popLayout" initial={false} custom={direction}>
         <motion.div
           key={`${version.id}-${tab}`}
@@ -132,16 +183,19 @@ export function ArtifactPanel({
               {version.preview}
             </div>
           ) : (
-            <pre className="max-h-80 overflow-x-hidden overflow-y-auto py-3 font-mono text-xs leading-5">
+            <pre
+              dir="ltr"
+              className="max-h-80 overflow-x-hidden overflow-y-auto py-3 font-mono text-xs leading-5"
+            >
               {version.source.split("\n").map((line, i) => (
                 <div key={i} className="flex">
                   <span
                     aria-hidden="true"
-                    className="w-10 shrink-0 pr-3 text-right text-muted-foreground/60 select-none"
+                    className="w-10 shrink-0 pe-3 text-end text-muted-foreground/60 select-none"
                   >
                     {i + 1}
                   </span>
-                  <code className="min-w-0 pr-4 [overflow-wrap:anywhere] whitespace-pre-wrap">
+                  <code className="min-w-0 pe-4 [overflow-wrap:anywhere] whitespace-pre-wrap">
                     {line}
                   </code>
                 </div>
@@ -161,17 +215,18 @@ export function ArtifactPanel({
           title={data.title}
           subtitle={
             <>
-              <Tag className="mr-1.5">{data.kind}</Tag>
+              <Tag className="me-1.5">{data.kind}</Tag>
               {version.createdAt}
             </>
           }
           aside={
             <div
               role="group"
-              aria-label="Version"
+              aria-label={labels.version}
               className="flex items-center gap-0.5"
               onKeyDown={(e) => {
-                const step = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+                const rtl = getComputedStyle(e.currentTarget).direction === "rtl";
+                const step = { ArrowLeft: rtl ? 1 : -1, ArrowRight: rtl ? -1 : 1 }[e.key];
                 if (step) {
                   e.preventDefault();
                   go(index + step, true);
@@ -181,17 +236,19 @@ export function ArtifactPanel({
               <IconButton
                 icon={CaretLeft}
                 iconWeight="bold"
-                label="Previous version"
+                label={labels.previousVersion}
+                className="rtl:[&_svg]:-scale-x-100"
                 disabled={index === 0}
                 onClick={(e) => go(index - 1, e.detail === 0)}
               />
               <span className="min-w-14 text-center font-mono text-xs text-muted-foreground tabular-nums">
-                <RollingNumber value={version.label} /> of {versions.length}
+                <RollingNumber value={version.label} /> {labels.of} {versions.length}
               </span>
               <IconButton
                 icon={CaretRight}
                 iconWeight="bold"
-                label="Next version"
+                label={labels.nextVersion}
+                className="rtl:[&_svg]:-scale-x-100"
                 disabled={index === latest}
                 onClick={(e) => go(index + 1, e.detail === 0)}
               />
@@ -200,7 +257,7 @@ export function ArtifactPanel({
         />
         <div className="flex items-center justify-between gap-2 px-1.5 pb-2">
           <Segmented
-            label="View"
+            label={labels.view}
             size="sm"
             value={tab}
             onValueChange={(t) => {
@@ -208,28 +265,28 @@ export function ArtifactPanel({
               onTabChange?.(t);
             }}
             options={[
-              { value: "preview", label: "Preview" },
-              { value: "source", label: "Source" },
+              { value: "preview", label: labels.preview },
+              { value: "source", label: labels.source },
             ]}
           />
           <div className="flex items-center gap-0.5">
             <IconButton
               icon={copied ? Check : Copy}
               iconWeight={copied ? "bold" : "fill"}
-              label="Copy source"
-              tooltip={copied ? "Copied" : true}
+              label={labels.copySource}
+              tooltip={copied ? labels.copied : true}
               onClick={copy}
             />
             <IconButton
               icon={DownloadSimple}
-              label="Download"
+              label={labels.download}
               tooltip
               onClick={download}
             />
             {onOpen && (
               <IconButton
                 icon={ArrowSquareOut}
-                label="Open in new tab"
+                label={labels.open}
                 tooltip
                 tooltipAlign="end"
                 onClick={() => onOpen(version)}
@@ -240,7 +297,7 @@ export function ArtifactPanel({
         {view === "versions" ? (
           <div className="grid gap-1.5 @2xl:grid-cols-[13rem_1fr]">
             <Panel className="p-1.5">
-              <ul aria-label="Versions" className="flex flex-col gap-0.5">
+              <ul aria-label={labels.versions} className="flex flex-col gap-0.5">
                 {[...versions].reverse().map((v) => {
                   const i = versions.indexOf(v);
                   const active = i === index;
@@ -251,7 +308,7 @@ export function ArtifactPanel({
                         aria-current={active ? "true" : undefined}
                         onClick={(e) => go(i, e.detail === 0)}
                         className={cn(
-                          "w-full rounded-xl px-3 py-2 text-left transition-[background-color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.98]",
+                          "w-full rounded-xl px-3 py-2 text-start transition-[background-color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.98]",
                           active ? "bg-foreground/[0.07]" : "hover:bg-foreground/[0.04]",
                         )}
                       >
@@ -259,7 +316,7 @@ export function ArtifactPanel({
                           {v.label}
                           {i === latest && (
                             <StatusPill size="sm" tone="positive">
-                              Current
+                              {labels.current}
                             </StatusPill>
                           )}
                         </span>
@@ -278,21 +335,21 @@ export function ArtifactPanel({
             <Panel className="flex flex-col">
               {canvas}
               {index !== latest && (
-                <div className="flex items-center justify-between gap-3 p-2 pl-4">
+                <div className="flex items-center justify-between gap-3 p-2 ps-4">
                   <p className="flex items-center gap-1.5 text-[0.8125rem] text-muted-foreground">
                     <ClockCounterClockwise
                       weight="fill"
                       className="size-3.5"
                       aria-hidden="true"
                     />
-                    Viewing {version.label} · current is {versions[latest].label}
+                    {labels.viewing(version.label, versions[latest].label)}
                   </p>
                   <Button
                     variant="primary"
                     size="sm"
                     onClick={() => onRestore?.(version)}
                   >
-                    Restore this version
+                    {labels.restore}
                   </Button>
                 </div>
               )}
@@ -302,7 +359,7 @@ export function ArtifactPanel({
           <Panel>{canvas}</Panel>
         )}
         <p role="status" aria-live="polite" className="sr-only">
-          {copied ? "Source copied" : `${version.label}, ${tab}`}
+          {copied ? labels.sourceCopied : labels.status(version.label, tab)}
         </p>
       </Shell>
     </MotionConfig>

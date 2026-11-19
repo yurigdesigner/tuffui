@@ -1,7 +1,56 @@
 "use client";
 
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, wait, type MockStep } from "@/registry/use-mock-run/use-mock-run";
-import { TerminalOutput, type TerminalLine, type TerminalRun } from "./terminal-output";
+import {
+  TerminalOutput,
+  type TerminalLine,
+  type TerminalOutputLabels,
+  type TerminalRun,
+} from "./terminal-output";
+
+/** Arabic noun after a numeral: 1, 2 and 3–10 pick their forms; 11+ the singular. */
+const arCount = (n: number, one: string, two: string, few: string, many: string) =>
+  n === 1 ? one : n === 2 ? two : n >= 3 && n <= 10 ? few : many;
+
+/** The command and its output stay as they are; only the chrome is translated. */
+const labels: Record<DemoLocale, Partial<TerminalOutputLabels> | undefined> = {
+  en: undefined,
+  he: {
+    running: "רץ",
+    exit: (code) => `קוד יציאה ${code}`,
+    region: (command) => `טרמינל: ${command}`,
+    output: (command) => `הפלט של ${command}`,
+    waiting: "ממתין לפלט…",
+    error: "שגיאה: ",
+    jump: "לשורה האחרונה",
+    lines: (n, count) => (count === 1 ? <>שורה {n}</> : <>{n} שורות</>),
+    copy: "העתקה",
+    copied: "הועתק",
+    stop: "עצירה",
+    finished: (command, success, code, time) =>
+      `${command} ${success ? "הסתיים" : "נכשל"} עם קוד יציאה ${code} אחרי ${time}`,
+  },
+  ar: {
+    running: "قيد التشغيل",
+    exit: (code) => `رمز الخروج ${code}`,
+    region: (command) => `الطرفية: ${command}`,
+    output: (command) => `مخرجات ${command}`,
+    waiting: "في انتظار المخرجات…",
+    error: "خطأ: ",
+    jump: "الانتقال إلى الأحدث",
+    lines: (n, count) => (
+      <>
+        {n} {arCount(count, "سطر", "أسطر", "أسطر", "سطرًا")}
+      </>
+    ),
+    copy: "نسخ",
+    copied: "تم النسخ",
+    stop: "إيقاف",
+    finished: (command, success, code, time) =>
+      `${success ? "اكتمل" : "فشل"} ${command} برمز الخروج ${code} بعد ${time}`,
+  },
+};
 
 const out = (text: string): TerminalLine => ({ text });
 const info = (text: string): TerminalLine => ({ text, stream: "info" });
@@ -64,9 +113,11 @@ const build = (lines: TerminalLine[], durationMs: number, exitCode: number) => {
 export default function TerminalOutputDemo({
   variant,
   autoplay = true,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
   const failed = variant === "Failed";
   const lines = failed ? failing : passing;
@@ -91,6 +142,7 @@ export default function TerminalOutputDemo({
     <TerminalOutput
       data={state}
       maxHeight={240}
+      labels={labels[locale]}
       onStop={() =>
         setState((s) => ({
           ...s,

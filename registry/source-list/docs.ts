@@ -38,6 +38,12 @@ export function SourcesTab({ answer }: { answer: Answer }) {
       description: "Called when a source link is opened.",
     },
     {
+      name: "labels",
+      type: "Partial<SourceListLabels>",
+      description:
+        'Your own UI strings (Sources, the panel title and counts…), for translating. Right-to-left works under `dir="rtl"`.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

@@ -34,11 +34,58 @@ export type LapTimerProps = {
   subtitle?: string;
   /** Line above the sector table, e.g. "Lap 3". */
   lap?: string;
-  /** Extra content on the right of the header, e.g. a status pill. */
+  /** Extra content at the end of the header, e.g. a status pill. */
   aside?: React.ReactNode;
   /** Formats split times. */
   format?: (seconds: number) => string;
+  /** UI strings, for translating the timer. */
+  labels?: Partial<LapTimerLabels>;
   className?: string;
+};
+
+export type LapTimerLabels = {
+  /** Accessible name of the big clock. */
+  elapsed: (clock: string) => string;
+  onPace: string;
+  /** `delta` is signed, e.g. "−0.8". */
+  vsBest: (delta: string) => string;
+  sectors: (done: number, total: number) => string;
+  best: (time: string) => string;
+  /** Accessible summary of the dial. */
+  dial: (title: string, clock: string, delta: string, best: string) => string;
+  /** Short sector name in the table and sub-dial, e.g. "S1". */
+  sector: (n: number) => string;
+  /** Sub-dial text once the lap is done. */
+  lap: string;
+  /** Minute marks on long dials, e.g. "5m". */
+  minutes: (m: number) => string;
+  caption: string;
+  sectorColumn: string;
+  splitColumn: string;
+  deltaColumn: string;
+  /** Announced when a sector closes. */
+  split: (label: string, time: string, delta: string) => string;
+  /** Appended to the last announcement when the lap ends. */
+  lapDone: (clock: string) => string;
+};
+
+const defaultLabels: LapTimerLabels = {
+  elapsed: (clock) => `Elapsed ${clock}`,
+  onPace: "on pace",
+  vsBest: (delta) => `${delta} s vs best lap`,
+  sectors: (done, total) => `${done} of ${total} sectors`,
+  best: (time) => `best ${time}`,
+  dial: (title, clock, delta, best) =>
+    `${title}: ${clock} elapsed, ${delta} seconds against the best lap of ${best}.`,
+  sector: (n) => `S${n}`,
+  lap: "LAP",
+  minutes: (m) => `${m}m`,
+  caption: "Sector splits against best",
+  sectorColumn: "Sector",
+  splitColumn: "Split",
+  deltaColumn: "Delta vs best",
+  split: (label, time, delta) => `${label} split ${time}, ${delta} seconds against best.`,
+  lapDone: (clock) => ` Lap ${clock}.`,
 };
 
 const MAX_DIAL = 288;
@@ -93,8 +140,10 @@ export function LapTimer({
   lap,
   aside,
   format = (s) => `${s.toFixed(1)} s`,
+  labels: labelOverrides,
   className,
 }: LapTimerProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const [ref, width, measured] = useWidth();
   const [hover, setHover] = useState<string | null>(null);
 
@@ -118,7 +167,8 @@ export function LapTimer({
   const turn = dialProp ?? DIALS.find((d) => d >= Math.max(best, now) * 1.04) ?? 3600;
   // Numbers around the face: the most that land on whole values.
   const count = [12, 6, 5, 4, 3, 2].find((n) => Number.isInteger(turn / n)) ?? 4;
-  const labelOf = (v: number) => (turn >= 300 && v % 60 === 0 ? `${v / 60}m` : `${v}`);
+  const labelOf = (v: number) =>
+    turn >= 300 && v % 60 === 0 ? labels.minutes(v / 60) : `${v}`;
 
   // Geometry
   const size = Math.max(160, Math.min(MAX_DIAL, Math.floor(width)));
@@ -160,7 +210,7 @@ export function LapTimer({
     : started
       ? now / Math.max(best, 0.001)
       : 0;
-  const subLabel = current ? `S${currentIndex + 1}` : "LAP";
+  const subLabel = current ? labels.sector(currentIndex + 1) : labels.lap;
   const last = done > 0 ? sectors[done - 1] : undefined;
 
   return (
@@ -170,8 +220,9 @@ export function LapTimer({
         <Panel className="p-4 @sm:p-5">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <p
+              dir="ltr"
               className="font-mono text-[2rem] leading-none font-medium tracking-tight tabular-nums"
-              aria-label={`Elapsed ${clock(now)}`}
+              aria-label={labels.elapsed(clock(now))}
             >
               {clock(now)}
             </p>
@@ -182,31 +233,33 @@ export function LapTimer({
                   ahead ? "text-positive" : "text-muted-foreground",
                 )}
               >
-                {done === 0 && delta <= 0 ? "on pace" : `${signed(delta)} s vs best lap`}
+                {done === 0 && delta <= 0 ? labels.onPace : labels.vsBest(signed(delta))}
               </p>
             )}
           </div>
           <div className="mt-2 flex items-center justify-between gap-3 text-[0.8125rem] text-muted-foreground">
             <span className="truncate">
-              {[lap, `${done} of ${sectors.length} sectors`].filter(Boolean).join(" · ")}
+              {[lap, labels.sectors(done, sectors.length)].filter(Boolean).join(" · ")}
             </span>
             <span className="flex shrink-0 items-center gap-1.5 font-mono tabular-nums">
               <svg aria-hidden="true" width={8} height={6} className="fill-foreground">
                 <path d="M4 6L0 0H8Z" />
               </svg>
-              best {format(best)}
+              {labels.best(format(best))}
             </span>
           </div>
 
-          <div ref={ref} className="mt-4 flex justify-center">
+          {/* The dial is a clock face: it turns clockwise in every direction. */}
+          <div ref={ref} dir="ltr" className="mt-4 flex justify-center">
             <svg
               key={measured ? "measured" : "guess"}
               visibility={measured ? undefined : "hidden"}
               role="img"
-              aria-label={`${title}: ${clock(now)} elapsed, ${signed(delta)} seconds against the best lap of ${format(best)}.`}
+              aria-label={labels.dial(title, clock(now), signed(delta), format(best))}
               width={size}
               height={size}
-              className="block"
+              direction="ltr"
+              className="block [&_text]:[unicode-bidi:plaintext]"
             >
               {/* Sector track */}
               <circle
@@ -335,7 +388,7 @@ export function LapTimer({
                 dy="0.35em"
                 textAnchor="middle"
                 fontSize={size < 220 ? 9 : 10}
-                className="fill-foreground font-mono font-medium tracking-wide"
+                className="fill-foreground font-mono font-medium tracking-wide rtl:tracking-normal"
               >
                 {subLabel}
               </text>
@@ -359,12 +412,12 @@ export function LapTimer({
           </div>
 
           <table className="mt-5 w-full text-[0.8125rem]">
-            <caption className="sr-only">Sector splits against best</caption>
+            <caption className="sr-only">{labels.caption}</caption>
             <thead className="sr-only">
               <tr>
-                <th scope="col">Sector</th>
-                <th scope="col">Split</th>
-                <th scope="col">Delta vs best</th>
+                <th scope="col">{labels.sectorColumn}</th>
+                <th scope="col">{labels.splitColumn}</th>
+                <th scope="col">{labels.deltaColumn}</th>
               </tr>
             </thead>
             <tbody>
@@ -382,7 +435,7 @@ export function LapTimer({
                       hover && hover !== s.id && "opacity-50",
                     )}
                   >
-                    <th scope="row" className="pr-3 text-left font-normal">
+                    <th scope="row" className="pe-3 text-start font-normal">
                       <span className="flex items-center gap-2.5">
                         <span
                           aria-hidden="true"
@@ -398,7 +451,7 @@ export function LapTimer({
                           )}
                         />
                         <span className="font-mono text-muted-foreground tabular-nums">
-                          S{i + 1}
+                          {labels.sector(i + 1)}
                         </span>
                         <span
                           className={cn(
@@ -412,13 +465,13 @@ export function LapTimer({
                     </th>
                     <td
                       className={cn(
-                        "w-20 text-right font-mono tabular-nums",
+                        "w-20 text-end font-mono tabular-nums",
                         !has && "text-muted-foreground",
                       )}
                     >
                       {has ? format(s.split ?? 0) : isLive ? format(inSector) : "—"}
                     </td>
-                    <td className="w-16 text-right font-mono tabular-nums">
+                    <td className="w-16 text-end font-mono tabular-nums">
                       <AnimatePresence initial={false}>
                         {has && (
                           <motion.span
@@ -426,6 +479,8 @@ export function LapTimer({
                             initial={{ opacity: 0, y: 4 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={enter}
+                            // Signed numbers keep their sign on the left.
+                            dir="ltr"
                             className={cn(
                               "inline-block",
                               faster ? "text-positive" : "text-muted-foreground",
@@ -444,7 +499,7 @@ export function LapTimer({
 
           <p role="status" aria-live="polite" className="sr-only">
             {last && last.split !== undefined
-              ? `${last.label} split ${format(last.split)}, ${signed(last.split - last.best)} seconds against best.${finished ? ` Lap ${clock(now)}.` : ""}`
+              ? `${labels.split(last.label, format(last.split), signed(last.split - last.best))}${finished ? labels.lapDone(clock(now)) : ""}`
               : ""}
           </p>
         </Panel>

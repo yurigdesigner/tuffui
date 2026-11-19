@@ -47,6 +47,12 @@ export function AssistantTurn({ message }: { message: StreamingMessageData }) {
       description: "Shows Retry on errors and Regenerate when done.",
     },
     {
+      name: "labels",
+      type: "Partial<StreamingMessageLabels>",
+      description:
+        'Your own UI strings (Responding…, Thought for 4s, Retry…), for translating. Right-to-left works under `dir="rtl"`; inline code stays left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root article.",

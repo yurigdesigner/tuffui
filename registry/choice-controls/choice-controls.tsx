@@ -90,7 +90,8 @@ export function Switch({
         setChecked(!checked);
       }}
       className={cn(
-        "group relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40 data-instant:transition-none",
+        // Mirrored under dir="rtl": on slides the thumb toward the start edge.
+        "group relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40 data-instant:transition-none rtl:-scale-x-100",
         ease,
         // Switch green, brighter than the text-safe --positive.
         inset,
@@ -229,7 +230,13 @@ export function RadioGroup({
   const ref = useRef<HTMLDivElement>(null);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+    const rtl = !!ref.current && getComputedStyle(ref.current).direction === "rtl";
+    const step = {
+      ArrowDown: 1,
+      ArrowRight: rtl ? -1 : 1,
+      ArrowUp: -1,
+      ArrowLeft: rtl ? 1 : -1,
+    }[e.key];
     if (!step) return;
     e.preventDefault();
     const radios = [

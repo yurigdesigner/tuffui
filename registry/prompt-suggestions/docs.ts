@@ -59,6 +59,12 @@ import { ChartBar, Globe } from "@phosphor-icons/react";
       type: "string",
       description: "Label above the suggestions; also their accessible name.",
     },
+    {
+      name: "labels",
+      type: "Partial<PromptSuggestionsLabels>",
+      description:
+        'Your own UI strings (More suggestions, list names for screen readers…), for translating. Right-to-left works under `dir="rtl"`.',
+    },
     { name: "className", type: "string", description: "Extra classes for the root." },
   ],
   types: `type PromptSuggestion = {

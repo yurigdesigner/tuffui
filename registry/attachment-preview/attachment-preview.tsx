@@ -13,7 +13,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { IconButton } from "@/components/ui/action-button";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { enter, exit, spring } from "@/lib/motion-tokens";
@@ -44,8 +44,43 @@ export type AttachmentPreviewProps = {
   onRetry?: (attachment: Attachment) => void;
   /** Called with the attachment shown in the enlarged view, or null when it closes. */
   onOpen?: (attachment: Attachment | null) => void;
+  /** UI strings, for translating. */
+  labels?: Partial<AttachmentPreviewLabels>;
   className?: string;
 };
+
+export type AttachmentPreviewLabels = {
+  /** Screen-reader name of the list. */
+  attachments: string;
+  remove: (name: string) => string;
+  open: (name: string) => string;
+  /** Screen-reader name of a progress bar. */
+  uploading: (name: string) => string;
+  /** Upload progress under a file name; size comes formatted. */
+  progress: (percent: number, size: string) => string;
+  uploadFailed: string;
+  retry: string;
+  closePreview: string;
+  /** Announced while files upload. */
+  uploadingStatus: (count: number) => string;
+  /** Announced when uploads fail. */
+  failedStatus: (count: number) => string;
+};
+
+const defaultLabels: AttachmentPreviewLabels = {
+  attachments: "Attachments",
+  remove: (name) => `Remove ${name}`,
+  open: (name) => `Open ${name}`,
+  uploading: (name) => `Uploading ${name}`,
+  progress: (percent, size) => `${percent}% of ${size}`,
+  uploadFailed: "Upload failed",
+  retry: "Retry",
+  closePreview: "Close preview",
+  uploadingStatus: (count) => `Uploading ${count} file${count > 1 ? "s" : ""}`,
+  failedStatus: (count) => `${count} upload${count > 1 ? "s" : ""} failed`,
+};
+
+const Labels = createContext(defaultLabels);
 
 export const formatBytes = (n: number) =>
   n < 1024
@@ -73,8 +108,10 @@ export function AttachmentPreview({
   onRemove,
   onRetry,
   onOpen,
+  labels: labelOverrides,
   className,
 }: AttachmentPreviewProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const [openId, setOpenId] = useState<string | null>(null);
   const opened = data.find((a) => a.id === openId && isImage(a)) ?? null;
   const uploading = data.filter((a) => a.status === "uploading").length;
@@ -86,48 +123,50 @@ export function AttachmentPreview({
   };
 
   return (
-    <MotionConfig reducedMotion="user">
-      <div className={cn("w-full", className)}>
-        <ul aria-label="Attachments" className="flex flex-wrap gap-2">
-          <AnimatePresence initial={false} mode="popLayout">
-            {data.map((a) => (
-              <motion.li
-                key={a.id}
-                layout="position"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1, transition: enter }}
-                exit={{ opacity: 0, scale: 0.95, transition: exit }}
-                transition={{ layout: spring }}
-                className="group relative"
-              >
-                {isImage(a) ? (
-                  <ImageTile attachment={a} onOpen={() => open(a)} />
-                ) : (
-                  <FileTile attachment={a} onRetry={onRetry} />
-                )}
-                {onRemove && (
-                  <IconButton
-                    icon={X}
-                    iconWeight="bold"
-                    label={`Remove ${a.name}`}
-                    onClick={() => onRemove(a)}
-                    className="absolute -top-1.5 -right-1.5 size-6 bg-surface-raised text-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-surface-raised [@media(hover:none)]:opacity-100"
-                  />
-                )}
-              </motion.li>
-            ))}
-          </AnimatePresence>
-        </ul>
-        <p role="status" aria-live="polite" className="sr-only">
-          {uploading
-            ? `Uploading ${uploading} file${uploading > 1 ? "s" : ""}`
-            : failed
-              ? `${failed} upload${failed > 1 ? "s" : ""} failed`
-              : ""}
-        </p>
-      </div>
-      <Lightbox attachment={opened} onClose={() => open(null)} />
-    </MotionConfig>
+    <Labels.Provider value={labels}>
+      <MotionConfig reducedMotion="user">
+        <div className={cn("w-full", className)}>
+          <ul aria-label={labels.attachments} className="flex flex-wrap gap-2">
+            <AnimatePresence initial={false} mode="popLayout">
+              {data.map((a) => (
+                <motion.li
+                  key={a.id}
+                  layout="position"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1, transition: enter }}
+                  exit={{ opacity: 0, scale: 0.95, transition: exit }}
+                  transition={{ layout: spring }}
+                  className="group relative"
+                >
+                  {isImage(a) ? (
+                    <ImageTile attachment={a} onOpen={() => open(a)} />
+                  ) : (
+                    <FileTile attachment={a} onRetry={onRetry} />
+                  )}
+                  {onRemove && (
+                    <IconButton
+                      icon={X}
+                      iconWeight="bold"
+                      label={labels.remove(a.name)}
+                      onClick={() => onRemove(a)}
+                      className="absolute -end-1.5 -top-1.5 size-6 bg-surface-raised text-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-surface-raised [@media(hover:none)]:opacity-100"
+                    />
+                  )}
+                </motion.li>
+              ))}
+            </AnimatePresence>
+          </ul>
+          <p role="status" aria-live="polite" className="sr-only">
+            {uploading
+              ? labels.uploadingStatus(uploading)
+              : failed
+                ? labels.failedStatus(failed)
+                : ""}
+          </p>
+        </div>
+        <Lightbox attachment={opened} onClose={() => open(null)} />
+      </MotionConfig>
+    </Labels.Provider>
   );
 }
 
@@ -138,11 +177,12 @@ function ImageTile({
   attachment: Attachment;
   onOpen: () => void;
 }) {
+  const labels = useContext(Labels);
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`Open ${a.name}`}
+      aria-label={labels.open(a.name)}
       className="relative block size-20 overflow-hidden rounded-2xl bg-foreground/[0.06] transition-[scale] duration-150 ease-out active:scale-[0.97]"
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- user-provided URLs, no optimizer */}
@@ -153,7 +193,7 @@ function ImageTile({
             value={a.progress ?? 0}
             max={1}
             size="sm"
-            label={`Uploading ${a.name}`}
+            label={labels.uploading(a.name)}
             className="bg-black/30"
           />
         </span>
@@ -161,7 +201,7 @@ function ImageTile({
       {a.status === "failed" && (
         <span className="absolute inset-0 flex items-center justify-center bg-negative/70 text-white">
           <WarningCircle weight="fill" className="size-5" aria-hidden="true" />
-          <span className="sr-only">Upload failed</span>
+          <span className="sr-only">{labels.uploadFailed}</span>
         </span>
       )}
     </button>
@@ -175,6 +215,7 @@ function FileTile({
   attachment: Attachment;
   onRetry?: (a: Attachment) => void;
 }) {
+  const labels = useContext(Labels);
   const failed = a.status === "failed";
   return (
     <div
@@ -201,24 +242,24 @@ function FileTile({
               value={a.progress ?? 0}
               max={1}
               size="sm"
-              label={`Uploading ${a.name}`}
+              label={labels.uploading(a.name)}
               valueText={`${Math.round((a.progress ?? 0) * 100)}%`}
             />
             <span className="mt-1 block font-mono text-[0.6875rem] text-muted-foreground tabular-nums">
-              {Math.round((a.progress ?? 0) * 100)}% of {formatBytes(a.size)}
+              {labels.progress(Math.round((a.progress ?? 0) * 100), formatBytes(a.size))}
             </span>
           </span>
         ) : failed ? (
           <span className="flex flex-col items-start gap-0.5 text-xs text-negative">
-            <span className="max-w-full truncate">{a.error ?? "Upload failed"}</span>
+            <span className="max-w-full truncate">{a.error ?? labels.uploadFailed}</span>
             {onRetry && (
               <button
                 type="button"
                 onClick={() => onRetry(a)}
-                className="-ml-1.5 inline-flex h-5 items-center gap-1 rounded-full px-1.5 font-medium transition-[background-color,scale] duration-150 ease-out hover:bg-negative/15 active:scale-[0.97]"
+                className="-ms-1.5 inline-flex h-5 items-center gap-1 rounded-full px-1.5 font-medium transition-[background-color,scale] duration-150 ease-out hover:bg-negative/15 active:scale-[0.97]"
               >
                 <ArrowClockwise weight="bold" className="size-3" aria-hidden="true" />
-                Retry
+                {labels.retry}
               </button>
             )}
           </span>
@@ -239,6 +280,7 @@ function Lightbox({
   attachment: Attachment | null;
   onClose: () => void;
 }) {
+  const labels = useContext(Labels);
   const closeRef = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
 
@@ -288,7 +330,7 @@ function Lightbox({
               alt={attachment.alt ?? attachment.name}
               className="max-h-[75vh] w-auto rounded-2xl object-contain"
             />
-            <figcaption className="flex items-center gap-2 pr-1 pb-0.5 pl-3 text-[0.8125rem]">
+            <figcaption className="flex items-center gap-2 ps-3 pe-1 pb-0.5 text-[0.8125rem]">
               <span className="min-w-0 flex-1 truncate">{attachment.name}</span>
               <span className="font-mono text-xs text-muted-foreground">
                 {formatBytes(attachment.size)}
@@ -297,7 +339,7 @@ function Lightbox({
                 ref={closeRef}
                 icon={X}
                 iconWeight="bold"
-                label="Close preview"
+                label={labels.closePreview}
                 onClick={onClose}
               />
             </figcaption>

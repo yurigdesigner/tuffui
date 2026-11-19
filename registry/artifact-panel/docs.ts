@@ -67,6 +67,12 @@ export function Canvas({ artifact }: { artifact: Artifact }) {
       default: "FileCode",
       description: "Phosphor icon for the header.",
     },
+    {
+      name: "labels",
+      type: "Partial<ArtifactPanelLabels>",
+      description:
+        'Your own UI strings (Preview, Source, Restore this version…), for translating. Right-to-left works under `dir="rtl"`.',
+    },
     { name: "className", type: "string", description: "Extra classes for the shell." },
   ],
   types: `type ArtifactVersion = {

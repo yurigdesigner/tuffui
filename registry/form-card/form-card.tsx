@@ -49,26 +49,67 @@ export type FormCardProps = {
   /** Shows every field's error at once, as after a submit attempt. */
   revealErrors?: boolean;
   submitLabel?: string;
+  /** UI strings, for translating the form. */
+  labels?: Partial<FormCardLabels>;
   className?: string;
+};
+
+export type FormCardLabels = {
+  required: (field: string) => string;
+  invalidEmail: string;
+  notANumber: string;
+  atLeast: (min: number) => string;
+  atMost: (max: number) => string;
+  yes: string;
+  no: string;
+  /** Legend next to the asterisk under the fields. */
+  requiredHint: string;
+  sending: string;
+  choose: string;
+  submitted: string;
+  editAnswers: string;
+  /** Screen-reader announcement after a submit with errors. */
+  attention: (count: number) => string;
+};
+
+const defaultLabels: FormCardLabels = {
+  required: (field) => `${field} is required`,
+  invalidEmail: "Enter a valid email address",
+  notANumber: "Enter a number",
+  atLeast: (min) => `Must be at least ${min}`,
+  atMost: (max) => `Must be at most ${max}`,
+  yes: "Yes",
+  no: "No",
+  requiredHint: "Required",
+  sending: "Sending…",
+  choose: "Choose…",
+  submitted: "Submitted",
+  editAnswers: "Edit answers",
+  attention: (count) =>
+    `${count} ${count === 1 ? "field needs" : "fields need"} attention`,
 };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function check(field: FormField, value: FormValue): string | undefined {
+function check(
+  field: FormField,
+  value: FormValue,
+  labels: FormCardLabels,
+): string | undefined {
   const empty = value === undefined || value === "" || value === false;
-  if (field.required && empty) return `${field.label} is required`;
+  if (field.required && empty) return labels.required(field.label);
   if (empty || typeof value !== "string") return;
-  if (field.type === "email" && !EMAIL.test(value)) return "Enter a valid email address";
+  if (field.type === "email" && !EMAIL.test(value)) return labels.invalidEmail;
   if (field.type === "number") {
     const n = Number(value);
-    if (Number.isNaN(n)) return "Enter a number";
-    if (field.min !== undefined && n < field.min) return `Must be at least ${field.min}`;
-    if (field.max !== undefined && n > field.max) return `Must be at most ${field.max}`;
+    if (Number.isNaN(n)) return labels.notANumber;
+    if (field.min !== undefined && n < field.min) return labels.atLeast(field.min);
+    if (field.max !== undefined && n > field.max) return labels.atMost(field.max);
   }
 }
 
-function display(field: FormField, value: FormValue) {
-  if (typeof value === "boolean") return value ? "Yes" : "No";
+function display(field: FormField, value: FormValue, labels: FormCardLabels) {
+  if (typeof value === "boolean") return value ? labels.yes : labels.no;
   if (!value) return "—";
   return field.options?.find((o) => o.value === value)?.label ?? value;
 }
@@ -84,8 +125,10 @@ export function FormCard({
   onStatusChange,
   revealErrors = false,
   submitLabel = "Submit",
+  labels: labelOverrides,
   className,
 }: FormCardProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const [inner, setInner] = useState<FormValues>(defaultValues);
   const values = valuesProp ?? inner;
   const [innerStatus, setInnerStatus] = useState<FormStatus>("editing");
@@ -100,7 +143,7 @@ export function FormCard({
 
   const custom = validate?.(values) ?? {};
   const errors = Object.fromEntries(
-    data.fields.map((f) => [f.name, check(f, values[f.name]) ?? custom[f.name]]),
+    data.fields.map((f) => [f.name, check(f, values[f.name], labels) ?? custom[f.name]]),
   );
   const shown = (name: string) =>
     revealErrors || attempted || touched.includes(name) ? errors[name] : undefined;
@@ -117,16 +160,14 @@ export function FormCard({
     setAttempted(true);
     const count = Object.values(errors).filter(Boolean).length;
     if (count) {
-      setAnnouncement(
-        `${count} ${count === 1 ? "field needs" : "fields need"} attention`,
-      );
+      setAnnouncement(labels.attention(count));
       return;
     }
     setStatus("submitting");
     try {
       await onSubmit?.(values);
       setStatus("submitted");
-      setAnnouncement("Submitted");
+      setAnnouncement(labels.submitted);
     } catch {
       setStatus("editing");
     }
@@ -144,7 +185,7 @@ export function FormCard({
           aside={
             submitted ? (
               <StatusPill tone="positive" icon={CheckCircle}>
-                Submitted
+                {labels.submitted}
               </StatusPill>
             ) : undefined
           }
@@ -162,7 +203,9 @@ export function FormCard({
                   {data.fields.map((f) => (
                     <div key={f.name} className="contents">
                       <dt className="text-muted-foreground">{f.label}</dt>
-                      <dd className="min-w-0 truncate">{display(f, values[f.name])}</dd>
+                      <dd className="min-w-0 truncate">
+                        {display(f, values[f.name], labels)}
+                      </dd>
                     </div>
                   ))}
                 </dl>
@@ -176,7 +219,7 @@ export function FormCard({
                       setAttempted(false);
                     }}
                   >
-                    Edit answers
+                    {labels.editAnswers}
                   </Button>
                 </div>
               </motion.div>
@@ -198,6 +241,7 @@ export function FormCard({
                     error={shown(f.name)}
                     onChange={(v) => set(f.name, v)}
                     onBlur={() => blur(f.name)}
+                    choose={labels.choose}
                   />
                 ))}
                 <div className="flex items-center justify-between gap-3 pt-1">
@@ -205,14 +249,14 @@ export function FormCard({
                     <span aria-hidden="true" className="text-negative">
                       *
                     </span>{" "}
-                    Required
+                    {labels.requiredHint}
                   </p>
                   <Button
                     variant="primary"
                     type="submit"
                     loading={status === "submitting"}
                   >
-                    {status === "submitting" ? "Sending…" : submitLabel}
+                    {status === "submitting" ? labels.sending : submitLabel}
                   </Button>
                 </div>
               </motion.form>
@@ -232,7 +276,7 @@ function Label({ field }: { field: FormField }) {
     <>
       {field.label}
       {field.required && (
-        <span aria-hidden="true" className="ml-0.5 text-negative">
+        <span aria-hidden="true" className="ms-0.5 text-negative">
           *
         </span>
       )}
@@ -246,12 +290,14 @@ function FieldControl({
   error,
   onChange,
   onBlur,
+  choose,
 }: {
   field: FormField;
   value: FormValue;
   error?: string;
   onChange: (value: FormValue) => void;
   onBlur: () => void;
+  choose: string;
 }) {
   const text = typeof value === "string" ? value : "";
   const common = {
@@ -315,7 +361,7 @@ function FieldControl({
           description={field.description}
           error={error}
           required={field.required}
-          placeholder={field.placeholder ?? "Choose…"}
+          placeholder={field.placeholder ?? choose}
           options={field.options ?? []}
           // Always controlled: "" shows the placeholder, so the Select never flips modes.
           value={text}

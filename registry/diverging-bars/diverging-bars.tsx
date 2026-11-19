@@ -36,7 +36,40 @@ export type DivergingBarsProps = {
   format?: (value: number) => string;
   /** Called when a column is hovered, clicked or reached with the arrow keys. */
   onSelect?: (index: number) => void;
+  /** Your own UI strings, for translating. `labels` is taken by the columns. */
+  strings?: Partial<DivergingBarsLabels>;
   className?: string;
+};
+
+export type DivergingBarsLabels = {
+  /** Legend group name. */
+  series: string;
+  /** First column of the screen-reader table. */
+  label: string;
+  /** Last column of the screen-reader table. */
+  total: string;
+  /** Screen-reader hint on the chart. */
+  instructions: (title: string) => string;
+  /** Screen-reader summary. `below` is the hanging series, when shown. */
+  summary: (
+    series: string[],
+    below: string | undefined,
+    from: string,
+    to: string,
+    total: string,
+  ) => string;
+  /** Screen-reader reading of one column's total. */
+  columnTotal: (total: string) => string;
+};
+
+const defaultLabels: DivergingBarsLabels = {
+  series: "Series",
+  label: "Label",
+  total: "Total",
+  instructions: (title) => `${title}. Use arrow keys to read columns.`,
+  summary: (series, below, from, to, total) =>
+    `Stacked columns of ${series.join(", ")}${below ? `, with ${below} below the line` : ""}, ${from} to ${to}, ${total} in total`,
+  columnTotal: (total) => `total ${total}`,
 };
 
 // Validated for both themes: blue, teal, purple, ochre, indigo, cyan.
@@ -94,8 +127,10 @@ export function DivergingBars({
   subtitle,
   format = compact,
   onSelect,
+  strings,
   className,
 }: DivergingBarsProps) {
+  const text = { ...defaultLabels, ...strings };
   const reduce = useReducedMotion();
   const [ref, width, measured] = useWidth();
   const [hidden, setHidden] = useState<string[]>([]);
@@ -170,7 +205,13 @@ export function DivergingBars({
   const total = (i: number) => totals[i];
 
   const allTotal = sum(labels.map((_, i) => total(i)));
-  const summary = `Stacked columns of ${visible.map((s) => s.label).join(", ")}${belowOn && below ? `, with ${below.label} below the line` : ""}, ${labels[0]} to ${labels.at(-1)}, ${format(allTotal)} in total`;
+  const summary = text.summary(
+    visible.map((s) => s.label),
+    belowOn && below ? below.label : undefined,
+    labels[0],
+    labels.at(-1) ?? "",
+    format(allTotal),
+  );
 
   const tipRight = activeIndex !== null && x(activeIndex) > width - 190;
   const stagger = reduce ? 0 : Math.min(0.02, 0.6 / Math.max(count, 1));
@@ -199,7 +240,11 @@ export function DivergingBars({
             </div>
           )}
 
-          <div role="group" aria-label="Series" className="mb-3 flex flex-wrap gap-1.5">
+          <div
+            role="group"
+            aria-label={text.series}
+            className="mb-3 flex flex-wrap gap-1.5"
+          >
             {[...series, ...(below ? [below] : [])].map((s) => {
               const on = !hidden.includes(s.id);
               return (
@@ -210,7 +255,7 @@ export function DivergingBars({
                   onClick={() => toggle(s.id, on)}
                   className={cn(
                     "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs transition-[background-color,color,opacity,scale] duration-150 ease-out active:scale-[0.97]",
-                    s.id === below?.id && "sm:ml-auto",
+                    s.id === below?.id && "sm:ms-auto",
                     on
                       ? "bg-foreground/[0.06] text-foreground"
                       : "text-muted-foreground opacity-60 hover:opacity-100",
@@ -234,19 +279,21 @@ export function DivergingBars({
             ref={ref}
             tabIndex={0}
             role="group"
-            aria-label={`${title}. Use arrow keys to read columns.`}
+            aria-label={text.instructions(title)}
             onKeyDown={onKeyDown}
             onBlur={() => fromKeyboard && setActive(null)}
             className="relative rounded-xl outline-offset-4"
           >
+            {/* Time runs left to right in every language; labels keep their own direction. */}
             <svg
+              direction="ltr"
               key={measured ? "measured" : "guess"}
               visibility={measured ? undefined : "hidden"}
               role="img"
               aria-label={summary}
               width={width}
               height={H}
-              className="block overflow-visible"
+              className="block overflow-visible [&_text]:[unicode-bidi:plaintext]"
               onPointerLeave={() => select(null, false)}
             >
               {/* Gridlines and the right axis: the upper scale, zero, the lower scale. */}
@@ -446,14 +493,14 @@ export function DivergingBars({
             <caption>{title}</caption>
             <thead>
               <tr>
-                <th scope="col">Label</th>
+                <th scope="col">{text.label}</th>
                 {visible.map((s) => (
                   <th key={s.id} scope="col">
                     {s.label}
                   </th>
                 ))}
                 {belowOn && below && <th scope="col">{below.label}</th>}
-                <th scope="col">Total</th>
+                <th scope="col">{text.total}</th>
               </tr>
             </thead>
             <tbody>
@@ -471,7 +518,7 @@ export function DivergingBars({
           </table>
           <p role="status" aria-live="polite" className="sr-only">
             {fromKeyboard && activeIndex !== null
-              ? `${labels[activeIndex]}: total ${format(total(activeIndex))}, ${rows(
+              ? `${labels[activeIndex]}: ${text.columnTotal(format(total(activeIndex)))}, ${rows(
                   activeIndex,
                 )
                   .map((r) => `${r.label} ${format(r.value)}`)

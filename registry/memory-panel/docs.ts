@@ -55,6 +55,12 @@ export function AgentMemory({ memories }: { memories: Memory[] }) {
       description: "Heading and accessible name of the panel.",
     },
     {
+      name: "labels",
+      type: "Partial<MemoryPanelLabels>",
+      description:
+        'Your own UI strings (scopes, search, empty states, screen-reader text), for translating. Right-to-left works under `dir="rtl"`.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

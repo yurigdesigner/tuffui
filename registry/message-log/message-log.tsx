@@ -14,7 +14,16 @@ import {
   XCircle,
 } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Button, IconButton } from "@/components/ui/action-button";
 import { CodeBlock, type CodeLanguage } from "@/components/ui/code-block";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -81,6 +90,128 @@ export type MessageAnnotation = {
   detail?: string;
 };
 
+export type MessageLogLabels = {
+  /** Filter switch. */
+  showEvents: string;
+  filters: Record<MessageFilter, string>;
+  /** Search. */
+  search: string;
+  searchQuery: (query: string) => string;
+  closeSearch: string;
+  /** Timeline header; the short form shows on very narrow cards. */
+  last: (minutes: number) => string;
+  lastShort: (minutes: number) => string;
+  perDot: (count: string) => string;
+  clearWindow: string;
+  dragHint: string;
+  /** Default flag label. */
+  failingSince: (time: string) => string;
+  /** Brush slider. */
+  timeWindow: string;
+  windowText: (range: string) => string;
+  allText: (minutes: number) => string;
+  /** Screen reader summary under the timeline. */
+  summary: (minutes: number, delivered: string, failed: string) => string;
+  mostly: (detail: string) => string;
+  /** Log columns. */
+  columns: {
+    event: string;
+    status: string;
+    attempts: string;
+    latency: string;
+    time: string;
+  };
+  retrying: string;
+  failed: string;
+  /** Screen reader label of the attempt dots. */
+  tries: (count: number, max: number, list: string) => string;
+  attemptStatus: (status: MessageAttemptStatus, code?: number) => string;
+  /** Empty state. */
+  noMatch: string;
+  nothingMatches: (query: string, range: string | null) => string;
+  noEvents: (filter: MessageFilter, range: string | null) => string;
+  /** Legend and footer count. */
+  delivered: string;
+  scheduled: string;
+  of: (shown: string, total: string) => string;
+  /** Live region after filtering. */
+  eventsCount: (count: number, range: string | null) => string;
+  /** Expanded row. */
+  attempts: string;
+  sending: string;
+  tryAt: (n: number, time: string) => string;
+  responseBody: string;
+  tryN: (n: number) => string;
+  copied: string;
+  copyBody: string;
+  noResponse: string;
+  emptyBody: string;
+  copyCurl: string;
+  replay: string;
+  sendingButton: string;
+  bodyCopied: string;
+  curlCopied: string;
+};
+
+const defaultLabels: MessageLogLabels = {
+  showEvents: "Show events",
+  filters: { all: "All", failed: "Failed", retrying: "Retrying" },
+  search: "Search events",
+  searchQuery: (query) => `Search: ${query}`,
+  closeSearch: "Close search",
+  last: (minutes) => `Last ${minutes} minutes`,
+  lastShort: (minutes) => `Last ${minutes} min`,
+  perDot: (count) => `1 dot = ${count} events`,
+  clearWindow: "Clear time window",
+  dragHint: "Drag to pick a window",
+  failingSince: (time) => `failing since ${time}`,
+  timeWindow: "Time window",
+  windowText: (range) =>
+    `${range}. Arrows move it, Shift with arrows resizes, Escape clears.`,
+  allText: (minutes) => `All ${minutes} minutes. Press an arrow key to pick a window.`,
+  summary: (minutes, delivered, failed) =>
+    `Last ${minutes} minutes: ${delivered} delivered, ${failed} failed.`,
+  mostly: (detail) => `, mostly ${detail}`,
+  columns: {
+    event: "Event",
+    status: "Status",
+    attempts: "Attempts",
+    latency: "Latency",
+    time: "Time",
+  },
+  retrying: "Retrying",
+  failed: "Failed",
+  tries: (count, max, list) => `${count} of ${max} tries: ${list}`,
+  attemptStatus: (status, code) =>
+    status === "failed" ? `failed${code ? ` ${code}` : ""}` : status,
+  noMatch: "No events match",
+  nothingMatches: (query, range) =>
+    `Nothing matches “${query}”${range ? ` between ${range}` : ""}.`,
+  noEvents: (filter, range) =>
+    `No ${filter === "all" ? "" : `${filter} `}events${range ? ` between ${range}` : ""}.`,
+  delivered: "Delivered",
+  scheduled: "Scheduled",
+  of: (shown, total) => `${shown} of ${total}`,
+  eventsCount: (count, range) =>
+    `${count} ${count === 1 ? "event" : "events"}${range ? ` between ${range}` : ""}`,
+  attempts: "Attempts",
+  sending: "Sending…",
+  tryAt: (n, time) => `Try ${n} · ${time}`,
+  responseBody: "Response body",
+  tryN: (n) => `try ${n}`,
+  copied: "Copied",
+  copyBody: "Copy response body",
+  noResponse: "No response yet.",
+  emptyBody: "Empty response body.",
+  copyCurl: "Copy cURL",
+  replay: "Replay",
+  sendingButton: "Sending",
+  bodyCopied: "Response body copied",
+  curlCopied: "cURL copied",
+};
+
+const LabelsContext = createContext<MessageLogLabels>(defaultLabels);
+
 export type MessageLogProps = {
   /** Events in any order; the log lists them newest first. */
   events: MessageEvent[];
@@ -120,16 +251,16 @@ export type MessageLogProps = {
   totalLabel?: string;
   /** Times on the axis, rows and attempts. Defaults to UTC `11:04` / `11:04:09`. */
   formatTime?: (date: Date, precision: "minute" | "second") => string;
+  /** BCP 47 locale for counts. */
+  locale?: string;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<MessageLogLabels>;
   className?: string;
 };
 
 type Status = "delivered" | "failed" | "retrying";
 
-const FILTERS: { value: MessageFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "failed", label: "Failed" },
-  { value: "retrying", label: "Retrying" },
-];
+const FILTERS: MessageFilter[] = ["all", "failed", "retrying"];
 
 const LANE = 30; // flag lane above the dots
 const PITCH = 9; // vertical distance between dots
@@ -157,8 +288,6 @@ const defaultTime = (date: Date, precision: "minute" | "second") =>
 
 const duration = (value: number) =>
   value < 1000 ? `${Math.round(value)} ms` : `${(value / 1000).toFixed(1)} s`;
-
-const count = (n: number) => n.toLocaleString("en-US");
 
 function niceStep(raw: number) {
   const steps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
@@ -233,8 +362,12 @@ export function MessageLog({
   total,
   totalLabel,
   formatTime = defaultTime,
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: MessageLogProps) {
+  const t = { ...defaultLabels, ...labelOverrides };
+  const count = (n: number) => n.toLocaleString(locale);
   const uid = useId();
   const [chart, width, measured] = useWidth();
   // Narrow cards keep dots apart by showing fewer buckets, in steps of 15.
@@ -345,7 +478,7 @@ export function MessageLog({
     const top = [...tally].sort((a, b) => b[1] - a[1])[0]?.[0];
     return {
       at: from,
-      label: `failing since ${defaultTime(new Date(from), "minute")}`,
+      label: defaultLabels.failingSince(defaultTime(new Date(from), "minute")),
       detail: top,
     };
   }, [buckets, events]);
@@ -355,10 +488,18 @@ export function MessageLog({
     ...annotation,
     label:
       annotationProp === undefined
-        ? `failing since ${formatTime(new Date(ms(annotation.at)), "minute")}`
+        ? t.failingSince(formatTime(new Date(ms(annotation.at)), "minute"))
         : annotation.label,
   };
   const flagX = flag ? xOf(ms(flag.at)) : 0;
+  // The timeline is forced left to right; the flag's text follows the page.
+  const [rtl, setRtl] = useState(false);
+  // Runs every render (direction can change without a remount); same value bails out.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const parent = chart.current?.parentElement;
+    if (parent) setRtl(getComputedStyle(parent).direction === "rtl");
+  });
   const flagLeft = flagX > width * 0.5;
 
   const ticks: number[] = [];
@@ -488,8 +629,8 @@ export function MessageLog({
 
   const segmented = (
     <Segmented
-      label="Show events"
-      options={FILTERS}
+      label={t.showEvents}
+      options={FILTERS.map((value) => ({ value, label: t.filters[value] }))}
       value={filter}
       onValueChange={setFilter}
     />
@@ -498,412 +639,424 @@ export function MessageLog({
     value: query,
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value),
     onClear: () => setQuery(""),
-    placeholder: "Search events",
+    placeholder: t.search,
   };
 
   return (
     <MotionConfig reducedMotion="user">
-      <Shell className={cn("max-w-3xl", className)} aria-label={title}>
-        <ShellHeader
-          icon={WebhooksLogo}
-          title={
-            <>
-              <span className="text-muted-foreground @max-sm:hidden">
-                {section}
-                <span aria-hidden="true" className="px-1.5 text-muted-foreground/50">
-                  /
-                </span>
-              </span>
-              {title}
-            </>
-          }
-          aside={
-            <div className="flex items-center gap-2 @max-xl:hidden">
-              <div className="relative w-40 @3xl:w-48">
-                <SearchField ref={wideSearch} {...searchProps} />
-                {!query && (
-                  <Kbd
-                    aria-hidden="true"
-                    className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2"
-                  >
+      <LabelsContext.Provider value={t}>
+        <Shell className={cn("max-w-3xl", className)} aria-label={title}>
+          <ShellHeader
+            icon={WebhooksLogo}
+            title={
+              <>
+                <span className="text-muted-foreground @max-sm:hidden">
+                  {section}
+                  <span aria-hidden="true" className="px-1.5 text-muted-foreground/50">
                     /
-                  </Kbd>
-                )}
-              </div>
-              <div className="@max-2xl:hidden">{segmented}</div>
-            </div>
-          }
-        />
-
-        <Panel className="p-2">
-          {/* Narrow cards: filters and a folded search in one row. */}
-          <div className="flex h-10 items-center gap-2 px-1 pb-1 @2xl:hidden">
-            <AnimatePresence mode="popLayout" initial={false}>
-              {searchOpen ? (
-                <motion.div
-                  key="search"
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1, transition: enter }}
-                  exit={{ opacity: 0, transition: exit }}
-                  className="flex min-w-0 flex-1 items-center gap-1"
-                >
-                  <SearchField
-                    ref={narrowSearch}
-                    {...searchProps}
-                    className="min-w-0 flex-1"
-                    onKeyDown={(e) => e.key === "Escape" && setSearchOpen(false)}
-                  />
-                  <IconButton
-                    icon={X}
-                    iconWeight="bold"
-                    label="Close search"
-                    onClick={() => {
-                      setQuery("");
-                      setSearchOpen(false);
-                    }}
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="filters"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, transition: enter }}
-                  exit={{ opacity: 0, transition: exit }}
-                  className="flex min-w-0 flex-1 items-center justify-between gap-2"
-                >
-                  {segmented}
-                  <IconButton
-                    icon={MagnifyingGlass}
-                    iconWeight="bold"
-                    label={query ? `Search: ${query}` : "Search events"}
-                    onClick={() => {
-                      setSearchOpen(true);
-                      requestAnimationFrame(() => narrowSearch.current?.focus());
-                    }}
-                    className={cn("@xl:hidden", query && "bg-brand/15 text-brand")}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* --- Timeline */}
-          <div className="px-2 pt-2 pb-1 @2xl:px-3 @2xl:pt-3">
-            <div className="flex min-h-6 items-center gap-x-3 gap-y-1 text-[0.8125rem]">
-              <span className="font-medium whitespace-nowrap">
-                Last {minutes} min<span className="@max-xs:hidden">utes</span>
-              </span>
-              <span className="text-muted-foreground @max-sm:hidden">
-                1 dot = {count(perDot)} events
-              </span>
-              <span className="flex-1" />
-              <AnimatePresence mode="popLayout" initial={false}>
-                {range ? (
-                  <motion.span
-                    key="range"
-                    initial={{ opacity: 0, scale: 0.96 }}
-                    animate={{ opacity: 1, scale: 1, transition: enter }}
-                    exit={{ opacity: 0, scale: 0.96, transition: exit }}
-                    className="inline-flex h-6 items-center gap-1 rounded-full bg-brand/15 pr-0.5 pl-2.5 font-mono text-xs text-brand tabular-nums"
-                  >
-                    <span className="whitespace-nowrap">{range}</span>
-                    <button
-                      type="button"
-                      aria-label="Clear time window"
-                      onClick={() => setWindow(null)}
-                      className="flex size-5 items-center justify-center rounded-full transition-[background-color,scale] duration-150 ease-ui-out hover:bg-brand/20 active:scale-[0.9]"
+                  </span>
+                </span>
+                {title}
+              </>
+            }
+            aside={
+              <div className="flex items-center gap-2 @max-xl:hidden">
+                <div className="relative w-40 @3xl:w-48">
+                  <SearchField ref={wideSearch} {...searchProps} />
+                  {!query && (
+                    <Kbd
+                      aria-hidden="true"
+                      className="pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2"
                     >
-                      <X weight="bold" aria-hidden="true" className="size-3" />
-                    </button>
-                  </motion.span>
+                      /
+                    </Kbd>
+                  )}
+                </div>
+                <div className="@max-2xl:hidden">{segmented}</div>
+              </div>
+            }
+          />
+
+          <Panel className="p-2">
+            {/* Narrow cards: filters and a folded search in one row. */}
+            <div className="flex h-10 items-center gap-2 px-1 pb-1 @2xl:hidden">
+              <AnimatePresence mode="popLayout" initial={false}>
+                {searchOpen ? (
+                  <motion.div
+                    key="search"
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1, transition: enter }}
+                    exit={{ opacity: 0, transition: exit }}
+                    className="flex min-w-0 flex-1 items-center gap-1"
+                  >
+                    <SearchField
+                      ref={narrowSearch}
+                      {...searchProps}
+                      className="min-w-0 flex-1"
+                      onKeyDown={(e) => e.key === "Escape" && setSearchOpen(false)}
+                    />
+                    <IconButton
+                      icon={X}
+                      iconWeight="bold"
+                      label={t.closeSearch}
+                      onClick={() => {
+                        setQuery("");
+                        setSearchOpen(false);
+                      }}
+                    />
+                  </motion.div>
                 ) : (
-                  <motion.span
-                    key="hint"
+                  <motion.div
+                    key="filters"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1, transition: enter }}
                     exit={{ opacity: 0, transition: exit }}
-                    className="text-xs text-muted-foreground @max-sm:hidden"
+                    className="flex min-w-0 flex-1 items-center justify-between gap-2"
                   >
-                    Drag to pick a window
-                  </motion.span>
+                    {segmented}
+                    <IconButton
+                      icon={MagnifyingGlass}
+                      iconWeight="bold"
+                      label={query ? t.searchQuery(query) : t.search}
+                      onClick={() => {
+                        setSearchOpen(true);
+                        requestAnimationFrame(() => narrowSearch.current?.focus());
+                      }}
+                      className={cn("@xl:hidden", query && "bg-brand/15 text-brand")}
+                    />
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            <div
-              ref={chart}
-              className="relative mt-1 touch-none select-none"
-              style={{ height: LANE + dotsH }}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={onPointerUp}
-              onPointerCancel={onPointerUp}
-            >
-              <svg
-                key={measured ? "measured" : "guess"}
-                visibility={measured ? undefined : "hidden"}
-                aria-hidden="true"
-                width={width}
-                height={LANE + dotsH}
-                className="absolute inset-0 block overflow-visible"
-              >
-                {flag && (
-                  <motion.line
-                    initial={false}
-                    animate={{ x1: flagX, x2: flagX }}
-                    transition={spring}
-                    y1={LANE - 6}
-                    y2={LANE + dotsH}
-                    strokeWidth={1.25}
-                    strokeDasharray="1 3"
-                    strokeLinecap="round"
-                    className="stroke-negative/70"
-                  />
-                )}
-                <AnimatePresence initial={false}>
-                  {buckets.map((b, i) => {
-                    const fail =
-                      b.failed > 0 ? Math.max(1, Math.round(b.failed / perDot)) : 0;
-                    const ok = Math.min(Math.round(b.delivered / perDot), dotRows - fail);
-                    const inside = !win || (b.at >= win[0] && b.at < win[1]);
-                    return (
-                      <motion.g
-                        key={b.at}
-                        initial={{ opacity: 0, x: (i + 1) * colW }}
-                        animate={{ opacity: 1, x: i * colW }}
-                        exit={{ opacity: 0, x: (i - 1) * colW }}
-                        transition={spring}
-                      >
-                        {Array.from({ length: dotRows }, (_, k) => {
-                          const tone = k < ok ? "ok" : k < ok + fail ? "fail" : "empty";
-                          return (
-                            <circle
-                              key={k}
-                              cx={colW / 2}
-                              cy={LANE + dotsH - 2 - PITCH / 2 - k * PITCH}
-                              r={tone === "empty" ? r * 0.55 : r}
-                              className={cn(
-                                "transition-[fill,opacity] duration-200 ease-ui-out",
-                                tone === "ok"
-                                  ? "fill-brand"
-                                  : tone === "fail"
-                                    ? "fill-negative"
-                                    : "fill-foreground/15",
-                                tone !== "empty" && !inside && "opacity-45",
-                              )}
-                            />
-                          );
-                        })}
-                      </motion.g>
-                    );
-                  })}
-                </AnimatePresence>
-              </svg>
-
-              {flag && measured && (
-                <motion.div
-                  initial={false}
-                  animate={{ left: flagX }}
-                  transition={spring}
-                  className={cn(
-                    "pointer-events-none absolute top-0 flex h-6 max-w-[70%] items-center gap-1.5 rounded-md bg-negative/12 px-2 text-xs whitespace-nowrap",
-                    flagLeft ? "-translate-x-full" : "",
-                  )}
-                >
-                  <span className="text-negative">{flag.label}</span>
-                  {flag.detail && (
-                    <span className="truncate font-mono text-foreground/80 @max-md:hidden">
-                      {flag.detail}
-                    </span>
-                  )}
-                </motion.div>
-              )}
-
-              {/* Brush: one tab stop for the whole timeline. */}
-              <div
-                role="slider"
-                tabIndex={0}
-                aria-label="Time window"
-                aria-valuemin={start}
-                aria-valuemax={end}
-                aria-valuenow={win?.[0] ?? start}
-                aria-valuetext={
-                  range
-                    ? `${range}. Arrows move it, Shift with arrows resizes, Escape clears.`
-                    : `All ${minutes} minutes. Press an arrow key to pick a window.`
-                }
-                onKeyDown={onBrushKey}
-                onBlur={() => setKeyed(false)}
-                className="group/brush absolute inset-x-0 rounded-lg outline-none focus-visible:bg-foreground/[0.04]"
-                style={{ top: LANE - 2, height: dotsH + 2 }}
-              >
-                <AnimatePresence initial={false}>
-                  {win && measured && (
-                    <motion.div
-                      key="band"
-                      data-brush="move"
-                      initial={{
-                        opacity: 0,
-                        left: xOf(win[0]),
-                        width: xOf(win[1]) - xOf(win[0]),
-                      }}
-                      animate={{
-                        opacity: 1,
-                        left: Math.max(xOf(win[0]), 0),
-                        width: Math.max(
-                          Math.min(xOf(win[1]), width) - Math.max(xOf(win[0]), 0),
-                          2,
-                        ),
-                      }}
-                      exit={{ opacity: 0, transition: exit }}
-                      transition={{ ...bandMotion, opacity: enter }}
-                      className="absolute inset-y-0 cursor-grab rounded-lg bg-brand/12 transition-[background-color] duration-150 group-focus-visible/brush:bg-brand/20 hover:bg-brand/16 active:cursor-grabbing"
+            {/* --- Timeline */}
+            <div className="px-2 pt-2 pb-1 @2xl:px-3 @2xl:pt-3">
+              <div className="flex min-h-6 items-center gap-x-3 gap-y-1 text-[0.8125rem]">
+                <span className="font-medium whitespace-nowrap">
+                  <span className="@max-xs:hidden">{t.last(minutes)}</span>
+                  <span className="@xs:hidden">{t.lastShort(minutes)}</span>
+                </span>
+                <span className="text-muted-foreground @max-sm:hidden">
+                  {t.perDot(count(perDot))}
+                </span>
+                <span className="flex-1" />
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {range ? (
+                    <motion.span
+                      key="range"
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1, transition: enter }}
+                      exit={{ opacity: 0, scale: 0.96, transition: exit }}
+                      className="inline-flex h-6 items-center gap-1 rounded-full bg-brand/15 ps-2.5 pe-0.5 font-mono text-xs text-brand tabular-nums"
                     >
-                      {(["start", "end"] as const).map((side) => (
-                        <span
-                          key={side}
-                          data-brush={side}
-                          className={cn(
-                            "absolute inset-y-0 flex w-4 cursor-ew-resize items-center justify-center",
-                            side === "start" ? "-left-2" : "-right-2",
-                          )}
-                        >
-                          <span className="h-4 w-1 rounded-full bg-brand" />
-                        </span>
-                      ))}
-                    </motion.div>
+                      <span dir="ltr" className="whitespace-nowrap">
+                        {range}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={t.clearWindow}
+                        onClick={() => setWindow(null)}
+                        className="flex size-5 items-center justify-center rounded-full transition-[background-color,scale] duration-150 ease-ui-out hover:bg-brand/20 active:scale-[0.9]"
+                      >
+                        <X weight="bold" aria-hidden="true" className="size-3" />
+                      </button>
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="hint"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1, transition: enter }}
+                      exit={{ opacity: 0, transition: exit }}
+                      className="text-xs text-muted-foreground @max-sm:hidden"
+                    >
+                      {t.dragHint}
+                    </motion.span>
                   )}
                 </AnimatePresence>
               </div>
-            </div>
 
-            <div
-              aria-hidden="true"
-              className="relative mt-2 h-4 font-mono text-[0.6875rem] text-muted-foreground tabular-nums"
-            >
-              <span className="absolute left-0">
-                {formatTime(new Date(start), "minute")}
-              </span>
-              <AnimatePresence initial={false}>
-                {measured &&
-                  ticks.map((t) => (
-                    <motion.span
-                      key={t}
-                      initial={{ opacity: 0, left: xOf(t) }}
-                      animate={{ opacity: 1, left: xOf(t) }}
-                      exit={{ opacity: 0, transition: exit }}
-                      transition={spring}
-                      className="absolute -translate-x-1/2"
-                    >
-                      {formatTime(new Date(t), "minute")}
-                    </motion.span>
-                  ))}
-              </AnimatePresence>
-              <span className="absolute right-0 text-foreground">
-                {formatTime(new Date(end), "minute")}
-              </span>
-            </div>
-
-            <p className="sr-only">
-              {`Last ${minutes} minutes: ${count(delivered)} delivered, ${count(failed)} failed.`}
-              {flag
-                ? ` ${flag.label}${flag.detail ? `, mostly ${flag.detail}` : ""}.`
-                : ""}
-            </p>
-          </div>
-
-          {/* --- Log */}
-          <div
-            role="table"
-            aria-label={`${section} ${title}`}
-            aria-rowcount={rows.length + 1}
-            className="mt-3"
-          >
-            <div
-              role="rowgroup"
-              className={cn("@max-lg:sr-only", rows.length === 0 && "hidden")}
-            >
+              {/* The timeline reads left to right in every language: time runs that way. */}
               <div
-                role="row"
-                className={cn(
-                  "grid gap-x-3 px-3 pb-1.5 text-xs text-muted-foreground",
-                  COLUMNS,
-                )}
+                ref={chart}
+                dir="ltr"
+                className="relative mt-1 touch-none select-none"
+                style={{ height: LANE + dotsH }}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
               >
-                {["Event", "Status", "Attempts", "Latency"].map((h) => (
-                  <span key={h} role="columnheader">
-                    {h}
-                  </span>
-                ))}
-                <span role="columnheader" className="text-right">
-                  Time
+                <svg
+                  key={measured ? "measured" : "guess"}
+                  visibility={measured ? undefined : "hidden"}
+                  aria-hidden="true"
+                  width={width}
+                  height={LANE + dotsH}
+                  className="absolute inset-0 block overflow-visible"
+                >
+                  {flag && (
+                    <motion.line
+                      initial={false}
+                      animate={{ x1: flagX, x2: flagX }}
+                      transition={spring}
+                      y1={LANE - 6}
+                      y2={LANE + dotsH}
+                      strokeWidth={1.25}
+                      strokeDasharray="1 3"
+                      strokeLinecap="round"
+                      className="stroke-negative/70"
+                    />
+                  )}
+                  <AnimatePresence initial={false}>
+                    {buckets.map((b, i) => {
+                      const fail =
+                        b.failed > 0 ? Math.max(1, Math.round(b.failed / perDot)) : 0;
+                      const ok = Math.min(
+                        Math.round(b.delivered / perDot),
+                        dotRows - fail,
+                      );
+                      const inside = !win || (b.at >= win[0] && b.at < win[1]);
+                      return (
+                        <motion.g
+                          key={b.at}
+                          initial={{ opacity: 0, x: (i + 1) * colW }}
+                          animate={{ opacity: 1, x: i * colW }}
+                          exit={{ opacity: 0, x: (i - 1) * colW }}
+                          transition={spring}
+                        >
+                          {Array.from({ length: dotRows }, (_, k) => {
+                            const tone = k < ok ? "ok" : k < ok + fail ? "fail" : "empty";
+                            return (
+                              <circle
+                                key={k}
+                                cx={colW / 2}
+                                cy={LANE + dotsH - 2 - PITCH / 2 - k * PITCH}
+                                r={tone === "empty" ? r * 0.55 : r}
+                                className={cn(
+                                  "transition-[fill,opacity] duration-200 ease-ui-out",
+                                  tone === "ok"
+                                    ? "fill-brand"
+                                    : tone === "fail"
+                                      ? "fill-negative"
+                                      : "fill-foreground/15",
+                                  tone !== "empty" && !inside && "opacity-45",
+                                )}
+                              />
+                            );
+                          })}
+                        </motion.g>
+                      );
+                    })}
+                  </AnimatePresence>
+                </svg>
+
+                {flag && measured && (
+                  <motion.div
+                    dir={rtl ? "rtl" : undefined}
+                    initial={false}
+                    animate={{ left: flagX }}
+                    transition={spring}
+                    className={cn(
+                      "pointer-events-none absolute top-0 flex h-6 max-w-[70%] items-center gap-1.5 rounded-md bg-negative/12 px-2 text-xs whitespace-nowrap",
+                      flagLeft ? "-translate-x-full" : "",
+                    )}
+                  >
+                    <span className="text-negative">{flag.label}</span>
+                    {flag.detail && (
+                      <span
+                        dir="ltr"
+                        className="truncate font-mono text-foreground/80 @max-md:hidden"
+                      >
+                        {flag.detail}
+                      </span>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* Brush: one tab stop for the whole timeline. */}
+                <div
+                  role="slider"
+                  tabIndex={0}
+                  aria-label={t.timeWindow}
+                  aria-valuemin={start}
+                  aria-valuemax={end}
+                  aria-valuenow={win?.[0] ?? start}
+                  aria-valuetext={range ? t.windowText(range) : t.allText(minutes)}
+                  onKeyDown={onBrushKey}
+                  onBlur={() => setKeyed(false)}
+                  className="group/brush absolute inset-x-0 rounded-lg outline-none focus-visible:bg-foreground/[0.04]"
+                  style={{ top: LANE - 2, height: dotsH + 2 }}
+                >
+                  <AnimatePresence initial={false}>
+                    {win && measured && (
+                      <motion.div
+                        key="band"
+                        data-brush="move"
+                        initial={{
+                          opacity: 0,
+                          left: xOf(win[0]),
+                          width: xOf(win[1]) - xOf(win[0]),
+                        }}
+                        animate={{
+                          opacity: 1,
+                          left: Math.max(xOf(win[0]), 0),
+                          width: Math.max(
+                            Math.min(xOf(win[1]), width) - Math.max(xOf(win[0]), 0),
+                            2,
+                          ),
+                        }}
+                        exit={{ opacity: 0, transition: exit }}
+                        transition={{ ...bandMotion, opacity: enter }}
+                        className="absolute inset-y-0 cursor-grab rounded-lg bg-brand/12 transition-[background-color] duration-150 group-focus-visible/brush:bg-brand/20 hover:bg-brand/16 active:cursor-grabbing"
+                      >
+                        {(["start", "end"] as const).map((side) => (
+                          <span
+                            key={side}
+                            data-brush={side}
+                            className={cn(
+                              "absolute inset-y-0 flex w-4 cursor-ew-resize items-center justify-center",
+                              side === "start" ? "-left-2" : "-right-2",
+                            )}
+                          >
+                            <span className="h-4 w-1 rounded-full bg-brand" />
+                          </span>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+
+              <div
+                aria-hidden="true"
+                dir="ltr"
+                className="relative mt-2 h-4 font-mono text-[0.6875rem] text-muted-foreground tabular-nums"
+              >
+                <span className="absolute left-0">
+                  {formatTime(new Date(start), "minute")}
+                </span>
+                <AnimatePresence initial={false}>
+                  {measured &&
+                    ticks.map((t) => (
+                      <motion.span
+                        key={t}
+                        initial={{ opacity: 0, left: xOf(t) }}
+                        animate={{ opacity: 1, left: xOf(t) }}
+                        exit={{ opacity: 0, transition: exit }}
+                        transition={spring}
+                        className="absolute -translate-x-1/2"
+                      >
+                        {formatTime(new Date(t), "minute")}
+                      </motion.span>
+                    ))}
+                </AnimatePresence>
+                <span className="absolute right-0 text-foreground">
+                  {formatTime(new Date(end), "minute")}
                 </span>
               </div>
+
+              <p className="sr-only">
+                {t.summary(minutes, count(delivered), count(failed))}
+                {flag ? ` ${flag.label}${flag.detail ? t.mostly(flag.detail) : ""}.` : ""}
+              </p>
             </div>
 
-            <div ref={list} role="rowgroup" className="relative flex flex-col gap-0.5">
+            {/* --- Log */}
+            <div
+              role="table"
+              aria-label={`${section} ${title}`}
+              aria-rowcount={rows.length + 1}
+              className="mt-3"
+            >
+              <div
+                role="rowgroup"
+                className={cn("@max-lg:sr-only", rows.length === 0 && "hidden")}
+              >
+                <div
+                  role="row"
+                  className={cn(
+                    "grid gap-x-3 px-3 pb-1.5 text-xs text-muted-foreground",
+                    COLUMNS,
+                  )}
+                >
+                  {[
+                    t.columns.event,
+                    t.columns.status,
+                    t.columns.attempts,
+                    t.columns.latency,
+                  ].map((h) => (
+                    <span key={h} role="columnheader">
+                      {h}
+                    </span>
+                  ))}
+                  <span role="columnheader" className="text-end">
+                    {t.columns.time}
+                  </span>
+                </div>
+              </div>
+
+              <div ref={list} role="rowgroup" className="relative flex flex-col gap-0.5">
+                <AnimatePresence initial={false}>
+                  {rows.map((e) => (
+                    <Row
+                      key={e.id}
+                      uid={uid}
+                      event={e}
+                      open={selectedId === e.id}
+                      maxAttempts={maxAttempts}
+                      latencyMax={latencyMax}
+                      formatTime={formatTime}
+                      onToggle={() => select(selectedId === e.id ? null : e)}
+                      onKeyDown={onRowKey}
+                      onReplay={onReplay}
+                      onCopyCurl={onCopyCurl}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+
               <AnimatePresence initial={false}>
-                {rows.map((e) => (
-                  <Row
-                    key={e.id}
-                    uid={uid}
-                    event={e}
-                    open={selectedId === e.id}
-                    maxAttempts={maxAttempts}
-                    latencyMax={latencyMax}
-                    formatTime={formatTime}
-                    onToggle={() => select(selectedId === e.id ? null : e)}
-                    onKeyDown={onRowKey}
-                    onReplay={onReplay}
-                    onCopyCurl={onCopyCurl}
-                  />
-                ))}
+                {rows.length === 0 && (
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1, transition: { ...enter, delay: 0.1 } }}
+                    exit={{ opacity: 0, transition: exit }}
+                  >
+                    <EmptyState
+                      compact
+                      icon={MagnifyingGlass}
+                      title={t.noMatch}
+                      description={
+                        q ? t.nothingMatches(query, range) : t.noEvents(filter, range)
+                      }
+                    />
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
+          </Panel>
 
-            <AnimatePresence initial={false}>
-              {rows.length === 0 && (
-                <motion.div
-                  key="empty"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, transition: { ...enter, delay: 0.1 } }}
-                  exit={{ opacity: 0, transition: exit }}
-                >
-                  <EmptyState
-                    compact
-                    icon={MagnifyingGlass}
-                    title="No events match"
-                    description={
-                      q
-                        ? `Nothing matches “${query}”${range ? ` between ${range}` : ""}.`
-                        : `No ${filter === "all" ? "" : `${filter} `}events${range ? ` between ${range}` : ""}.`
-                    }
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </Panel>
-
-        <footer className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 pr-3.5 pl-3.5 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-brand" /> Delivered
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-negative" /> Failed
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Ring spin={false} /> Scheduled
-          </span>
-          <span className="ml-auto tabular-nums">
-            {count(rows.length)} of {count(total ?? events.length)}
-            {totalLabel ? ` · ${totalLabel}` : ""}
-          </span>
-        </footer>
-        <p role="status" aria-live="polite" className="sr-only">
-          {`${rows.length} ${rows.length === 1 ? "event" : "events"}${range ? ` between ${range}` : ""}`}
-        </p>
-      </Shell>
+          <footer className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 ps-3.5 pe-3.5 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-brand" /> {t.delivered}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-negative" /> {t.failed}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Ring spin={false} /> {t.scheduled}
+            </span>
+            <span className="ms-auto tabular-nums">
+              {t.of(count(rows.length), count(total ?? events.length))}
+              {totalLabel ? ` · ${totalLabel}` : ""}
+            </span>
+          </footer>
+          <p role="status" aria-live="polite" className="sr-only">
+            {t.eventsCount(rows.length, range)}
+          </p>
+        </Shell>
+      </LabelsContext.Provider>
     </MotionConfig>
   );
 }
@@ -939,6 +1092,7 @@ function Row({
   onReplay?: (event: MessageEvent) => void;
   onCopyCurl?: (event: MessageEvent) => string | void;
 }) {
+  const t = useContext(LabelsContext);
   const status = statusOf(e);
   const latency = latencyOf(e);
   const last = e.attempts.findLast(finished);
@@ -946,15 +1100,15 @@ function Row({
   const pill =
     status === "delivered" ? (
       <StatusPill size="sm" className="font-mono">
-        {last?.code ?? 200} OK
+        <bdi>{last?.code ?? 200} OK</bdi>
       </StatusPill>
     ) : status === "retrying" ? (
       <StatusPill size="sm" tone="brand">
-        Retrying
+        {t.retrying}
       </StatusPill>
     ) : (
       <StatusPill size="sm" tone="negative" icon={XCircle} className="font-mono">
-        {last?.code ?? "Failed"}
+        {last?.code ?? t.failed}
       </StatusPill>
     );
 
@@ -991,7 +1145,7 @@ function Row({
             aria-controls={detailId}
             onClick={onToggle}
             onKeyDown={onKeyDown}
-            className="block max-w-full text-left outline-none after:absolute after:inset-0 after:rounded-xl"
+            className="block max-w-full text-start outline-none after:absolute after:inset-0 after:rounded-xl"
           >
             <span className="block truncate font-mono text-foreground">{e.type}</span>
             <span className="mt-0.5 block truncate text-xs text-muted-foreground">
@@ -1027,13 +1181,13 @@ function Row({
               )}
             />
           </span>
-          <span className="w-12 shrink-0 text-right font-mono text-xs text-foreground/85 tabular-nums">
-            {latency === undefined ? "–" : duration(latency)}
+          <span className="w-12 shrink-0 text-end font-mono text-xs text-foreground/85 tabular-nums">
+            <bdi>{latency === undefined ? "–" : duration(latency)}</bdi>
           </span>
         </div>
         <div
           role="cell"
-          className="text-right font-mono text-xs text-muted-foreground tabular-nums [grid-area:tm]"
+          className="text-end font-mono text-xs text-muted-foreground tabular-nums [grid-area:tm]"
         >
           {formatTime(new Date(ms(e.at)), "second")}
         </div>
@@ -1084,6 +1238,7 @@ function Detail({
   onReplay?: (event: MessageEvent) => void;
   onCopyCurl?: (event: MessageEvent) => string | void;
 }) {
+  const t = useContext(LabelsContext);
   const lastDone = e.attempts.findLastIndex(finished);
   const [picked, setPicked] = useState<number | null>(null);
   const shown = picked !== null && picked < e.attempts.length ? picked : lastDone;
@@ -1108,8 +1263,8 @@ function Detail({
   return (
     <div>
       <div className="grid gap-4 @xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] @xl:gap-5">
-        <section aria-label="Attempts" className="min-w-0">
-          <h4 className="mb-2 text-xs text-muted-foreground">Attempts</h4>
+        <section aria-label={t.attempts} className="min-w-0">
+          <h4 className="mb-2 text-xs text-muted-foreground">{t.attempts}</h4>
           <ol className="flex flex-col">
             {e.attempts.map((a, i) => {
               const active = pickable && i === shown;
@@ -1129,18 +1284,20 @@ function Detail({
                             : "text-brand",
                       )}
                     >
-                      {a.status === "scheduled"
-                        ? "Scheduled"
-                        : a.status === "sending"
-                          ? "Sending…"
-                          : [a.code, a.label].filter(Boolean).join(" ")}
+                      <bdi>
+                        {a.status === "scheduled"
+                          ? t.scheduled
+                          : a.status === "sending"
+                            ? t.sending
+                            : [a.code, a.label].filter(Boolean).join(" ")}
+                      </bdi>
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      Try {i + 1} · {formatTime(new Date(ms(a.at)), "second")}
+                      {t.tryAt(i + 1, formatTime(new Date(ms(a.at)), "second"))}
                     </span>
                   </span>
                   <span className="shrink-0 pt-px font-mono text-xs text-foreground/85 tabular-nums">
-                    {a.ms !== undefined && finished(a) ? duration(a.ms) : ""}
+                    <bdi>{a.ms !== undefined && finished(a) ? duration(a.ms) : ""}</bdi>
                   </span>
                 </>
               );
@@ -1154,7 +1311,7 @@ function Detail({
                   {i < e.attempts.length - 1 && (
                     <span
                       aria-hidden="true"
-                      className="absolute top-6 bottom-0 left-[1.0625rem] w-px bg-foreground/12"
+                      className="absolute start-[1.0625rem] top-6 bottom-0 w-px bg-foreground/12"
                     />
                   )}
                   {pickable && a.body !== undefined ? (
@@ -1163,7 +1320,7 @@ function Detail({
                       aria-pressed={active}
                       onClick={() => setPicked(i)}
                       className={cn(
-                        "flex w-full items-start gap-3 rounded-lg px-2.5 py-1.5 text-left transition-[background-color] duration-150 ease-ui-out outline-none hover:bg-foreground/[0.04] focus-visible:bg-foreground/[0.07]",
+                        "flex w-full items-start gap-3 rounded-lg px-2.5 py-1.5 text-start transition-[background-color] duration-150 ease-ui-out outline-none hover:bg-foreground/[0.04] focus-visible:bg-foreground/[0.07]",
                         active && "bg-foreground/[0.06] hover:bg-foreground/[0.06]",
                       )}
                     >
@@ -1178,20 +1335,20 @@ function Detail({
           </ol>
         </section>
 
-        <section aria-label="Response body" className="min-w-0">
+        <section aria-label={t.responseBody} className="min-w-0">
           <div className="mb-2 flex h-5 items-center justify-between gap-2">
             <h4 className="text-xs text-muted-foreground">
-              Response body
+              {t.responseBody}
               {pickable && shown >= 0 && (
-                <span className="text-muted-foreground/70"> · try {shown + 1}</span>
+                <span className="text-muted-foreground/70"> · {t.tryN(shown + 1)}</span>
               )}
             </h4>
             {body && (
               <IconButton
                 icon={copied === "body" ? Check : Copy}
                 iconWeight={copied === "body" ? "bold" : "fill"}
-                label={copied === "body" ? "Copied" : "Copy response body"}
-                className="-mr-1.5 size-7"
+                label={copied === "body" ? t.copied : t.copyBody}
+                className="-me-1.5 size-7"
                 onClick={() => {
                   write(body);
                   flash("body");
@@ -1207,7 +1364,7 @@ function Detail({
             />
           ) : (
             <p className="rounded-2xl bg-surface-inset px-4 py-3 text-[0.8125rem] text-muted-foreground">
-              {lastDone < 0 ? "No response yet." : "Empty response body."}
+              {lastDone < 0 ? t.noResponse : t.emptyBody}
             </p>
           )}
         </section>
@@ -1225,7 +1382,7 @@ function Detail({
                 flash("curl");
               }}
             >
-              {copied === "curl" ? "Copied" : "Copy cURL"}
+              {copied === "curl" ? t.copied : t.copyCurl}
             </Button>
           )}
           {onReplay && (
@@ -1236,17 +1393,13 @@ function Detail({
               loading={sending}
               onClick={() => onReplay(e)}
             >
-              {sending ? "Sending" : "Replay"}
+              {sending ? t.sendingButton : t.replay}
             </Button>
           )}
         </div>
       )}
       <p role="status" aria-live="polite" className="sr-only">
-        {copied === "body"
-          ? "Response body copied"
-          : copied === "curl"
-            ? "cURL copied"
-            : ""}
+        {copied === "body" ? t.bodyCopied : copied === "curl" ? t.curlCopied : ""}
       </p>
     </div>
   );
@@ -1294,16 +1447,13 @@ function AttemptIcon({ status }: { status: MessageAttemptStatus }) {
 }
 
 function AttemptDots({ attempts, max }: { attempts: MessageAttempt[]; max: number }) {
+  const t = useContext(LabelsContext);
   const shown = attempts.slice(-max);
-  const label = shown
-    .map((a) =>
-      a.status === "failed" ? `failed${a.code ? ` ${a.code}` : ""}` : a.status,
-    )
-    .join(", ");
+  const label = shown.map((a) => t.attemptStatus(a.status, a.code)).join(", ");
   return (
     <span
       role="img"
-      aria-label={`${attempts.length} of ${max} tries: ${label}`}
+      aria-label={t.tries(attempts.length, max, label)}
       className="inline-flex items-center gap-1"
     >
       {Array.from({ length: max }, (_, i) => {

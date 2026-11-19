@@ -2,22 +2,27 @@
 
 import { RotateCcw } from "lucide-react";
 import { motion } from "motion/react";
-import { Tabs } from "radix-ui";
+import { Direction, Tabs } from "radix-ui";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Demo } from "./demo";
+import { Demo, type DemoLocale } from "./demo";
 import { loadSource, SourceCode } from "./source-code";
 
 export function ComponentPreview({
   slug,
   variants,
+  rtl = false,
   className,
 }: {
   slug: string;
   variants: string[];
+  /** Shows an LTR/RTL switch for components that support right-to-left. */
+  rtl?: boolean;
   className?: string;
 }) {
   const [variant, setVariant] = useState(variants[0]);
+  const [locale, setLocale] = useState<DemoLocale>("en");
+  const dir = locale === "en" ? "ltr" : "rtl";
   const [run, setRun] = useState(0);
 
   return (
@@ -45,35 +50,30 @@ export function ComponentPreview({
           ))}
         </Tabs.List>
         <div className="flex items-center gap-2">
+          {rtl && (
+            <Switch
+              id={`${slug}-locale`}
+              label="Language"
+              options={["en", "he", "ar"]}
+              value={locale}
+              onChange={(next) => {
+                setLocale(next as DemoLocale);
+                setRun((n) => n + 1);
+              }}
+              uppercase
+            />
+          )}
           {variants.length > 1 && (
-            <div
-              role="radiogroup"
-              aria-label="Variant"
-              className="inline-flex h-8 items-center rounded-full bg-foreground/[0.05] p-0.5"
-            >
-              {variants.map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  role="radio"
-                  aria-checked={variant === name}
-                  onClick={() => {
-                    setVariant(name);
-                    setRun((n) => n + 1);
-                  }}
-                  className="relative h-full rounded-full px-3 text-[0.8125rem] text-muted-foreground transition-colors hover:text-foreground aria-checked:text-foreground"
-                >
-                  {variant === name && (
-                    <motion.span
-                      layoutId={`${slug}-variant`}
-                      transition={{ type: "spring", duration: 0.3, bounce: 0 }}
-                      className="absolute inset-0 rounded-full bg-surface-raised"
-                    />
-                  )}
-                  <span className="relative">{name}</span>
-                </button>
-              ))}
-            </div>
+            <Switch
+              id={`${slug}-variant`}
+              label="Variant"
+              options={variants}
+              value={variant}
+              onChange={(name) => {
+                setVariant(name);
+                setRun((n) => n + 1);
+              }}
+            />
           )}
           <button
             type="button"
@@ -95,14 +95,69 @@ export function ComponentPreview({
       </div>
       <Tabs.Content value="preview" forceMount className="data-[state=inactive]:hidden">
         <div className="relative isolate flex min-h-[480px] items-center justify-center overflow-hidden rounded-2xl bg-surface-inset px-4 py-12 sm:px-10 sm:py-16">
-          <div className="flex w-full justify-center">
-            <Demo key={`${variant}-${run}`} slug={slug} variant={variant} />
-          </div>
+          <Direction.Provider dir={dir}>
+            <div dir={dir} lang={locale} className="flex w-full justify-center">
+              <Demo
+                key={`${variant}-${run}`}
+                slug={slug}
+                variant={variant}
+                locale={locale}
+              />
+            </div>
+          </Direction.Provider>
         </div>
       </Tabs.Content>
       <Tabs.Content value="code">
         <SourceCode slug={slug} title={`components/ui/${slug}.tsx`} />
       </Tabs.Content>
     </Tabs.Root>
+  );
+}
+
+/** Pill radio group with a sliding highlight. */
+function Switch({
+  id,
+  label,
+  options,
+  value,
+  onChange,
+  uppercase = false,
+}: {
+  id: string;
+  label: string;
+  options: string[];
+  value: string;
+  onChange: (value: string) => void;
+  uppercase?: boolean;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="inline-flex h-8 items-center rounded-full bg-foreground/[0.05] p-0.5"
+    >
+      {options.map((name) => (
+        <button
+          key={name}
+          type="button"
+          role="radio"
+          aria-checked={value === name}
+          onClick={() => onChange(name)}
+          className={cn(
+            "relative h-full rounded-full px-3 text-[0.8125rem] text-muted-foreground transition-colors hover:text-foreground aria-checked:text-foreground",
+            uppercase && "uppercase",
+          )}
+        >
+          {value === name && (
+            <motion.span
+              layoutId={id}
+              transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+              className="absolute inset-0 rounded-full bg-surface-raised"
+            />
+          )}
+          <span className="relative">{name}</span>
+        </button>
+      ))}
+    </div>
   );
 }

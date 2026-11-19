@@ -60,7 +60,44 @@ export type HexDensityProps = {
   /** Replaces the point count on the right of the header. */
   aside?: React.ReactNode;
   onSelect?: (bin: HexDensityBin) => void;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<HexDensityLabels>;
+  /** BCP 47 locale for counts. */
+  locale?: string;
   className?: string;
+};
+
+export type HexDensityLabels = {
+  /** A number of points. `formatted` is `count` already formatted. Defaults to "{count} {unit}". */
+  count: (count: number, formatted: string) => string;
+  /** Fallbacks when the threshold has no `above` / `below`. */
+  above: string;
+  below: string;
+  /** Tooltip heading without a threshold. */
+  bin: string;
+  /** Callout on the densest hexagon. */
+  densest: string;
+  /** Ends of the shade legend. */
+  fewer: string;
+  more: string;
+  /** Footer without a threshold. */
+  binsPeak: (bins: number) => string;
+  /** Screen-reader hint on the chart. */
+  instructions: (title: string) => string;
+  /** Screen-reader summary. `split` is set when a threshold line is drawn. */
+  summary: (
+    total: string,
+    bins: number,
+    densest: string | undefined,
+    split?: { above: string; below: string; label: string },
+  ) => string;
+  /** Screen-reader reading of one hexagon. */
+  reading: (
+    side: string,
+    x: [string, string],
+    y: [string, string],
+    count: string,
+  ) => string;
 };
 
 const SQRT3 = Math.sqrt(3);
@@ -143,8 +180,30 @@ export function HexDensity({
   subtitle,
   aside,
   onSelect,
+  labels: labelOverrides,
+  locale = "en-US",
   className,
 }: HexDensityProps) {
+  const labels: HexDensityLabels = {
+    count: (_, formatted) => `${formatted} ${unit}`,
+    above: "Above",
+    below: "Below",
+    bin: "Bin",
+    densest: "Densest bin",
+    fewer: "Fewer",
+    more: "More",
+    binsPeak: (bins) => `${bins} bins · peak`,
+    instructions: (title) => `${title}. Use arrow keys to move between bins.`,
+    summary: (total, bins, densest, split) =>
+      `${total} in ${bins} bins${densest ? `, densest bin ${densest}` : ""}${
+        split ? `, ${split.above} and ${split.below} ${split.label}` : ""
+      }`,
+    reading: (side, x, y, count) =>
+      `${side}: ${x[0]} to ${x[1]}, ${y[0]} to ${y[1]}, ${count}`,
+    ...labelOverrides,
+  };
+  const count = (n: number) => labels.count(n, String(n));
+  const countLocal = (n: number) => labels.count(n, n.toLocaleString(locale));
   const reduce = useReducedMotion();
   const [ref, width, measured] = useWidth();
   const [active, setActive] = useState<string | null>(null);
@@ -313,7 +372,11 @@ export function HexDensity({
 
   const share = (n: number) => `${((n / Math.max(total, 1)) * 100).toFixed(1)}%`;
   const sideLabel = (bin: HexDensityBin) =>
-    split ? (bin.above ? (split.above ?? "Above") : (split.below ?? "Below")) : "Bin";
+    split
+      ? bin.above
+        ? (split.above ?? labels.above)
+        : (split.below ?? labels.below)
+      : labels.bin;
   const tipBelow = activeBin ? activeBin.cy < 64 : false;
   const callout = densest && !activeBin;
 
@@ -327,7 +390,7 @@ export function HexDensity({
           aside={
             aside ?? (
               <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                {total.toLocaleString("en-US")} {unit}
+                {countLocal(total)}
               </span>
             )
           }
@@ -337,25 +400,30 @@ export function HexDensity({
             ref={ref}
             tabIndex={0}
             role="group"
-            aria-label={`${title}. Use arrow keys to move between bins.`}
+            aria-label={labels.instructions(title)}
             onKeyDown={onKeyDown}
             onBlur={() => fromKeyboard && setActive(null)}
             className="relative rounded-xl outline-offset-4"
           >
+            {/* Axes keep their direction in every language; labels keep their own. */}
             <svg
+              direction="ltr"
               key={measured ? "measured" : "guess"}
               visibility={measured ? undefined : "hidden"}
               role="img"
-              aria-label={`${total} ${unit} in ${bins.length} bins${
-                densest ? `, densest bin ${densest.count} ${unit}` : ""
-              }${
-                split
-                  ? `, ${above} ${split.above ?? "above"} and ${below} ${split.below ?? "below"} ${split.label ?? fy(split.value)}`
-                  : ""
-              }`}
+              aria-label={labels.summary(
+                count(total),
+                bins.length,
+                densest ? count(densest.count) : undefined,
+                split && {
+                  above: `${above} ${split.above ?? labels.above.toLowerCase()}`,
+                  below: `${below} ${split.below ?? labels.below.toLowerCase()}`,
+                  label: split.label ?? fy(split.value),
+                },
+              )}
               width={width}
               height={height}
-              className="block overflow-visible"
+              className="block overflow-visible [&_text]:[unicode-bidi:plaintext]"
               onPointerMove={onPointerMove}
               onPointerLeave={() => !fromKeyboard && select(null, false)}
             >
@@ -443,8 +511,10 @@ export function HexDensity({
               </g>
             </svg>
 
+            {/* Pinned to the plot's right end, which stays on the right in RTL too. */}
             {split && (
               <span
+                dir="auto"
                 className="pointer-events-none absolute right-0 -translate-y-1/2 rounded-full bg-surface-raised px-2 py-0.5 font-mono text-[0.625rem] text-foreground tabular-nums"
                 style={{ top: TOP + pad + lineY }}
               >
@@ -468,9 +538,9 @@ export function HexDensity({
                     left: Math.min(Math.max(pad + densest.cx - 64, 0), width - 150),
                   }}
                 >
-                  Densest bin ·{" "}
+                  {labels.densest} ·{" "}
                   <span className="font-mono text-foreground tabular-nums">
-                    {densest.count.toLocaleString("en-US")} {unit}
+                    {countLocal(densest.count)}
                   </span>
                 </motion.span>
               )}
@@ -499,14 +569,18 @@ export function HexDensity({
                     {sideLabel(activeBin)}
                   </p>
                   <p className="font-mono text-foreground tabular-nums">
-                    {fx(activeBin.x[0])}–{fx(activeBin.x[1])}
+                    <span dir="ltr">
+                      {fx(activeBin.x[0])}–{fx(activeBin.x[1])}
+                    </span>
                   </p>
                   <p className="font-mono text-foreground tabular-nums">
-                    {fy(activeBin.y[0])}–{fy(activeBin.y[1])}
+                    <span dir="ltr">
+                      {fy(activeBin.y[0])}–{fy(activeBin.y[1])}
+                    </span>
                   </p>
                   <p className="mt-1 font-mono text-foreground tabular-nums">
-                    {activeBin.count.toLocaleString("en-US")} {unit} ·{" "}
-                    {share(activeBin.count)}
+                    {countLocal(activeBin.count)} ·{" "}
+                    <span dir="ltr">{share(activeBin.count)}</span>
                   </p>
                 </motion.div>
               )}
@@ -522,9 +596,11 @@ export function HexDensity({
                     className="size-2 rounded-full"
                     style={{ background: tone }}
                   />
-                  <span className="first-letter:uppercase">{split.above ?? "Above"}</span>
-                  <span className="font-mono text-foreground tabular-nums">
-                    {above.toLocaleString("en-US")} · {share(above)}
+                  <span className="first-letter:uppercase">
+                    {split.above ?? labels.above}
+                  </span>
+                  <span dir="ltr" className="font-mono text-foreground tabular-nums">
+                    {above.toLocaleString(locale)} · {share(above)}
                   </span>
                 </span>
                 <span className="flex items-center gap-1.5">
@@ -532,32 +608,39 @@ export function HexDensity({
                     aria-hidden="true"
                     className="size-2 rounded-full bg-foreground/35"
                   />
-                  <span className="first-letter:uppercase">{split.below ?? "Below"}</span>
-                  <span className="font-mono text-foreground tabular-nums">
-                    {below.toLocaleString("en-US")} · {share(below)}
+                  <span className="first-letter:uppercase">
+                    {split.below ?? labels.below}
+                  </span>
+                  <span dir="ltr" className="font-mono text-foreground tabular-nums">
+                    {below.toLocaleString(locale)} · {share(below)}
                   </span>
                 </span>
               </>
             ) : (
               <span>
-                {bins.length} bins · peak{" "}
+                {labels.binsPeak(bins.length)}{" "}
                 <span className="font-mono text-foreground tabular-nums">{peak}</span>
               </span>
             )}
-            <span aria-hidden="true" className="ml-auto flex items-center gap-1">
-              Fewer
+            <span aria-hidden="true" className="ms-auto flex items-center gap-1">
+              {labels.fewer}
               {STEPS.map((s) => (
                 <svg key={s} width="9" height="10" viewBox="-5 -5.5 10 11">
                   <path d={hexPath(5)} fill={tone} fillOpacity={s} />
                 </svg>
               ))}
-              More
+              {labels.more}
             </span>
           </div>
 
           <p role="status" aria-live="polite" className="sr-only">
             {fromKeyboard && activeBin
-              ? `${sideLabel(activeBin)}: ${fx(activeBin.x[0])} to ${fx(activeBin.x[1])}, ${fy(activeBin.y[0])} to ${fy(activeBin.y[1])}, ${activeBin.count} ${unit}`
+              ? labels.reading(
+                  sideLabel(activeBin),
+                  [fx(activeBin.x[0]), fx(activeBin.x[1])],
+                  [fy(activeBin.y[0]), fy(activeBin.y[1])],
+                  count(activeBin.count),
+                )
               : ""}
           </p>
         </Panel>

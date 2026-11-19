@@ -76,6 +76,18 @@ export function ConfirmDeploy({ plan }: { plan: DeployPlan }) {
       default: '"Confirm" / "Done"',
       description: 'Verbs for your domain, e.g. "Deploy" / "Deployed".',
     },
+    {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for amounts.",
+    },
+    {
+      name: "labels",
+      type: "Partial<ConfirmationCardLabels>",
+      description:
+        'Your own UI strings (Subtotal, Total, Undo…), for translating. Right-to-left works under `dir="rtl"`.',
+    },
     { name: "className", type: "string", description: "Extra classes for the shell." },
   ],
   types: `type ConfirmationItem = {

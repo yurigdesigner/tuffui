@@ -68,6 +68,12 @@ export function AssistantTurn({ turn }: { turn: Turn }) {
         "A ‹ 2 / 3 › switcher under the message, or a branch map with one row per version.",
     },
     {
+      name: "labels",
+      type: "Partial<MessageBranchesLabels>",
+      description:
+        'Your own UI strings (version kinds, switcher and screen-reader text), for translating. Right-to-left works under `dir="rtl"`; arrows and slides follow the reading direction.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

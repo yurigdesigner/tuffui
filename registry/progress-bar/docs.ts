@@ -58,6 +58,13 @@ export const docs: ComponentDocs = {
       description: "Spoken value; defaults to a percentage.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description:
+        'BCP 47 locale for the default spoken percentage and SegmentedBar values. Under `dir="rtl"` bars fill from the right.',
+    },
+    {
       name: "SegmentedBar.segments",
       type: "{ id, label, value, color }[]",
       required: true,

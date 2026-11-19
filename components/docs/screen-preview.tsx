@@ -3,10 +3,10 @@
 import { ArrowUpRight, Monitor, RotateCcw, Smartphone, Tablet } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { Tabs } from "radix-ui";
+import { Direction, Tabs } from "radix-ui";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Demo } from "./demo";
+import { Demo, type DemoLocale } from "./demo";
 import { loadSource, SourceCode } from "./source-code";
 
 /** Design sizes a screen is rendered at before it is scaled to the column. */
@@ -26,13 +26,22 @@ export type Device = keyof typeof devices;
 export function ScreenPreview({
   slug,
   variants,
+  rtl = false,
   className,
 }: {
   slug: string;
   variants: string[];
+  /** Shows an EN / HE / AR switch for screens that support right-to-left. */
+  rtl?: boolean;
   className?: string;
 }) {
   const [variant, setVariant] = useState(variants[0]);
+  const [locale, setLocale] = useState<DemoLocale>("en");
+  const dir = locale === "en" ? "ltr" : "rtl";
+  const query = new URLSearchParams();
+  if (variant !== variants[0]) query.set("variant", variant);
+  if (locale !== "en") query.set("locale", locale);
+  const fullScreen = `/screens/${slug}${query.size ? `?${query}` : ""}`;
   const [device, setDevice] = useState<Device>("desktop");
   const [run, setRun] = useState(0);
 
@@ -72,6 +81,21 @@ export function ScreenPreview({
               icon: devices[key].icon,
             }))}
           />
+          {rtl && (
+            <Pills
+              label="Language"
+              id={`${slug}-locale`}
+              value={locale}
+              onChange={(l) => {
+                setLocale(l as DemoLocale);
+                setRun((n) => n + 1);
+              }}
+              options={(["en", "he", "ar"] as const).map((l) => ({
+                value: l,
+                label: l.toUpperCase(),
+              }))}
+            />
+          )}
           {variants.length > 1 && (
             <Pills
               label="Variant"
@@ -101,11 +125,7 @@ export function ScreenPreview({
             Replay
           </button>
           <Link
-            href={
-              variant === variants[0]
-                ? `/screens/${slug}`
-                : `/screens/${slug}?variant=${encodeURIComponent(variant)}`
-            }
+            href={fullScreen}
             target="_blank"
             className="inline-flex h-8 items-center gap-1 rounded-full bg-foreground/[0.05] px-3 text-[0.8125rem] font-medium text-muted-foreground transition-[color,background-color,scale] duration-150 ease-ui-out hover:bg-foreground/[0.08] hover:text-foreground active:scale-[0.97]"
           >
@@ -116,7 +136,16 @@ export function ScreenPreview({
       </div>
       <Tabs.Content value="preview" forceMount className="data-[state=inactive]:hidden">
         <DeviceFrame slug={slug} device={device}>
-          <Demo key={`${variant}-${run}`} slug={slug} variant={variant} />
+          <Direction.Provider dir={dir}>
+            <div dir={dir} lang={locale} className="h-full w-full">
+              <Demo
+                key={`${variant}-${run}`}
+                slug={slug}
+                variant={variant}
+                locale={locale}
+              />
+            </div>
+          </Direction.Provider>
         </DeviceFrame>
       </Tabs.Content>
       <Tabs.Content value="code">

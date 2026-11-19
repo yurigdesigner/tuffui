@@ -85,6 +85,12 @@ export function ChatSidebar({ chats, activeId }: Props) {
       description:
         "Extra control in the header next to New chat, e.g. a hide-sidebar toggle.",
     },
+    {
+      name: "labels",
+      type: "Partial<ConversationListLabels>",
+      description:
+        'Your own UI strings (title, search, date groups, row menu, undo and screen-reader text), for translating. Right-to-left works under `dir="rtl"`.',
+    },
     { name: "className", type: "string", description: "Extra classes for the shell." },
   ],
   types: `type Conversation = {

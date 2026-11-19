@@ -48,7 +48,30 @@ export type ChatThreadProps = {
   bottomInset?: number;
   /** Classes for the message column, e.g. `mx-auto max-w-3xl` to centre it. */
   contentClassName?: string;
+  /** BCP 47 locale for times and dates, e.g. `he-IL`. */
+  locale?: string;
+  /** UI strings, for translating the thread. */
+  labels?: Partial<ChatThreadLabels>;
   className?: string;
+};
+
+export type ChatThreadLabels = {
+  conversation: string;
+  today: string;
+  yesterday: string;
+  unread: string;
+  jumpToLatest: string;
+  /** Count of messages that arrived while scrolled away. */
+  fresh: (count: number) => string;
+};
+
+const defaultLabels: ChatThreadLabels = {
+  conversation: "Conversation",
+  today: "Today",
+  yesterday: "Yesterday",
+  unread: "Unread",
+  jumpToLatest: "Jump to latest",
+  fresh: (count) => `${count} new`,
 };
 
 /** Turns from the same side within this window share one header. */
@@ -56,17 +79,17 @@ const GROUP_MS = 5 * 60_000;
 /** How close to the bottom still counts as "following" the conversation. */
 const STICK_PX = 48;
 
-const time = (iso: string) =>
-  new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+const time = (iso: string, locale: string) =>
+  new Date(iso).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
 
-function dayLabel(iso: string) {
+function dayLabel(iso: string, locale: string, labels: ChatThreadLabels) {
   const date = new Date(iso);
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  if (date.toDateString() === today.toDateString()) return "Today";
-  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return date.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  if (date.toDateString() === today.toDateString()) return labels.today;
+  if (date.toDateString() === yesterday.toDateString()) return labels.yesterday;
+  return date.toLocaleDateString(locale, { month: "long", day: "numeric" });
 }
 
 // Day boundaries depend on the viewer's time zone, which prerendered HTML can't
@@ -90,8 +113,11 @@ export function ChatThread({
   footer,
   bottomInset = 0,
   contentClassName,
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: ChatThreadProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const hydrated = useHydrated();
   const dayKey = (iso: string) =>
     hydrated ? new Date(iso).toDateString() : iso.slice(0, 10);
@@ -160,7 +186,7 @@ export function ChatThread({
           ref={scroller}
           onScroll={onScroll}
           role="log"
-          aria-label="Conversation"
+          aria-label={labels.conversation}
           aria-busy={streaming || undefined}
           tabIndex={0}
           className="overflow-x-hidden overflow-y-auto overscroll-contain outline-none"
@@ -190,13 +216,15 @@ export function ChatThread({
 
                 return (
                   <Fragment key={message.id}>
-                    {newDay && <Divider label={dayLabel(message.at)} />}
-                    {message.id === unreadFrom && <Divider label="Unread" tone="brand" />}
+                    {newDay && <Divider label={dayLabel(message.at, locale, labels)} />}
+                    {message.id === unreadFrom && (
+                      <Divider label={labels.unread} tone="brand" />
+                    )}
                     <motion.article
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0, transition: enter }}
                       exit={{ opacity: 0, transition: exit }}
-                      aria-label={`${name}, ${time(message.at)}`}
+                      aria-label={`${name}, ${time(message.at, locale)}`}
                       // Times are formatted in the viewer's time zone, which can differ from the server's.
                       suppressHydrationWarning
                       className={cn(
@@ -233,24 +261,26 @@ export function ChatThread({
                               suppressHydrationWarning
                               className="text-xs text-muted-foreground tabular-nums opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
                             >
-                              {time(message.at)}
+                              {time(message.at, locale)}
                             </time>
                           </p>
                         )}
                         <div
+                          // Plain-text messages pick their own direction; rich content follows the page.
+                          dir={typeof message.content === "string" ? "auto" : undefined}
                           className={cn(
                             // max-w-full keeps rich content (tool calls, source lists) inside the column.
                             "max-w-full text-sm leading-relaxed",
                             user &&
                               "rounded-2xl bg-surface-raised px-3.5 py-2 whitespace-pre-wrap",
-                            user && !grouped && "rounded-tr-md",
+                            user && !grouped && "rounded-se-md",
                           )}
                         >
                           {message.content}
                           {message.streaming && (
                             <span
                               aria-hidden="true"
-                              className="ml-0.5 inline-block h-[1.1em] w-[2px] translate-y-[3px] animate-pulse rounded-full bg-brand motion-reduce:animate-none"
+                              className="ms-0.5 inline-block h-[1.1em] w-[2px] translate-y-[3px] animate-pulse rounded-full bg-brand motion-reduce:animate-none"
                             />
                           )}
                         </div>
@@ -280,9 +310,11 @@ export function ChatThread({
               className="absolute left-1/2 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-surface-raised px-3.5 text-[0.8125rem] font-medium transition-[background-color,scale] duration-150 ease-out hover:bg-[color-mix(in_oklab,var(--surface-raised),var(--foreground)_7%)] active:scale-[0.97]"
             >
               <ArrowDown weight="bold" className="size-3.5" aria-hidden="true" />
-              Jump to latest
+              {labels.jumpToLatest}
               {fresh > 0 && (
-                <span className="text-muted-foreground tabular-nums">· {fresh} new</span>
+                <span className="text-muted-foreground tabular-nums">
+                  · {labels.fresh(fresh)}
+                </span>
               )}
             </motion.button>
           )}

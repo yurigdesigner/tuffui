@@ -43,6 +43,12 @@ export function RunStatus({ run }: { run: AgentRun }) {
         "How many finished steps to show above the current one. 0 shows a single line.",
     },
     {
+      name: "labels",
+      type: "Partial<AgentStatusLabels>",
+      description:
+        'Your own UI strings (final states, Stop button and screen-reader text), for translating. Right-to-left works under `dir="rtl"`.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

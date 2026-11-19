@@ -28,7 +28,25 @@ export type PromptSuggestionsProps = {
   onRefresh?: () => void;
   refreshing?: boolean;
   heading?: string;
+  /** UI strings, for translating. */
+  labels?: Partial<PromptSuggestionsLabels>;
   className?: string;
+};
+
+export type PromptSuggestionsLabels = {
+  /** List name for screen readers when there is no heading (cards). */
+  suggestedPrompts: string;
+  /** List name for screen readers when there is no heading (chips). */
+  suggestedFollowUps: string;
+  moreSuggestions: string;
+  loadingSuggestions: string;
+};
+
+const defaultLabels: PromptSuggestionsLabels = {
+  suggestedPrompts: "Suggested prompts",
+  suggestedFollowUps: "Suggested follow-ups",
+  moreSuggestions: "More suggestions",
+  loadingSuggestions: "Loading new suggestions",
 };
 
 const STAGGER = 0.04;
@@ -40,8 +58,10 @@ export function PromptSuggestions({
   onRefresh,
   refreshing = false,
   heading,
+  labels: labelOverrides,
   className,
 }: PromptSuggestionsProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const send = (s: PromptSuggestion) => onSelect(s, s.prompt ?? s.title);
   const appear = (i: number) => ({
     initial: { opacity: 0, y: 6 },
@@ -61,7 +81,7 @@ export function PromptSuggestions({
             <p className="px-1 text-xs font-medium text-muted-foreground">{heading}</p>
           )}
           <ul
-            aria-label={heading ?? "Suggested follow-ups"}
+            aria-label={heading ?? labels.suggestedFollowUps}
             aria-busy={refreshing || undefined}
             className="flex flex-wrap items-center gap-1.5"
           >
@@ -72,12 +92,12 @@ export function PromptSuggestions({
                     type="button"
                     onClick={() => send(s)}
                     disabled={refreshing}
-                    className="flex h-8 max-w-80 items-center gap-1.5 rounded-full bg-foreground/[0.06] pr-2.5 pl-3.5 text-[0.8125rem] transition-[background-color,scale,opacity] duration-150 ease-out hover:bg-foreground/[0.1] active:scale-[0.97] disabled:opacity-50"
+                    className="flex h-8 max-w-80 items-center gap-1.5 rounded-full bg-foreground/[0.06] ps-3.5 pe-2.5 text-[0.8125rem] transition-[background-color,scale,opacity] duration-150 ease-out hover:bg-foreground/[0.1] active:scale-[0.97] disabled:opacity-50"
                   >
                     <span className="truncate">{s.title}</span>
                     <ArrowUpRight
                       weight="bold"
-                      className="size-3 shrink-0 text-muted-foreground"
+                      className="size-3 shrink-0 text-muted-foreground rtl:-scale-x-100"
                       aria-hidden="true"
                     />
                   </button>
@@ -89,7 +109,7 @@ export function PromptSuggestions({
                 <IconButton
                   icon={ArrowClockwise}
                   iconWeight="bold"
-                  label="More suggestions"
+                  label={labels.moreSuggestions}
                   onClick={onRefresh}
                   disabled={refreshing}
                   className={cn(
@@ -102,7 +122,7 @@ export function PromptSuggestions({
             )}
           </ul>
           <p role="status" aria-live="polite" className="sr-only">
-            {refreshing ? "Loading new suggestions" : ""}
+            {refreshing ? labels.loadingSuggestions : ""}
           </p>
         </div>
       </MotionConfig>
@@ -114,7 +134,7 @@ export function PromptSuggestions({
       <div className={cn("@container flex w-full max-w-xl flex-col gap-3", className)}>
         {heading && <p className="px-1 text-[0.9375rem] font-medium">{heading}</p>}
         <ul
-          aria-label={heading ?? "Suggested prompts"}
+          aria-label={heading ?? labels.suggestedPrompts}
           className="grid grid-cols-1 gap-2 @md:grid-cols-2"
         >
           {data.map((s, i) => (
@@ -122,10 +142,10 @@ export function PromptSuggestions({
               <button
                 type="button"
                 onClick={() => send(s)}
-                className="group flex h-full w-full items-center gap-3 rounded-[1.125rem] bg-surface p-1.5 pr-3.5 text-left transition-[background-color,scale] duration-150 ease-out hover:bg-surface-raised active:scale-[0.98]"
+                className="group flex h-full w-full items-center gap-3 rounded-[1.125rem] bg-surface p-1.5 pe-3.5 text-start transition-[background-color,scale] duration-150 ease-out hover:bg-surface-raised active:scale-[0.98]"
               >
                 {s.icon && <IconTile icon={s.icon} />}
-                <span className={cn("min-w-0 flex-1 py-1", !s.icon && "pl-2")}>
+                <span className={cn("min-w-0 flex-1 py-1", !s.icon && "ps-2")}>
                   <span className="block truncate text-[0.8125rem] font-medium">
                     {s.title}
                   </span>
@@ -138,7 +158,7 @@ export function PromptSuggestions({
                 <ArrowUpRight
                   weight="bold"
                   aria-hidden="true"
-                  className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-[opacity,translate] duration-150 ease-out group-hover:translate-x-0.5 group-hover:opacity-100 group-focus-visible:opacity-100"
+                  className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-[opacity,translate] duration-150 ease-out group-hover:translate-x-0.5 group-hover:opacity-100 group-focus-visible:opacity-100 rtl:-scale-x-100 rtl:group-hover:-translate-x-0.5"
                 />
               </button>
             </motion.li>

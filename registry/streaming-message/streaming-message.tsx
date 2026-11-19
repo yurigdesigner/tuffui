@@ -12,7 +12,7 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, createContext, useContext, useEffect, useState } from "react";
 import { Button, IconButton } from "@/components/ui/action-button";
 import { Tooltip } from "@/components/ui/tooltip-hint";
 import { EASE_OUT } from "@/lib/motion-tokens";
@@ -36,8 +36,49 @@ export type StreamingMessageProps = {
   showHeader?: boolean;
   onCopy?: (content: string) => void;
   onRetry?: () => void;
+  /** UI strings, for translating. */
+  labels?: Partial<StreamingMessageLabels>;
   className?: string;
 };
+
+export type StreamingMessageLabels = {
+  /** Screen-reader name of the message. */
+  messageFrom: (model: string) => string;
+  responding: string;
+  thinking: string;
+  thoughtFor: (seconds: number) => string;
+  sources: string;
+  /** Screen-reader name of a citation chip. */
+  source: (index: number, title: string, site: string) => string;
+  interrupted: string;
+  /** Shown when the error has no message of its own. */
+  genericError: string;
+  retry: string;
+  regenerate: string;
+  copy: string;
+  copied: string;
+  complete: string;
+  failed: string;
+};
+
+const defaultLabels: StreamingMessageLabels = {
+  messageFrom: (model) => `Message from ${model}`,
+  responding: "Responding…",
+  thinking: "Thinking…",
+  thoughtFor: (seconds) => `Thought for ${seconds}s`,
+  sources: "Sources",
+  source: (index, title, site) => `Source ${index}: ${title} (${site})`,
+  interrupted: "Response interrupted.",
+  genericError: "Something went wrong.",
+  retry: "Retry",
+  regenerate: "Regenerate response",
+  copy: "Copy message",
+  copied: "Copied",
+  complete: "Response complete",
+  failed: "Response failed",
+};
+
+const Labels = createContext(defaultLabels);
 
 // Strong ease-out for things entering; exits are quicker than entrances.
 const enter = { duration: 0.22, ease: EASE_OUT };
@@ -54,112 +95,122 @@ export function StreamingMessage({
   showHeader = true,
   onCopy,
   onRetry,
+  labels: labelOverrides,
   className,
 }: StreamingMessageProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const { content, status, reasoning, citations = [], error } = data;
   const streaming = status === "streaming";
   // Words present on first render (SSR, paused thumbnails) appear without animating in.
   const [settled] = useState(() => countWords(content));
 
   return (
-    <MotionConfig reducedMotion="user">
-      <article
-        aria-label={`Message from ${model}`}
-        aria-busy={streaming}
-        className={cn("w-full max-w-xl text-sm", className)}
-      >
-        {showHeader && (
-          <header className="mb-2 flex items-center gap-2">
-            <span className="flex size-6 items-center justify-center rounded-full bg-surface-raised">
-              <Sparkle weight="fill" className="size-3.5 text-brand" aria-hidden="true" />
-            </span>
-            <span className="font-medium">{model}</span>
-            {streaming && (
-              <span className="text-[0.8125rem] text-muted-foreground">Responding…</span>
+    <Labels.Provider value={labels}>
+      <MotionConfig reducedMotion="user">
+        <article
+          aria-label={labels.messageFrom(model)}
+          aria-busy={streaming}
+          className={cn("w-full max-w-xl text-sm", className)}
+        >
+          {showHeader && (
+            <header className="mb-2 flex items-center gap-2">
+              <span className="flex size-6 items-center justify-center rounded-full bg-surface-raised">
+                <Sparkle
+                  weight="fill"
+                  className="size-3.5 text-brand"
+                  aria-hidden="true"
+                />
+              </span>
+              <span className="font-medium">{model}</span>
+              {streaming && (
+                <span className="text-[0.8125rem] text-muted-foreground">
+                  {labels.responding}
+                </span>
+              )}
+            </header>
+          )}
+          <div className={showHeader ? "ps-8" : undefined}>
+            {reasoning && <Reasoning {...reasoning} />}
+            {(content || !reasoning?.streaming) && (
+              <Content text={content} streaming={streaming} settled={settled} />
             )}
-          </header>
-        )}
-        <div className={showHeader ? "pl-8" : undefined}>
-          {reasoning && <Reasoning {...reasoning} />}
-          {(content || !reasoning?.streaming) && (
-            <Content text={content} streaming={streaming} settled={settled} />
-          )}
-          {citations.length > 0 && !streaming && (
-            <ul aria-label="Sources" className="mt-3 flex flex-wrap gap-1.5">
-              {citations.map((citation, i) => (
-                <motion.li
-                  key={citation.id}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...enter, delay: i * 0.04 }}
+            {citations.length > 0 && !streaming && (
+              <ul aria-label={labels.sources} className="mt-3 flex flex-wrap gap-1.5">
+                {citations.map((citation, i) => (
+                  <motion.li
+                    key={citation.id}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ ...enter, delay: i * 0.04 }}
+                  >
+                    <CitationChip citation={citation} index={i + 1} />
+                  </motion.li>
+                ))}
+              </ul>
+            )}
+            <AnimatePresence initial={false}>
+              {status === "error" && (
+                <motion.div role="alert" {...fold} className="overflow-hidden">
+                  <div className="mt-3 flex items-center gap-2.5 rounded-2xl bg-negative/10 py-2 ps-3.5 pe-2">
+                    <WarningCircle
+                      weight="fill"
+                      className="size-4 shrink-0 text-negative"
+                      aria-hidden="true"
+                    />
+                    <p className="flex-1 text-[0.8125rem]">
+                      <span className="font-medium text-negative">
+                        {labels.interrupted}{" "}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {error ?? labels.genericError}
+                      </span>
+                    </p>
+                    {onRetry && (
+                      <Button
+                        icon={ArrowCounterClockwise}
+                        iconWeight="bold"
+                        onClick={onRetry}
+                        className="h-7 px-3 text-xs"
+                      >
+                        {labels.retry}
+                      </Button>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <AnimatePresence initial={false}>
+              {status === "done" && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0, transition: enter }}
+                  exit={{ opacity: 0, transition: leave }}
+                  className="-ms-2 mt-2 flex items-center gap-0.5"
                 >
-                  <CitationChip citation={citation} index={i + 1} />
-                </motion.li>
-              ))}
-            </ul>
-          )}
-          <AnimatePresence initial={false}>
-            {status === "error" && (
-              <motion.div role="alert" {...fold} className="overflow-hidden">
-                <div className="mt-3 flex items-center gap-2.5 rounded-2xl bg-negative/10 py-2 pr-2 pl-3.5">
-                  <WarningCircle
-                    weight="fill"
-                    className="size-4 shrink-0 text-negative"
-                    aria-hidden="true"
-                  />
-                  <p className="flex-1 text-[0.8125rem]">
-                    <span className="font-medium text-negative">
-                      Response interrupted.{" "}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {error ?? "Something went wrong."}
-                    </span>
-                  </p>
+                  <CopyAction content={content} onCopy={onCopy} />
                   {onRetry && (
-                    <Button
+                    <IconButton
                       icon={ArrowCounterClockwise}
                       iconWeight="bold"
+                      label={labels.regenerate}
                       onClick={onRetry}
-                      className="h-7 px-3 text-xs"
-                    >
-                      Retry
-                    </Button>
+                      className="size-7"
+                    />
                   )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <AnimatePresence initial={false}>
-            {status === "done" && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0, transition: enter }}
-                exit={{ opacity: 0, transition: leave }}
-                className="mt-2 -ml-2 flex items-center gap-0.5"
-              >
-                <CopyAction content={content} onCopy={onCopy} />
-                {onRetry && (
-                  <IconButton
-                    icon={ArrowCounterClockwise}
-                    iconWeight="bold"
-                    label="Regenerate response"
-                    onClick={onRetry}
-                    className="size-7"
-                  />
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        <p role="status" aria-live="polite" className="sr-only">
-          {status === "done"
-            ? "Response complete"
-            : status === "error"
-              ? "Response failed"
-              : ""}
-        </p>
-      </article>
-    </MotionConfig>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <p role="status" aria-live="polite" className="sr-only">
+            {status === "done"
+              ? labels.complete
+              : status === "error"
+                ? labels.failed
+                : ""}
+          </p>
+        </article>
+      </MotionConfig>
+    </Labels.Provider>
   );
 }
 
@@ -171,6 +222,7 @@ function Reasoning({
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
   const open = userOpen ?? Boolean(streaming);
   const seconds = Math.max(1, Math.round((durationMs ?? 0) / 1000));
+  const labels = useContext(Labels);
 
   return (
     <div className="mb-3 rounded-2xl bg-foreground/[0.04]">
@@ -188,17 +240,16 @@ function Reasoning({
             transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
             className="bg-[linear-gradient(90deg,var(--muted-foreground)_35%,var(--foreground)_50%,var(--muted-foreground)_65%)] bg-[length:200%_100%] bg-clip-text text-transparent"
           >
-            Thinking…
+            {labels.thinking}
           </motion.span>
         ) : (
-          <span>
-            Thought for <span className="tabular-nums">{seconds}s</span>
-          </span>
+          <span className="tabular-nums">{labels.thoughtFor(seconds)}</span>
         )}
+        {/* Points to the end side when closed; the mirror is applied after the turn, so open still points down. */}
         <motion.span
           animate={{ rotate: open ? 90 : 0 }}
           transition={{ duration: 0.2, ease: [0.77, 0, 0.175, 1] }}
-          className="ml-auto inline-flex"
+          className="ms-auto inline-flex rtl:-scale-x-100"
         >
           <CaretRight weight="bold" className="size-3.5" aria-hidden="true" />
         </motion.span>
@@ -206,7 +257,10 @@ function Reasoning({
       <AnimatePresence initial={false}>
         {open && (
           <motion.div {...fold} className="overflow-hidden">
-            <p className="px-3.5 pb-3 text-[0.8125rem] leading-6 text-muted-foreground">
+            <p
+              dir="auto"
+              className="px-3.5 pb-3 text-[0.8125rem] leading-6 text-muted-foreground"
+            >
               {text}
             </p>
           </motion.div>
@@ -257,7 +311,7 @@ function Content({
   return (
     <div className="flex flex-col gap-3 leading-6 text-pretty">
       {paragraphs.map((paragraph, p) => (
-        <p key={p}>
+        <p key={p} dir="auto">
           {parseInline(paragraph).map((segment, s) => {
             const words = tokenize(segment.text);
             const nodes = words.map((word) => {
@@ -279,6 +333,7 @@ function Content({
               return (
                 <code
                   key={s}
+                  dir="ltr"
                   className="rounded-md bg-foreground/[0.07] px-1 py-px font-mono text-[0.75rem]"
                 >
                   {nodes}
@@ -297,7 +352,7 @@ function Content({
               aria-hidden="true"
               animate={{ opacity: [1, 0, 1] }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="ml-0.5 inline-block h-[1.1em] w-[2px] translate-y-[3px] rounded-full bg-brand"
+              className="ms-0.5 inline-block h-[1.1em] w-[2px] translate-y-[3px] rounded-full bg-brand"
             />
           )}
         </p>
@@ -308,13 +363,14 @@ function Content({
 
 function CitationChip({ citation, index }: { citation: Citation; index: number }) {
   const source = citation.source ?? hostname(citation.url);
+  const labels = useContext(Labels);
   return (
     <Tooltip content={citation.title} align="start">
       <a
         href={citation.url}
         target="_blank"
         rel="noreferrer"
-        aria-label={`Source ${index}: ${citation.title} (${source})`}
+        aria-label={labels.source(index, citation.title, source)}
         className="inline-flex h-6 items-center gap-1.5 rounded-full bg-surface-raised px-2.5 text-xs text-muted-foreground transition-[color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground active:scale-[0.97]"
       >
         <span className="font-mono text-[0.6875rem] text-foreground tabular-nums">
@@ -342,6 +398,7 @@ function CopyAction({
   onCopy?: (content: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const labels = useContext(Labels);
   useEffect(() => {
     if (!copied) return;
     const timer = setTimeout(() => setCopied(false), 1600);
@@ -352,7 +409,7 @@ function CopyAction({
     <IconButton
       icon={copied ? Check : Copy}
       iconWeight={copied ? "bold" : "fill"}
-      label={copied ? "Copied" : "Copy message"}
+      label={copied ? labels.copied : labels.copy}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(content);

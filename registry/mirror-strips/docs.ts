@@ -57,6 +57,17 @@ export function RedlineRounds({ review }: { review: Review }) {
       description: "Called when a column is hovered or reached with the arrow keys.",
     },
     {
+      name: "labels",
+      type: "Partial<MirrorStripsLabels>",
+      description:
+        'Your own UI strings (dot scale note, screen-reader hint), for translating. Right-to-left works under `dir="rtl"`; columns still run left to right.',
+    },
+    {
+      name: "locale",
+      type: "string",
+      description: "BCP 47 locale for row totals. Defaults to en-US.",
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

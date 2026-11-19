@@ -60,6 +60,12 @@ export function KeyExposure({ grants }: { grants: Grant[] }) {
       description: "Called when a node is hovered or reached with the arrow keys.",
     },
     {
+      name: "labels",
+      type: "Partial<BlastRadiusLabels>",
+      description:
+        'Your own UI strings (hop counts, Affected, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the layout stays clockwise.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

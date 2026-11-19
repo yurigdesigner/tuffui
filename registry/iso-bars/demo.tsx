@@ -1,6 +1,7 @@
 "use client";
 
-import { IsoBars, type IsoSeries } from "./iso-bars";
+import type { DemoLocale } from "@/components/docs/demo";
+import { IsoBars, type IsoBarsLabels, type IsoSeries } from "./iso-bars";
 
 // Seeded noise so the server and the client draw the same chart.
 function rng(seed: number) {
@@ -113,29 +114,170 @@ const rework = [
   series("scrap", "Scrap", 10, (i, r) => 14 + r * 22, 31),
 ];
 
+/** Keeps a Latin name in reading order inside RTL text. */
+const ltr = (text: string) => `⁦${text}⁩`;
+
+/** Agent names stay Latin; Hebrew and Arabic show the RTL layout. */
+const copy: Record<
+  DemoLocale,
+  {
+    intl: string;
+    /** Series labels by id; missing ids keep their English label. */
+    names: Record<string, string>;
+    tokens: {
+      title: string;
+      subtitle: string;
+      caption: string;
+      flag: (p: string) => string;
+    };
+    pipeline: {
+      title: string;
+      subtitle: string;
+      caption: string;
+      flag: (p: string) => string;
+    };
+    strings?: Partial<IsoBarsLabels>;
+  }
+> = {
+  en: {
+    intl: "en-US",
+    names: {},
+    tokens: {
+      title: "Daily tokens",
+      subtitle: "support-agent · last 14 days",
+      caption: "tokens",
+      flag: (p) => `failed ${p}`,
+    },
+    pipeline: {
+      title: "Invoices processed",
+      subtitle: "Extraction pipeline · last 10 weeks",
+      caption: "docs",
+      flag: (p) => `scrap ${p}`,
+    },
+  },
+  he: {
+    intl: "he-IL",
+    names: {
+      input: "קלט",
+      cached: "מהמטמון",
+      output: "פלט",
+      reasoning: "חשיבה",
+      failed: "נכשלו",
+      retried: "נוסו שוב",
+      auto: "אושרו אוטומטית",
+      reviewed: "נבדקו ידנית",
+      escalated: "הוסלמו",
+      rework: "תיקון",
+      scrap: "נפסלו",
+    },
+    tokens: {
+      title: "טוקנים ביום",
+      subtitle: `${ltr("support-agent")} · 14 הימים האחרונים`,
+      caption: "טוקנים",
+      flag: (p) => `נכשלו ${p}`,
+    },
+    pipeline: {
+      title: "חשבוניות שעובדו",
+      subtitle: "תהליך חילוץ · 10 השבועות האחרונים",
+      caption: "מסמכים",
+      flag: (p) => `נפסלו ${p}`,
+    },
+    strings: {
+      total: "סה״כ",
+      period: "תקופה",
+      instructions: (title) =>
+        `${title}. חיצים ימינה ושמאלה עוברים בין התקופות, למעלה ולמטה בין השורות.`,
+      summary: (title, series, from, to, highest) =>
+        `${title}: ${series.join(", ")} מ־${from} עד ${to}${highest ? `, השיא ב־${highest}` : ""}`,
+      reading: (period, row, values) =>
+        `${period}, שורה ${row === "back" ? "אחורית" : "קדמית"}: ${values}`,
+    },
+  },
+  ar: {
+    intl: "ar",
+    names: {
+      input: "الإدخال",
+      cached: "من الذاكرة المؤقتة",
+      output: "الإخراج",
+      reasoning: "الاستدلال",
+      failed: "فاشلة",
+      retried: "أُعيدت",
+      auto: "موافقة تلقائية",
+      reviewed: "مراجعة بشرية",
+      escalated: "مُصعَّدة",
+      rework: "إعادة معالجة",
+      scrap: "مرفوضة",
+    },
+    tokens: {
+      title: "الرموز اليومية",
+      subtitle: `${ltr("support-agent")} · آخر 14 يومًا`,
+      caption: "رمز",
+      flag: (p) => `فشل ${p}`,
+    },
+    pipeline: {
+      title: "الفواتير المعالَجة",
+      subtitle: "مسار الاستخراج · آخر 10 أسابيع",
+      caption: "مستند",
+      flag: (p) => `مرفوض ${p}`,
+    },
+    strings: {
+      total: "الإجمالي",
+      period: "الفترة",
+      instructions: (title) =>
+        `${title}. استخدم السهمين الأيمن والأيسر للتنقل بين الفترات، والأعلى والأسفل للتبديل بين الصفين.`,
+      summary: (title, series, from, to, highest) =>
+        `${title}: ${series.join("، ")} من ${from} إلى ${to}${highest ? `، والأعلى ${highest}` : ""}`,
+      reading: (period, row, values) =>
+        `${period}، الصف ${row === "back" ? "الخلفي" : "الأمامي"}: ${values}`,
+    },
+  },
+};
+
+/** Day labels from the English ones ("Oct 23"), in the demo's language. */
+const localDays = (labels: string[], intl: string) =>
+  labels.map((label) =>
+    new Date(`${label}, 2026 12:00`).toLocaleDateString(intl, {
+      month: "short",
+      day: "numeric",
+    }),
+  );
+
 export default function IsoBarsDemo({
   variant = "Tokens",
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
+  const text = copy[locale];
+  const named = (list: IsoSeries[]) =>
+    list.map((s) => ({ ...s, label: text.names[s.id] ?? s.label }));
+  const dates = (labels: string[]) =>
+    locale === "en" ? labels : localDays(labels, text.intl);
+  const percent = (value: number) => {
+    const p = `${(value * 100).toFixed(1)}%`;
+    return locale === "en" ? p : ltr(p);
+  };
+
   if (variant === "Pipeline") {
     const done = sum(docs);
     const scrap = sum(rework.slice(1));
     return (
       <IsoBars
-        title="Invoices processed"
-        subtitle="Extraction pipeline · last 10 weeks"
-        labels={weeks}
-        back={docs}
-        front={rework}
+        title={text.pipeline.title}
+        subtitle={text.pipeline.subtitle}
+        labels={dates(weeks)}
+        back={named(docs)}
+        front={named(rework)}
         aside={{
-          value: done.toLocaleString("en-US"),
-          caption: "docs",
-          flag: `scrap ${((scrap / done) * 100).toFixed(1)}%`,
+          value: done.toLocaleString(text.intl),
+          caption: text.pipeline.caption,
+          flag: text.pipeline.flag(percent(scrap / done)),
           tone: "negative",
         }}
-        format={(v) => v.toLocaleString("en-US")}
+        format={(v) => v.toLocaleString(text.intl)}
+        strings={text.strings}
       />
     );
   }
@@ -144,17 +286,18 @@ export default function IsoBarsDemo({
   const lost = sum(failed.slice(0, 1));
   return (
     <IsoBars
-      title="Daily tokens"
-      subtitle="support-agent · last 14 days"
-      labels={days}
-      back={tokens}
-      front={failed}
+      title={text.tokens.title}
+      subtitle={text.tokens.subtitle}
+      labels={dates(days)}
+      back={named(tokens)}
+      front={named(failed)}
       aside={{
         value: compact(used),
-        caption: "tokens",
-        flag: `failed ${((lost / used) * 100).toFixed(1)}%`,
+        caption: text.tokens.caption,
+        flag: text.tokens.flag(percent(lost / used)),
         tone: "warning",
       }}
+      strings={text.strings}
     />
   );
 }

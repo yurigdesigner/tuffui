@@ -30,7 +30,33 @@ export type CodeBlockProps = {
   onCopy?: (code: string) => void;
   /** Only the code panel, without the shell and header — for embedding in another shell. */
   bare?: boolean;
+  /** UI strings, for translating. The code itself always reads left to right. */
+  labels?: Partial<CodeBlockLabels>;
   className?: string;
+};
+
+export type CodeBlockLabels = {
+  /** Screen-reader name of a block without a filename. */
+  code: string;
+  wrap: string;
+  unwrap: string;
+  copy: string;
+  copied: string;
+  /** Announced to screen readers after copying. */
+  copiedStatus: string;
+  showAll: (lines: number) => string;
+  collapse: string;
+};
+
+const defaultLabels: CodeBlockLabels = {
+  code: "Code",
+  wrap: "Wrap lines",
+  unwrap: "Disable line wrap",
+  copy: "Copy code",
+  copied: "Copied",
+  copiedStatus: "Code copied",
+  showAll: (lines) => `Show all ${lines} lines`,
+  collapse: "Collapse",
 };
 
 type TokenKind = "keyword" | "string" | "comment" | "number" | "plain" | "property";
@@ -109,8 +135,10 @@ export function CodeBlock({
   defaultWrap = false,
   onCopy,
   bare = false,
+  labels: labelOverrides,
   className,
 }: CodeBlockProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const { code, language = "text", filename, highlight = [] } = data;
   const lines = useMemo(() => code.replace(/\n$/, "").split("\n"), [code]);
   const tokens = useMemo(
@@ -152,11 +180,11 @@ export function CodeBlock({
 
   return (
     <MotionConfig reducedMotion="user">
-      <Frame bare={bare} className={className} label={filename ?? "Code"}>
+      <Frame bare={bare} className={className} label={filename ?? labels.code}>
         {!bare && (
-          <div className="flex items-center gap-2 pt-0.5 pr-0.5 pb-1.5 pl-3">
+          <div className="flex items-center gap-2 ps-3 pe-0.5 pt-0.5 pb-1.5">
             {filename && (
-              <span className="min-w-0 truncate font-mono text-[0.8125rem]">
+              <span dir="ltr" className="min-w-0 truncate font-mono text-[0.8125rem]">
                 {filename}
               </span>
             )}
@@ -164,22 +192,27 @@ export function CodeBlock({
             <span className="flex-1" />
             <IconButton
               icon={TextAlignLeft}
-              label={wrap ? "Disable line wrap" : "Wrap lines"}
+              label={wrap ? labels.unwrap : labels.wrap}
               aria-pressed={wrap}
               onClick={() => setUserWrap(!wrap)}
-              className={cn(wrap && "bg-foreground/[0.08] text-foreground")}
+              className={cn(
+                "rtl:[&_svg]:-scale-x-100",
+                wrap && "bg-foreground/[0.08] text-foreground",
+              )}
             />
             <IconButton
               icon={copied ? Check : Copy}
               iconWeight={copied ? "bold" : "fill"}
-              label={copied ? "Copied" : "Copy code"}
+              label={copied ? labels.copied : labels.copy}
               onClick={copy}
             />
           </div>
         )}
         <Panel ref={panel} className="relative overflow-hidden">
+          {/* Code reads left to right even inside a right-to-left page. */}
           <pre
             id={id}
+            dir="ltr"
             className={cn(
               "overflow-x-auto py-3 font-mono text-[0.8125rem] leading-6",
               wrap ? "break-words whitespace-pre-wrap" : "whitespace-pre",
@@ -233,7 +266,7 @@ export function CodeBlock({
                   onClick={() => setExpanded(true)}
                   className="h-8 rounded-full bg-surface-raised px-3.5 text-[0.8125rem] font-medium transition-[background-color,scale] duration-150 ease-out hover:bg-[color-mix(in_oklab,var(--surface-raised),var(--foreground)_7%)] active:scale-[0.97]"
                 >
-                  Show all {lines.length} lines
+                  {labels.showAll(lines.length)}
                 </button>
               </motion.div>
             )}
@@ -248,12 +281,12 @@ export function CodeBlock({
               onClick={() => setExpanded(false)}
               className="h-7 rounded-full px-3 text-xs text-muted-foreground transition-[color,scale] duration-150 ease-out hover:text-foreground active:scale-[0.97]"
             >
-              Collapse
+              {labels.collapse}
             </button>
           </div>
         )}
         <p role="status" aria-live="polite" className="sr-only">
-          {copied ? "Code copied" : ""}
+          {copied ? labels.copiedStatus : ""}
         </p>
       </Frame>
     </MotionConfig>

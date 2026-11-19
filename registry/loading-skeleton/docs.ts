@@ -32,5 +32,11 @@ export const docs: ComponentDocs = {
       default: "true",
       description: "Show the image area.",
     },
+    {
+      name: "MessageSkeleton.label / CardSkeleton.label",
+      type: "string",
+      default: '"Loading message" / "Loading card"',
+      description: "Spoken label, for translating.",
+    },
   ],
 };

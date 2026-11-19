@@ -42,6 +42,12 @@ export function Prompt({ message }: { message: Message }) {
       type: "(text: string) => void",
       description: "Called after the text is copied to the clipboard.",
     },
+    {
+      name: "labels",
+      type: "Partial<UserMessageLabels>",
+      description:
+        'Your own UI strings (Sent, Not sent, Save & resend, file sizes…), for translating. Right-to-left works under `dir="rtl"`.',
+    },
     { name: "className", type: "string", description: "Extra classes for the root." },
   ],
   types: `type UserMessageData = {

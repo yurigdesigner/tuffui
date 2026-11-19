@@ -37,7 +37,35 @@ export type BlastRadiusProps = {
   /** Right side of the header: a status pill or a count. */
   aside?: React.ReactNode;
   onSelect?: (node: BlastNode) => void;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<BlastRadiusLabels>;
   className?: string;
+};
+
+export type BlastRadiusLabels = {
+  /** Ring label and tooltip distance, e.g. "2 hops". */
+  hops: (depth: number) => string;
+  /** Tooltip flag and legend entry. */
+  affected: string;
+  /** Screen-reader hint on the chart. */
+  instructions: (title: string) => string;
+  /** Screen-reader summary. */
+  summary: (title: string, affected: number, total: number, center: string) => string;
+  /** Screen-reader reading of one node. */
+  reading: (
+    node: { label: string; kind: string; hops: string; note?: string },
+    flags: { affected: boolean; indirect: boolean },
+  ) => string;
+};
+
+const defaultLabels: BlastRadiusLabels = {
+  hops: (depth) => `${depth} ${depth === 1 ? "hop" : "hops"}`,
+  affected: "Affected",
+  instructions: (title) => `${title}. Use arrow keys to read each node.`,
+  summary: (title, affected, total, center) =>
+    `${title}: ${affected} of ${total} reachable from ${center} affected`,
+  reading: (node, flags) =>
+    `${node.label}, ${node.kind}, ${node.hops}${flags.affected ? ", affected" : ""}${flags.indirect ? ", indirect" : ""}${node.note ? `. ${node.note}` : ""}`,
 };
 
 type Placed = BlastNode & {
@@ -68,8 +96,6 @@ const polar = (turn: number, r: number) => {
   // Rounded so server and client trig agree and hydration matches.
   return [round(C + r * Math.cos(a)), round(C + r * Math.sin(a))] as const;
 };
-
-const hops = (depth: number) => `${depth} ${depth === 1 ? "hop" : "hops"}`;
 
 /**
  * Lays nodes out from data alone: the first hop evenly by angle, every later
@@ -154,8 +180,11 @@ export function BlastRadius({
   subtitle,
   aside,
   onSelect,
+  labels: labelOverrides,
   className,
 }: BlastRadiusProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const hops = labels.hops;
   const reduce = useReducedMotion();
   const [active, setActive] = useState<number | null>(null);
   const [fromKeyboard, setFromKeyboard] = useState(false);
@@ -218,16 +247,18 @@ export function BlastRadius({
           <div
             tabIndex={0}
             role="group"
-            aria-label={`${title}. Use arrow keys to read each node.`}
+            aria-label={labels.instructions(title)}
             onKeyDown={onKeyDown}
             onBlur={() => fromKeyboard && setActive(null)}
             className="relative mx-auto w-full max-w-80 rounded-full outline-offset-4"
           >
+            {/* Laid out clockwise in every language; labels keep their own direction. */}
             <svg
+              direction="ltr"
               viewBox={`0 0 ${SIZE} ${SIZE}`}
               role="img"
-              aria-label={`${title}: ${affected} of ${n} reachable from ${center.label} affected`}
-              className="block w-full overflow-visible"
+              aria-label={labels.summary(title, affected, n, center.label)}
+              className="block w-full overflow-visible [&_text]:[unicode-bidi:plaintext]"
               onPointerLeave={() => select(null, false)}
             >
               {Array.from({ length: maxDepth }, (_, d) => {
@@ -433,7 +464,7 @@ export function BlastRadius({
                   <p className="mt-0.5 text-muted-foreground">
                     {kindOf(current.kind).label} · {hops(current.depth)}
                     {current.affected && (
-                      <span className="text-negative"> · Affected</span>
+                      <span className="text-negative"> · {labels.affected}</span>
                     )}
                   </p>
                 </motion.div>
@@ -464,14 +495,22 @@ export function BlastRadius({
                     className="stroke-negative"
                   />
                 </svg>
-                Affected
+                {labels.affected}
               </span>
             )}
           </div>
 
           <p role="status" aria-live="polite" className="sr-only">
             {fromKeyboard && current
-              ? `${current.label}, ${kindOf(current.kind).label}, ${hops(current.depth)}${current.affected ? ", affected" : ""}${current.indirect ? ", indirect" : ""}${current.note ? `. ${current.note}` : ""}`
+              ? labels.reading(
+                  {
+                    label: current.label,
+                    kind: kindOf(current.kind).label,
+                    hops: hops(current.depth),
+                    note: current.note,
+                  },
+                  { affected: !!current.affected, indirect: !!current.indirect },
+                )
               : ""}
           </p>
         </Panel>

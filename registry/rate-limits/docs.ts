@@ -41,6 +41,18 @@ export function Limits({ headers, queue, retryAfter }: Props) {
         "Called by Retry now, which unlocks when the retry-after countdown ends.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for counts.",
+    },
+    {
+      name: "labels",
+      type: "Partial<RateLimitsLabels>",
+      description:
+        'Your own UI strings (status, countdowns, queue, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the bars fill from the right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

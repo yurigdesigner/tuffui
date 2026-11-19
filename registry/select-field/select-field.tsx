@@ -36,11 +36,11 @@ type FieldProps = {
 };
 
 const control =
-  "flex h-9 w-full items-center gap-2 rounded-full bg-foreground/[0.06] px-3.5 text-left text-sm text-foreground outline-none transition-[background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-foreground/[0.08] focus-visible:bg-foreground/[0.1] disabled:opacity-40 aria-invalid:bg-negative/10 data-[placeholder]:text-muted-foreground";
+  "flex h-9 w-full items-center gap-2 rounded-full bg-foreground/[0.06] px-3.5 text-start text-sm text-foreground outline-none transition-[background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-foreground/[0.08] focus-visible:bg-foreground/[0.1] disabled:opacity-40 aria-invalid:bg-negative/10 data-[placeholder]:text-muted-foreground";
 const surface =
   "z-50 rounded-2xl bg-surface-inset p-1 text-foreground shadow-[0_12px_32px_-12px_rgb(0_0_0/0.28)] outline-none dark:bg-surface-raised dark:shadow-[0_16px_40px_-12px_rgb(0_0_0/0.7)]";
 const row =
-  "relative flex cursor-default items-center gap-2.5 rounded-xl py-1.5 pr-8 pl-2.5 text-[0.8125rem] outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-foreground/[0.07] aria-selected:bg-foreground/[0.07]";
+  "relative flex cursor-default items-center gap-2.5 rounded-xl py-1.5 ps-2.5 pe-8 text-[0.8125rem] outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-foreground/[0.07] aria-selected:bg-foreground/[0.07]";
 
 function Field({
   label,
@@ -222,7 +222,7 @@ export function Select({
                               </span>
                             )}
                           </span>
-                          <SelectPrimitive.ItemIndicator className="absolute right-2.5">
+                          <SelectPrimitive.ItemIndicator className="absolute end-2.5">
                             <Check weight="bold" className="size-3.5 text-brand" />
                           </SelectPrimitive.ItemIndicator>
                         </SelectPrimitive.Item>
@@ -251,6 +251,20 @@ export type ComboboxProps = FieldProps & {
   onQueryChange?: (query: string) => void;
   loading?: boolean;
   emptyText?: string;
+  /** UI strings, for translating the loading state. */
+  labels?: Partial<ComboboxLabels>;
+};
+
+export type ComboboxLabels = {
+  /** Screen-reader name of the spinner. */
+  searching: string;
+  /** Shown in the list while results load. */
+  searchingList: string;
+};
+
+const defaultComboboxLabels: ComboboxLabels = {
+  searching: "Searching",
+  searchingList: "Searching…",
 };
 
 /** Type to search a list and pick one option. */
@@ -266,10 +280,14 @@ export function Combobox({
   label,
   description,
   error,
+  labels: labelOverrides,
   className,
 }: ComboboxProps) {
+  const labels = { ...defaultComboboxLabels, ...labelOverrides };
   const listId = useId();
   const [open, setOpen] = useState(false);
+  // The list renders in a portal under <body>; it takes the input's direction.
+  const [dir, setDir] = useState<"ltr" | "rtl">("ltr");
   const [query, setQuery] = useState("");
   const [valueState, setValueState] = useState<string | null>(null);
   const [active, setActive] = useState(0);
@@ -311,7 +329,14 @@ export function Combobox({
                 placeholder={selected ? selected.label : placeholder}
                 value={open ? query : (selected?.label ?? "")}
                 onPointerDown={() => setViaKeyboard(false)}
-                onFocus={() => setOpen(true)}
+                onFocus={(event) => {
+                  setDir(
+                    getComputedStyle(event.currentTarget).direction === "rtl"
+                      ? "rtl"
+                      : "ltr",
+                  );
+                  setOpen(true);
+                }}
                 onChange={(event) => {
                   setQuery(event.target.value);
                   setActive(0);
@@ -336,27 +361,28 @@ export function Combobox({
                 }}
                 className={cn(
                   control,
-                  "pr-9 placeholder:text-muted-foreground",
+                  "pe-9 placeholder:text-muted-foreground",
                   selected && !open && "placeholder:text-foreground",
                 )}
               />
               {loading ? (
                 <Spinner
                   size="sm"
-                  label="Searching"
-                  className="absolute top-1/2 right-3.5 -translate-y-1/2"
+                  label={labels.searching}
+                  className="absolute end-3.5 top-1/2 -translate-y-1/2"
                 />
               ) : (
                 <CaretDown
                   weight="bold"
                   aria-hidden="true"
-                  className="pointer-events-none absolute top-1/2 right-3.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+                  className="pointer-events-none absolute end-3.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
                 />
               )}
             </div>
           </PopoverPrimitive.Anchor>
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Content
+              dir={dir}
               sideOffset={6}
               collisionPadding={12}
               onOpenAutoFocus={(event) => event.preventDefault()}
@@ -392,7 +418,7 @@ export function Combobox({
                       {option.value === value && (
                         <Check
                           weight="bold"
-                          className="absolute right-2.5 size-3.5 text-brand"
+                          className="absolute end-2.5 size-3.5 text-brand"
                           aria-hidden="true"
                         />
                       )}
@@ -403,7 +429,7 @@ export function Combobox({
                       role="presentation"
                       className="px-2.5 py-2 text-[0.8125rem] text-muted-foreground"
                     >
-                      {loading ? "Searching…" : emptyText}
+                      {loading ? labels.searchingList : emptyText}
                     </li>
                   )}
                 </ul>

@@ -11,6 +11,9 @@ import {
 } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import {
+  createContext,
+  useContext,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -49,16 +52,52 @@ export type MessageBranchesProps = {
   onRegenerate?: () => void;
   /** `inline` puts a ‹ 2 / 3 › switcher under the message; `map` draws the branches. */
   variant?: "inline" | "map";
+  /** UI strings, for translating. */
+  labels?: Partial<MessageBranchesLabels>;
   className?: string;
 };
 
-const kindLabel: Record<BranchKind, string> = {
-  original: "Original",
-  regenerated: "Regenerated",
-  edited: "Edited prompt",
+export type MessageBranchesLabels = {
+  /** Default version labels by kind. */
+  kinds: Record<BranchKind, string>;
+  /** Screen-reader prefix before an edited prompt. */
+  editedPrompt: string;
+  regenerate: string;
+  /** Screen-reader name of the whole block. */
+  region: string;
+  switchVersion: string;
+  previous: string;
+  next: string;
+  branches: string;
+  /** Announced after a switch. */
+  announce: (current: number, total: number, label: string) => string;
 };
 
-const labelOf = (v: MessageVersion) => v.label ?? kindLabel[v.kind];
+const defaultLabels: MessageBranchesLabels = {
+  kinds: { original: "Original", regenerated: "Regenerated", edited: "Edited prompt" },
+  editedPrompt: "Edited prompt: ",
+  regenerate: "Regenerate response",
+  region: "Response versions",
+  switchVersion: "Switch version",
+  previous: "Previous version",
+  next: "Next version",
+  branches: "Branches",
+  announce: (current, total, label) => `Version ${current} of ${total}, ${label}`,
+};
+
+const Labels = createContext(defaultLabels);
+
+const labelOf = (v: MessageVersion, labels: MessageBranchesLabels) =>
+  v.label ?? labels.kinds[v.kind];
+
+/** Left and right arrows swap meaning under `dir="rtl"`. */
+const arrowStep = (key: string, rtl: boolean) =>
+  ({
+    ArrowLeft: rtl ? 1 : -1,
+    ArrowUp: -1,
+    ArrowRight: rtl ? -1 : 1,
+    ArrowDown: 1,
+  })[key];
 // Arrow buttons inside the switcher track: smaller and on the foreground.
 const step = "size-6 text-foreground hover:bg-surface-raised disabled:opacity-35";
 
@@ -69,8 +108,15 @@ export function MessageBranches({
   onIndexChange,
   onRegenerate,
   variant = "inline",
+  labels: labelOverrides,
   className,
 }: MessageBranchesProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const root = useRef<HTMLElement>(null);
+  const [rtl, setRtl] = useState(false);
+  useLayoutEffect(() => {
+    if (root.current) setRtl(getComputedStyle(root.current).direction === "rtl");
+  }, []);
   const { versions, turnsBefore = 2 } = data;
   const [own, setOwn] = useState(defaultIndex ?? versions.length - 1);
   const current = Math.min(Math.max(index ?? own, 0), Math.max(versions.length - 1, 0));
@@ -94,14 +140,15 @@ export function MessageBranches({
   const fromKeys = (e: MouseEvent) => e.detail === 0;
 
   const onKeyDown = (e: KeyboardEvent) => {
-    const step = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+    const step = arrowStep(e.key, rtl);
     if (step === undefined) return;
     e.preventDefault();
     go(current + step, true);
   };
 
   if (!version) return null;
-  const d = move.dir;
+  // Newer versions enter from the end side: right in LTR, left in RTL.
+  const d = move.dir * (rtl ? -1 : 1);
   const t = move.instant ? { duration: 0 } : enter;
 
   const body = (
@@ -129,12 +176,14 @@ export function MessageBranches({
                 aria-hidden="true"
               />
               <span>
-                <span className="sr-only">Edited prompt: </span>
-                {version.prompt}
+                <span className="sr-only">{labels.editedPrompt}</span>
+                <bdi dir="auto">{version.prompt}</bdi>
               </span>
             </Inset>
           )}
-          <div className="text-[0.9375rem] leading-relaxed">{version.content}</div>
+          <div dir="auto" className="text-[0.9375rem] leading-relaxed">
+            {version.content}
+          </div>
         </motion.div>
       </AnimatePresence>
     </motion.div>
@@ -142,7 +191,7 @@ export function MessageBranches({
 
   const caption = (
     <span className="min-w-0 truncate text-[0.8125rem] text-muted-foreground">
-      <span className="text-foreground">{labelOf(version)}</span>
+      <span className="text-foreground">{labelOf(version, labels)}</span>
       {version.meta && ` · ${version.meta}`}
     </span>
   );
@@ -151,65 +200,79 @@ export function MessageBranches({
     <IconButton
       icon={ArrowCounterClockwise}
       iconWeight="bold"
-      label="Regenerate response"
+      label={labels.regenerate}
       onClick={onRegenerate}
       className="size-7"
     />
   );
 
-  const announcement = `Version ${current + 1} of ${versions.length}, ${labelOf(version)}`;
+  const announcement = labels.announce(
+    current + 1,
+    versions.length,
+    labelOf(version, labels),
+  );
 
   return (
-    <MotionConfig reducedMotion="user">
-      <Shell aria-label="Response versions" className={cn("max-w-xl", className)}>
-        <Panel className="px-4 py-3.5">{body}</Panel>
-        {variant === "inline" ? (
-          <div className="flex items-center gap-2 px-2 pt-1.5 pb-0.5">
-            <div
-              role="group"
-              aria-label="Switch version"
-              onKeyDown={onKeyDown}
-              className="flex items-center rounded-full bg-foreground/[0.05] p-0.5"
-            >
-              <IconButton
-                icon={CaretLeft}
-                iconWeight="bold"
-                label="Previous version"
-                disabled={current === 0}
-                onClick={(e) => go(current - 1, fromKeys(e))}
-                className={step}
-              />
-              <span className="min-w-10 text-center font-mono text-xs tabular-nums">
-                {current + 1} / {versions.length}
-              </span>
-              <IconButton
-                icon={CaretRight}
-                iconWeight="bold"
-                label="Next version"
-                disabled={current === versions.length - 1}
-                onClick={(e) => go(current + 1, fromKeys(e))}
-                className={step}
-              />
+    <Labels.Provider value={labels}>
+      <MotionConfig reducedMotion="user">
+        <Shell
+          ref={root}
+          aria-label={labels.region}
+          className={cn("max-w-xl", className)}
+        >
+          <Panel className="px-4 py-3.5">{body}</Panel>
+          {variant === "inline" ? (
+            <div className="flex items-center gap-2 px-2 pt-1.5 pb-0.5">
+              <div
+                role="group"
+                aria-label={labels.switchVersion}
+                onKeyDown={onKeyDown}
+                className="flex items-center rounded-full bg-foreground/[0.05] p-0.5"
+              >
+                <IconButton
+                  icon={CaretLeft}
+                  iconWeight="bold"
+                  label={labels.previous}
+                  disabled={current === 0}
+                  onClick={(e) => go(current - 1, fromKeys(e))}
+                  className={cn(step, "rtl:[&_svg]:-scale-x-100")}
+                />
+                <span
+                  dir="ltr"
+                  className="min-w-10 text-center font-mono text-xs tabular-nums"
+                >
+                  {current + 1} / {versions.length}
+                </span>
+                <IconButton
+                  icon={CaretRight}
+                  iconWeight="bold"
+                  label={labels.next}
+                  disabled={current === versions.length - 1}
+                  onClick={(e) => go(current + 1, fromKeys(e))}
+                  className={cn(step, "rtl:[&_svg]:-scale-x-100")}
+                />
+              </div>
+              {caption}
+              <span className="ms-auto">{regenerate}</span>
             </div>
-            {caption}
-            <span className="ml-auto">{regenerate}</span>
-          </div>
-        ) : (
-          <div className="flex items-start gap-3 px-3 pt-3 pb-2">
-            <BranchMap
-              versions={versions}
-              turnsBefore={turnsBefore}
-              current={current}
-              onPick={go}
-            />
-            <span className="ml-auto">{regenerate}</span>
-          </div>
-        )}
-        <p role="status" aria-live="polite" className="sr-only">
-          {announcement}
-        </p>
-      </Shell>
-    </MotionConfig>
+          ) : (
+            <div className="flex items-start gap-3 px-3 pt-3 pb-2">
+              <BranchMap
+                versions={versions}
+                turnsBefore={turnsBefore}
+                current={current}
+                onPick={go}
+                rtl={rtl}
+              />
+              <span className="ms-auto">{regenerate}</span>
+            </div>
+          )}
+          <p role="status" aria-live="polite" className="sr-only">
+            {announcement}
+          </p>
+        </Shell>
+      </MotionConfig>
+    </Labels.Provider>
   );
 }
 
@@ -241,16 +304,19 @@ function BranchMap({
   turnsBefore,
   current,
   onPick,
+  rtl,
 }: {
   versions: MessageVersion[];
   turnsBefore: number;
   current: number;
   onPick: (index: number, instant: boolean) => void;
+  rtl: boolean;
 }) {
+  const labels = useContext(Labels);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   // Roving focus: arrow keys move the checked radio and the focus together.
   const onKeyDown = (e: KeyboardEvent) => {
-    const step = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+    const step = arrowStep(e.key, rtl);
     if (step === undefined) return;
     e.preventDefault();
     const next = Math.min(Math.max(current + step, 0), versions.length - 1);
@@ -262,7 +328,7 @@ function BranchMap({
     <div className="flex min-w-0 items-start">
       {/* Shared turns before the fork; always on the current path. */}
       <div aria-hidden="true" className="flex h-7 items-center">
-        <GitBranch weight="fill" className="mr-2 size-3.5 text-muted-foreground" />
+        <GitBranch weight="fill" className="me-2 size-3.5 text-muted-foreground" />
         {Array.from({ length: turnsBefore }, (_, i) => (
           <span key={i} className="flex items-center">
             <Dot on />
@@ -272,7 +338,7 @@ function BranchMap({
       </div>
       <div
         role="radiogroup"
-        aria-label="Branches"
+        aria-label={labels.branches}
         onKeyDown={onKeyDown}
         className="relative flex min-w-0 flex-col"
       >
@@ -280,7 +346,7 @@ function BranchMap({
         {versions.length > 1 && (
           <span
             aria-hidden="true"
-            className="absolute top-3.5 left-0 w-px bg-foreground/15"
+            className="absolute start-0 top-3.5 w-px bg-foreground/15"
             style={{ height: `calc(${versions.length - 1} * 1.75rem)` }}
           />
         )}
@@ -300,7 +366,7 @@ function BranchMap({
               animate={{ opacity: 1, y: 0 }}
               transition={enter}
               onClick={(e) => onPick(i, e.detail === 0)}
-              className="group flex h-7 min-w-0 items-center rounded-full pr-2.5 text-left transition-[background-color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-foreground/[0.04] active:scale-[0.97]"
+              className="group flex h-7 min-w-0 items-center rounded-full pe-2.5 text-start transition-[background-color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-foreground/[0.04] active:scale-[0.97]"
             >
               <Link on={on} />
               <Dot on={on} size="lg" />
@@ -312,13 +378,13 @@ function BranchMap({
               ))}
               <span
                 className={cn(
-                  "ml-2.5 truncate text-[0.8125rem] transition-colors duration-150",
+                  "ms-2.5 truncate text-[0.8125rem] transition-colors duration-150",
                   on
                     ? "text-foreground"
                     : "text-muted-foreground group-hover:text-foreground",
                 )}
               >
-                {labelOf(v)}
+                {labelOf(v, labels)}
                 {v.meta && <span className="text-muted-foreground"> · {v.meta}</span>}
               </span>
             </motion.button>

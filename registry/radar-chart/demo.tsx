@@ -1,6 +1,7 @@
 "use client";
 
-import { RadarChart, type RadarMember } from "./radar-chart";
+import type { DemoLocale } from "@/components/docs/demo";
+import { RadarChart, type RadarChartLabels, type RadarMember } from "./radar-chart";
 
 const skills = [
   "Craft",
@@ -46,45 +47,168 @@ const models: RadarMember[] = [
   { id: "ft", label: "FT", name: "support-ft", values: [74, 61, 92, 70, 93, 91, 88] },
 ];
 
+/** Keeps a Latin name in reading order inside RTL text. */
+const ltr = (text: string) => `⁦${text}⁩`;
+
+/** People and model names stay Latin; Hebrew and Arabic show the RTL layout. */
+const copy: Record<
+  DemoLocale,
+  {
+    skills: string[];
+    evals: string[];
+    team: {
+      title: string;
+      subtitle: string;
+      average: string;
+      bar: string;
+      caption: string;
+    };
+    eval: { title: string; subtitle: string; mix: string; bar: string; caption: string };
+    labels?: Partial<RadarChartLabels>;
+  }
+> = {
+  en: {
+    skills,
+    evals,
+    team: {
+      title: "Team skills",
+      subtitle: "Design · Q3 review · 4 people",
+      average: "Team average",
+      bar: "Senior bar",
+      caption: "bar 3.1",
+    },
+    eval: {
+      title: "Model eval",
+      subtitle: "Support agent · eval suite v14 · 1,200 cases",
+      mix: "Routed mix",
+      bar: "Ship bar",
+      caption: "bar 77",
+    },
+  },
+  he: {
+    skills: [
+      "מקצועיות",
+      "חשיבה מערכתית",
+      "חוש מוצרי",
+      "שיתוף פעולה",
+      "תקשורת",
+      "מנהיגות",
+    ],
+    evals: [
+      "היסק",
+      "קוד",
+      "שימוש בכלים",
+      "הקשר ארוך",
+      "ציות להנחיות",
+      "בטיחות",
+      "מהירות",
+    ],
+    team: {
+      title: "כישורי הצוות",
+      subtitle: `עיצוב · סקירת ${ltr("Q3")} · 4 אנשים`,
+      average: "ממוצע הצוות",
+      bar: "רף בכיר",
+      caption: "רף 3.1",
+    },
+    eval: {
+      title: "הערכת מודלים",
+      subtitle: `סוכן תמיכה · חבילת הערכה ${ltr("v14")} · 1,200 מקרים`,
+      mix: "תמהיל מנותב",
+      bar: "רף לשחרור",
+      caption: "רף 77",
+    },
+    labels: {
+      axis: "ציר",
+      instructions: (title) => `${title}. אפשר לעבור בין הצירים עם מקשי החיצים.`,
+      summary: (title, series, values, strongest) =>
+        `${title}: ${series} ${values}. החוזקה הבולטת: ${strongest}.`,
+    },
+  },
+  ar: {
+    skills: [
+      "الإتقان",
+      "التفكير المنظومي",
+      "الحس بالمنتج",
+      "التعاون",
+      "التواصل",
+      "القيادة",
+    ],
+    evals: [
+      "الاستدلال",
+      "البرمجة",
+      "استخدام الأدوات",
+      "سياق طويل",
+      "اتباع التعليمات",
+      "الأمان",
+      "السرعة",
+    ],
+    team: {
+      title: "مهارات الفريق",
+      subtitle: `التصميم · مراجعة ${ltr("Q3")} · 4 أشخاص`,
+      average: "متوسط الفريق",
+      bar: "معيار الأقدمية",
+      caption: "المعيار 3.1",
+    },
+    eval: {
+      title: "تقييم النماذج",
+      subtitle: `وكيل الدعم · حزمة التقييم ${ltr("v14")} · 1,200 حالة`,
+      mix: "المزيج الموجَّه",
+      bar: "معيار الإطلاق",
+      caption: "المعيار 77",
+    },
+    labels: {
+      axis: "المحور",
+      instructions: (title) => `${title}. استخدم مفاتيح الأسهم لقراءة كل محور.`,
+      summary: (title, series, values, strongest) =>
+        `${title}: ${series} ${values}. الأقوى في ${strongest}.`,
+    },
+  },
+};
+
 export default function RadarChartDemo({
   variant = "Team skills",
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
+  const text = copy[locale];
   if (variant === "Model eval") {
     const router = average(models, evals.length);
     return (
       <RadarChart
-        title="Model eval"
-        subtitle="Support agent · eval suite v14 · 1,200 cases"
-        axes={evals}
+        title={text.eval.title}
+        subtitle={text.eval.subtitle}
+        axes={text.evals}
         max={100}
-        series={{ id: "router", label: "Routed mix", values: router }}
-        baseline={{ label: "Ship bar", values: [75, 70, 80, 70, 85, 90, 70] }}
+        series={{ id: "router", label: text.eval.mix, values: router }}
+        baseline={{ label: text.eval.bar, values: [75, 70, 80, 70, 85, 90, 70] }}
         members={models}
         headline={{
           value: `${Math.round(router.reduce((a, b) => a + b, 0) / router.length)}`,
-          caption: "bar 77",
+          caption: text.eval.caption,
         }}
         format={(v) => `${Math.round(v)}`}
+        labels={text.labels}
       />
     );
   }
   const avg = average(team, skills.length);
   return (
     <RadarChart
-      title="Team skills"
-      subtitle="Design · Q3 review · 4 people"
-      axes={skills}
+      title={text.team.title}
+      subtitle={text.team.subtitle}
+      axes={text.skills}
       max={4}
-      series={{ id: "avg", label: "Team average", values: avg }}
-      baseline={{ label: "Senior bar", values: [3.5, 3, 3, 3, 3, 3] }}
+      series={{ id: "avg", label: text.team.average, values: avg }}
+      baseline={{ label: text.team.bar, values: [3.5, 3, 3, 3, 3, 3] }}
       members={team}
       headline={{
         value: (avg.reduce((a, b) => a + b, 0) / avg.length).toFixed(1),
-        caption: "bar 3.1",
+        caption: text.team.caption,
       }}
+      labels={text.labels}
     />
   );
 }

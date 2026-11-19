@@ -71,6 +71,12 @@ export function ReviewEdits({ changes }: { changes: FileChange[] }) {
         "File open on first render when uncontrolled. Defaults to the first file.",
     },
     {
+      name: "labels",
+      type: "Partial<FileChangesLabels>",
+      description:
+        'Your own UI strings: status names, hunk controls, footer line, buttons and screen-reader text, for translating. Right-to-left works under `dir="rtl"`; the diff itself stays left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

@@ -12,7 +12,7 @@ type SectionProps = {
   title: React.ReactNode;
   /** Optional leading Phosphor icon, filled. */
   icon?: Icon;
-  /** Right-aligned secondary text, e.g. a count or a time. */
+  /** Secondary text at the end of the header, e.g. a count or a time. */
   meta?: React.ReactNode;
   open: boolean;
   onToggle: (fromKeyboard: boolean) => void;
@@ -49,7 +49,7 @@ function Section({
           aria-controls={`${id}-body`}
           disabled={disabled}
           onClick={(e) => onToggle(e.detail === 0)}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-[background-color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-foreground/[0.03] active:scale-[0.99] disabled:opacity-40"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start text-sm font-medium transition-[background-color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-foreground/[0.03] active:scale-[0.99] disabled:opacity-40"
         >
           {IconComponent && (
             <IconComponent

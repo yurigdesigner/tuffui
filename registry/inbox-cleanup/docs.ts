@@ -210,6 +210,18 @@ export function InboxCleanupAnswer({ newsletters }: Props) {
         "Dots fade and scale in on mount, and the zone's senders turn accent one by one when it appears. Skipped with reduced motion.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "Locale for the default open-rate and axis percentages.",
+    },
+    {
+      name: "labels",
+      type: "Partial<InboxCleanupLabels>",
+      description:
+        'Your own UI strings (counts, default summary, buttons and screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the scatter keeps left-to-right axes.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

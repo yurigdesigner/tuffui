@@ -47,7 +47,25 @@ export type RadarChartProps = {
   headline?: { value: string; caption?: string };
   format?: (value: number) => string;
   onSelect?: (axis: number) => void;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<RadarChartLabels>;
   className?: string;
+};
+
+export type RadarChartLabels = {
+  /** First column of the screen-reader table. */
+  axis: string;
+  /** Screen-reader hint on the chart. */
+  instructions: (title: string) => string;
+  /** Screen-reader summary. `values` is "axis value" pairs, joined. */
+  summary: (title: string, series: string, values: string, strongest: string) => string;
+};
+
+const defaultLabels: RadarChartLabels = {
+  axis: "Axis",
+  instructions: (title) => `${title}. Use arrow keys to read each axis.`,
+  summary: (title, series, values, strongest) =>
+    `${title}: ${series} ${values}. Strongest on ${strongest}.`,
 };
 
 const GAP = 12;
@@ -70,15 +88,17 @@ function useWidth() {
   // null until measured: the chart draws once at its real width, so entrance
   // animations don't tween from a guessed size.
   const [width, setWidth] = useState<number | null>(null);
+  const [rtl, setRtl] = useState(false);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    setRtl(getComputedStyle(el).direction === "rtl");
     setWidth(el.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return [ref, width ?? 400, width !== null] as const;
+  return [ref, width ?? 400, width !== null, rtl] as const;
 }
 
 /**
@@ -97,11 +117,13 @@ export function RadarChart({
   headline,
   format = (v) => v.toFixed(1),
   onSelect,
+  labels: labelOverrides,
   className,
 }: RadarChartProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const reduce = useReducedMotion();
   const id = useId();
-  const [ref, width, measured] = useWidth();
+  const [ref, width, measured, rtl] = useWidth();
   const [active, setActive] = useState<number | null>(null);
   const [fromKeyboard, setFromKeyboard] = useState(false);
 
@@ -262,19 +284,26 @@ export function RadarChart({
             ref={ref}
             tabIndex={0}
             role="group"
-            aria-label={`${title}. Use arrow keys to read each axis.`}
+            aria-label={labels.instructions(title)}
             onKeyDown={onKeyDown}
             onBlur={() => fromKeyboard && setActive(null)}
             className="relative rounded-xl outline-offset-4"
           >
+            {/* Clockwise in every language; labels keep their own direction. */}
             <svg
+              direction="ltr"
               key={measured ? "measured" : "guess"}
               visibility={measured ? undefined : "hidden"}
               role="img"
-              aria-label={`${title}: ${series.label} ${axes.map((a, i) => `${a} ${values[i]}`).join(", ")}. Strongest on ${best}.`}
+              aria-label={labels.summary(
+                title,
+                series.label,
+                axes.map((a, i) => `${a} ${values[i]}`).join(", "),
+                best,
+              )}
               width={width}
               height={height}
-              className="block overflow-visible"
+              className="block overflow-visible [&_text]:[unicode-bidi:plaintext]"
               onPointerLeave={() => select(null, false)}
             >
               <defs>
@@ -378,6 +407,10 @@ export function RadarChart({
                     : LINE * 0.5
                   : (-(lines[i] - 1) * LINE) / 2;
                 const on = active === i;
+                const valueClass = cn(
+                  "font-mono tabular-nums",
+                  on ? "fill-foreground" : "fill-muted-foreground",
+                );
                 return (
                   <text
                     key={i}
@@ -392,22 +425,31 @@ export function RadarChart({
                       fromKeyboard && "duration-0",
                     )}
                   >
-                    {stacked
-                      ? wrapped[i].map((line, k) => (
+                    {stacked ? (
+                      <>
+                        {wrapped[i].map((line, k) => (
                           <tspan key={k} x={x} dy={k ? LINE : undefined}>
                             {line}
                           </tspan>
-                        ))
-                      : label}
-                    <tspan
-                      {...(stacked ? { x, dy: LINE } : { dx: 4 })}
-                      className={cn(
-                        "font-mono tabular-nums",
-                        on ? "fill-foreground" : "fill-muted-foreground",
-                      )}
-                    >
-                      {values[i]}
-                    </tspan>
+                        ))}
+                        <tspan x={x} dy={LINE} className={valueClass}>
+                          {values[i]}
+                        </tspan>
+                      </>
+                    ) : rtl ? (
+                      // Right to left, the value reads after the name, on its left.
+                      <>
+                        <tspan className={valueClass}>{values[i]}</tspan>
+                        {`\u00a0${label}`}
+                      </>
+                    ) : (
+                      <>
+                        {label}
+                        <tspan dx={4} className={valueClass}>
+                          {values[i]}
+                        </tspan>
+                      </>
+                    )}
                   </text>
                 );
               })}
@@ -513,7 +555,7 @@ export function RadarChart({
             <caption>{title}</caption>
             <thead>
               <tr>
-                <th scope="col">Axis</th>
+                <th scope="col">{labels.axis}</th>
                 <th scope="col">{series.label}</th>
                 {baseline && <th scope="col">{baseline.label}</th>}
                 {people.map((m) => (

@@ -11,7 +11,14 @@ import {
   MagnifyingGlass,
 } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Button, IconButton } from "@/components/ui/action-button";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { Segmented } from "@/components/ui/segmented-control";
@@ -46,15 +53,71 @@ export type MemoryPanelProps = {
   /** `panel` has search and scope filters; `compact` is a dense list. */
   variant?: "panel" | "compact";
   title?: string;
+  /** UI strings, for translating the panel. */
+  labels?: Partial<MemoryPanelLabels>;
   className?: string;
 };
 
-const scopes: { value: MemoryScope | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "user", label: "User" },
-  { value: "project", label: "Project" },
-  { value: "session", label: "Session" },
-];
+export type MemoryPanelLabels = {
+  /** Used when `title` is left out. */
+  title: string;
+  /** Count in the header; `count` is the animated number. */
+  count: (count: ReactNode, total: number) => ReactNode;
+  search: string;
+  searchMemories: string;
+  clearSearch: string;
+  scope: string;
+  scopes: Record<MemoryScope | "all", string>;
+  noMatch: string;
+  noMatchHint: string;
+  empty: string;
+  emptyHint: string;
+  footer: string;
+  undo: string;
+  /** Announcements. */
+  forgot: (text: string) => string;
+  restored: string;
+  updated: string;
+  editField: string;
+  new: string;
+  pinned: string;
+  editHint: string;
+  edit: (text: string) => string;
+  forget: (text: string) => string;
+};
+
+const defaultLabels: MemoryPanelLabels = {
+  title: "Memory",
+  count: (count, total) => (
+    <>
+      {count} {total === 1 ? "memory" : "memories"}
+    </>
+  ),
+  search: "Search",
+  searchMemories: "Search memories",
+  clearSearch: "Clear search",
+  scope: "Scope",
+  scopes: { all: "All", user: "User", project: "Project", session: "Session" },
+  noMatch: "No memories match",
+  noMatchHint: "Try another search or scope.",
+  empty: "Nothing remembered yet",
+  emptyHint: "Memories appear as the agent learns.",
+  footer: "The agent reads these at the start of every run.",
+  undo: "Undo forget",
+  forgot: (text) => `Forgot “${text}”. Undo available.`,
+  restored: "Memory restored",
+  updated: "Memory updated",
+  editField: "Edit memory",
+  new: "New",
+  pinned: "Pinned",
+  editHint: "Enter to save · Esc to cancel",
+  edit: (text) => `Edit “${text}”`,
+  forget: (text) => `Forget “${text}”`,
+};
+
+const LabelsContext = createContext(defaultLabels);
+
+const scopes: (MemoryScope | "all")[] = ["all", "user", "project", "session"];
 
 const scopeTone = { user: "brand", project: "neutral", session: "neutral" } as const;
 // Project has no status tone of its own: a purple tint on the neutral pill.
@@ -71,10 +134,16 @@ export function MemoryPanel({
   onUndo,
   undoMs = 5000,
   variant = "panel",
-  title = "Memory",
+  title: titleProp,
+  labels: labelOverrides,
   className,
 }: MemoryPanelProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const title = titleProp ?? labels.title;
   const compact = variant === "compact";
+  const list = useRef<HTMLUListElement>(null);
+  // Forgotten rows slide out toward the start edge.
+  const [rtl, setRtl] = useState(false);
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<MemoryScope | "all">("all");
   const [hidden, setHidden] = useState<string[]>([]);
@@ -83,7 +152,10 @@ export function MemoryPanel({
   const [announcement, setAnnouncement] = useState("");
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    const frame = requestAnimationFrame(() => setMounted(true));
+    const frame = requestAnimationFrame(() => {
+      setMounted(true);
+      setRtl(!!list.current && getComputedStyle(list.current).direction === "rtl");
+    });
     return () => cancelAnimationFrame(frame);
   }, []);
 
@@ -101,14 +173,14 @@ export function MemoryPanel({
     if (undo) onForget?.(undo);
     setHidden((h) => [...h, memory.id]);
     setUndo(memory);
-    setAnnouncement(`Forgot “${memory.text}”. Undo available.`);
+    setAnnouncement(labels.forgot(memory.text));
   };
 
   const restore = () => {
     if (!undo) return;
     setHidden((h) => h.filter((id) => id !== undo.id));
     onUndo?.(undo);
-    setAnnouncement("Memory restored");
+    setAnnouncement(labels.restored);
     setUndo(null);
   };
 
@@ -122,120 +194,121 @@ export function MemoryPanel({
   const total = data.filter((m) => !hidden.includes(m.id)).length;
 
   return (
-    <MotionConfig reducedMotion="user">
-      <Shell
-        aria-label={title}
-        className={cn(compact ? "max-w-md" : "max-w-lg", className)}
-      >
-        <ShellHeader
-          icon={Brain}
-          title={title}
-          aside={
-            <span className="text-[0.8125rem] text-muted-foreground tabular-nums">
-              <RollingNumber value={String(total)} />{" "}
-              {total === 1 ? "memory" : "memories"}
-            </span>
-          }
-        />
+    <LabelsContext.Provider value={labels}>
+      <MotionConfig reducedMotion="user">
+        <Shell
+          aria-label={title}
+          className={cn(compact ? "max-w-md" : "max-w-lg", className)}
+        >
+          <ShellHeader
+            icon={Brain}
+            title={title}
+            aside={
+              <span className="text-[0.8125rem] text-muted-foreground tabular-nums">
+                {labels.count(<RollingNumber value={String(total)} />, total)}
+              </span>
+            }
+          />
 
-        {!compact && (
-          <div className="flex flex-col gap-2 px-1.5 pb-2.5 @md:flex-row @md:items-center">
-            <SearchField
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onClear={() => setQuery("")}
-              placeholder="Search"
-              aria-label="Search memories"
-              className="flex-1"
-            />
-            <Segmented
-              label="Scope"
-              options={scopes}
-              value={scope}
-              onValueChange={setScope}
-            />
-          </div>
-        )}
-
-        <Panel className="p-1.5">
-          <ul className="flex flex-col">
-            <AnimatePresence>
-              {visible.map((memory, i) => (
-                <motion.li
-                  key={memory.id}
-                  layout
-                  // First paint cascades the rows in 40ms apart; later additions grow in.
-                  initial={
-                    mounted
-                      ? { opacity: 0, height: 0 }
-                      : { opacity: 0, y: 6, height: "auto" }
-                  }
-                  animate={{
-                    opacity: 1,
-                    height: "auto",
-                    y: 0,
-                    transition: { ...spring, delay: mounted ? 0 : i * 0.04 },
-                  }}
-                  exit={{ opacity: 0, height: 0, x: -16, transition: exit }}
-                  className="overflow-hidden"
-                >
-                  <MemoryRow
-                    memory={memory}
-                    compact={compact}
-                    editing={editing === memory.id}
-                    onStartEdit={() => setEditing(memory.id)}
-                    onCancel={() => setEditing(null)}
-                    onSave={(text) => {
-                      setEditing(null);
-                      if (text !== memory.text) {
-                        onEdit?.(memory, text);
-                        setAnnouncement("Memory updated");
-                      }
-                    }}
-                    onForget={() => forget(memory)}
-                  />
-                </motion.li>
-              ))}
-            </AnimatePresence>
-          </ul>
-          {visible.length === 0 && (
-            <EmptyState
-              compact
-              icon={q || scope !== "all" ? MagnifyingGlass : Brain}
-              title={
-                q || scope !== "all" ? "No memories match" : "Nothing remembered yet"
-              }
-              description={
-                q || scope !== "all"
-                  ? "Try another search or scope."
-                  : "Memories appear as the agent learns."
-              }
-            />
+          {!compact && (
+            <div className="flex flex-col gap-2 px-1.5 pb-2.5 @md:flex-row @md:items-center">
+              <SearchField
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onClear={() => setQuery("")}
+                placeholder={labels.search}
+                aria-label={labels.searchMemories}
+                labels={{ clear: labels.clearSearch }}
+                className="flex-1"
+              />
+              <Segmented
+                label={labels.scope}
+                options={scopes.map((value) => ({ value, label: labels.scopes[value] }))}
+                value={scope}
+                onValueChange={setScope}
+              />
+            </div>
           )}
-        </Panel>
 
-        <footer className="flex min-h-11 items-center justify-between gap-3 py-1.5 pr-1.5 pl-3.5 text-[0.8125rem] text-muted-foreground">
-          <p>The agent reads these at the start of every run.</p>
-          <AnimatePresence>
-            {undo && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6, transition: exit }}
-                transition={spring}
-              >
-                <Button icon={ArrowUUpLeft} iconWeight="bold" onClick={restore}>
-                  Undo forget
-                </Button>
-              </motion.div>
+          <Panel className="p-1.5">
+            <ul ref={list} className="flex flex-col">
+              <AnimatePresence>
+                {visible.map((memory, i) => (
+                  <motion.li
+                    key={memory.id}
+                    layout
+                    // First paint cascades the rows in 40ms apart; later additions grow in.
+                    initial={
+                      mounted
+                        ? { opacity: 0, height: 0 }
+                        : { opacity: 0, y: 6, height: "auto" }
+                    }
+                    animate={{
+                      opacity: 1,
+                      height: "auto",
+                      y: 0,
+                      transition: { ...spring, delay: mounted ? 0 : i * 0.04 },
+                    }}
+                    exit={{ opacity: 0, height: 0, x: rtl ? 16 : -16, transition: exit }}
+                    className="overflow-hidden"
+                  >
+                    <MemoryRow
+                      memory={memory}
+                      compact={compact}
+                      editing={editing === memory.id}
+                      onStartEdit={() => setEditing(memory.id)}
+                      onCancel={() => setEditing(null)}
+                      onSave={(text) => {
+                        setEditing(null);
+                        if (text !== memory.text) {
+                          onEdit?.(memory, text);
+                          setAnnouncement(labels.updated);
+                        }
+                      }}
+                      onForget={() => forget(memory)}
+                    />
+                  </motion.li>
+                ))}
+              </AnimatePresence>
+            </ul>
+            {visible.length === 0 && (
+              <EmptyState
+                compact
+                icon={q || scope !== "all" ? MagnifyingGlass : Brain}
+                title={q || scope !== "all" ? labels.noMatch : labels.empty}
+                description={q || scope !== "all" ? labels.noMatchHint : labels.emptyHint}
+              />
             )}
-          </AnimatePresence>
-        </footer>
-        <p role="status" aria-live="polite" className="sr-only">
-          {announcement}
-        </p>
-      </Shell>
-    </MotionConfig>
+          </Panel>
+
+          <footer className="flex min-h-11 items-center justify-between gap-3 py-1.5 ps-3.5 pe-1.5 text-[0.8125rem] text-muted-foreground">
+            <p>{labels.footer}</p>
+            <AnimatePresence>
+              {undo && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6, transition: exit }}
+                  transition={spring}
+                >
+                  <Button
+                    icon={ArrowUUpLeft}
+                    iconWeight="bold"
+                    onClick={restore}
+                    className="rtl:[&_svg]:-scale-x-100"
+                  >
+                    {labels.undo}
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </footer>
+          <p role="status" aria-live="polite" className="sr-only">
+            {announcement}
+          </p>
+        </Shell>
+      </MotionConfig>
+    </LabelsContext.Provider>
   );
 }
 
@@ -256,6 +329,7 @@ function MemoryRow({
   onSave: (text: string) => void;
   onForget: () => void;
 }) {
+  const labels = useContext(LabelsContext);
   const [draft, setDraft] = useState(memory.text);
   const field = useRef<HTMLTextAreaElement>(null);
 
@@ -279,7 +353,9 @@ function MemoryRow({
             ref={field}
             value={draft}
             rows={2}
-            aria-label="Edit memory"
+            aria-label={labels.editField}
+            // Memories are the user's own text, in whatever language they wrote.
+            dir="auto"
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -294,7 +370,10 @@ function MemoryRow({
             className="w-full resize-none rounded-lg bg-foreground/[0.05] px-2.5 py-1.5 text-sm outline-none"
           />
         ) : (
-          <p className={cn("text-pretty", compact ? "text-[0.8125rem]" : "text-sm")}>
+          <p
+            dir="auto"
+            className={cn("text-pretty", compact ? "text-[0.8125rem]" : "text-sm")}
+          >
             {memory.text}
           </p>
         )}
@@ -304,28 +383,28 @@ function MemoryRow({
             tone={scopeTone[memory.scope]}
             className={cn("text-xs", memory.scope === "project" && projectTint)}
           >
-            {memory.scope[0].toUpperCase() + memory.scope.slice(1)}
+            {labels.scopes[memory.scope]}
           </StatusPill>
           {memory.isNew && (
             <StatusPill size="sm" tone="positive" className="text-xs">
-              New
+              {labels.new}
             </StatusPill>
           )}
           {memory.pinned && (
             <span className="inline-flex items-center gap-1">
               <PushPin weight="fill" className="size-3" aria-hidden="true" />
-              Pinned
+              {labels.pinned}
             </span>
           )}
           {memory.source && !compact && <span>{memory.source}</span>}
-          {editing && <span className="ml-auto">Enter to save · Esc to cancel</span>}
+          {editing && <span className="ms-auto">{labels.editHint}</span>}
         </div>
       </div>
       {!editing && (
         <div className="flex shrink-0 items-start gap-0.5 opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100">
           <IconButton
             icon={PencilSimple}
-            label={`Edit “${memory.text}”`}
+            label={labels.edit(memory.text)}
             onClick={() => {
               setDraft(memory.text);
               onStartEdit();
@@ -334,7 +413,7 @@ function MemoryRow({
           />
           <IconButton
             icon={Trash}
-            label={`Forget “${memory.text}”`}
+            label={labels.forget(memory.text)}
             onClick={onForget}
             className="size-7 hover:bg-negative/15 hover:text-negative"
           />

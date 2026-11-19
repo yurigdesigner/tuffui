@@ -37,6 +37,18 @@ export function Trace({ spans, elapsedMs }: { spans: TraceSpan[]; elapsedMs: num
         "Called when the flame graph zooms into a span, or back to the whole run.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for costs and percentages.",
+    },
+    {
+      name: "labels",
+      type: "Partial<RunTraceLabels>",
+      description:
+        'Your own UI strings (span kinds, hints, footer, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the time axis still runs left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root section.",

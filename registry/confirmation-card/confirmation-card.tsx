@@ -58,7 +58,50 @@ export type ConfirmationCardProps = {
   undoSeconds?: number;
   confirmLabel?: string;
   doneLabel?: string;
+  /** BCP 47 locale for amounts, e.g. `he-IL`. */
+  locale?: string;
+  /** UI strings, for translating the card. */
+  labels?: Partial<ConfirmationCardLabels>;
   className?: string;
+};
+
+export type ConfirmationCardLabels = {
+  quantity: (item: string) => string;
+  decrease: string;
+  increase: string;
+  remove: (item: string) => string;
+  subtotal: string;
+  total: string;
+  /** Read before each warning by screen readers. */
+  warning: string;
+  cancel: string;
+  edit: string;
+  confirming: string;
+  /** Screen-reader status while confirming. */
+  confirmingStatus: string;
+  undo: string;
+  undoTimeLeft: string;
+  seconds: (n: number) => string;
+  /** Countdown on the undo button. */
+  secondsShort: (n: number) => string;
+};
+
+const defaultLabels: ConfirmationCardLabels = {
+  quantity: (item) => `${item} quantity`,
+  decrease: "Decrease",
+  increase: "Increase",
+  remove: (item) => `Remove ${item}`,
+  subtotal: "Subtotal",
+  total: "Total",
+  warning: "Warning: ",
+  cancel: "Cancel",
+  edit: "Edit",
+  confirming: "Confirming…",
+  confirmingStatus: "Confirming",
+  undo: "Undo",
+  undoTimeLeft: "Time left to undo",
+  seconds: (n) => `${n} seconds`,
+  secondsShort: (n) => `${n}s`,
 };
 
 export function ConfirmationCard({
@@ -73,10 +116,13 @@ export function ConfirmationCard({
   undoSeconds = 30,
   confirmLabel = "Confirm",
   doneLabel = "Done",
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: ConfirmationCardProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const money = (n: number) =>
-    n.toLocaleString("en-US", { style: "currency", currency, maximumFractionDigits: 2 });
+    n.toLocaleString(locale, { style: "currency", currency, maximumFractionDigits: 2 });
   const items = data.items;
   const subtotal = items.reduce((n, i) => n + i.amount * (i.quantity ?? 1), 0);
   const total = subtotal + (data.fees ?? []).reduce((n, f) => n + f.amount, 0);
@@ -97,6 +143,7 @@ export function ConfirmationCard({
               data={data}
               total={money(total)}
               label={doneLabel}
+              labels={labels}
               onUndo={onUndo}
               undoSeconds={undoSeconds}
             />
@@ -126,13 +173,13 @@ export function ConfirmationCard({
                           {item.editable && (
                             <div
                               role="group"
-                              aria-label={`${item.label} quantity`}
+                              aria-label={labels.quantity(item.label)}
                               className="flex items-center gap-1 rounded-full bg-foreground/[0.05] p-0.5"
                             >
                               <IconButton
                                 icon={Minus}
                                 iconWeight="bold"
-                                label="Decrease"
+                                label={labels.decrease}
                                 variant="quiet"
                                 size="sm"
                                 className="size-7"
@@ -149,7 +196,7 @@ export function ConfirmationCard({
                               <IconButton
                                 icon={Plus}
                                 iconWeight="bold"
-                                label="Increase"
+                                label={labels.increase}
                                 variant="quiet"
                                 size="sm"
                                 className="size-7"
@@ -160,7 +207,7 @@ export function ConfirmationCard({
                               />
                             </div>
                           )}
-                          <span className="w-20 text-right font-mono text-[0.8125rem] tabular-nums">
+                          <span className="min-w-20 text-end font-mono text-[0.8125rem] tabular-nums">
                             <RollingNumber
                               value={money(item.amount * (item.quantity ?? 1))}
                             />
@@ -168,7 +215,7 @@ export function ConfirmationCard({
                           {item.removable && (
                             <IconButton
                               icon={Trash}
-                              label={`Remove ${item.label}`}
+                              label={labels.remove(item.label)}
                               variant="quiet"
                               size="sm"
                               disabled={status !== "review"}
@@ -181,21 +228,22 @@ export function ConfirmationCard({
                   </AnimatePresence>
                 </ul>
                 <dl className="mx-4 flex flex-col gap-1.5 py-3 text-[0.8125rem]">
-                  {[{ label: "Subtotal", amount: subtotal }, ...(data.fees ?? [])].map(
-                    (row) => (
-                      <div
-                        key={row.label}
-                        className="flex justify-between text-muted-foreground"
-                      >
-                        <dt>{row.label}</dt>
-                        <dd className="font-mono tabular-nums">
-                          <RollingNumber value={money(row.amount)} />
-                        </dd>
-                      </div>
-                    ),
-                  )}
+                  {[
+                    { label: labels.subtotal, amount: subtotal },
+                    ...(data.fees ?? []),
+                  ].map((row) => (
+                    <div
+                      key={row.label}
+                      className="flex justify-between text-muted-foreground"
+                    >
+                      <dt>{row.label}</dt>
+                      <dd className="font-mono tabular-nums">
+                        <RollingNumber value={money(row.amount)} />
+                      </dd>
+                    </div>
+                  ))}
                   <div className="flex items-baseline justify-between pt-1.5">
-                    <dt className="font-medium">Total</dt>
+                    <dt className="font-medium">{labels.total}</dt>
                     <dd className="font-mono text-lg font-medium tabular-nums">
                       <RollingNumber value={money(total)} />
                     </dd>
@@ -214,7 +262,7 @@ export function ConfirmationCard({
                           aria-hidden="true"
                         />
                         <span>
-                          <span className="sr-only">Warning: </span>
+                          <span className="sr-only">{labels.warning}</span>
                           {w}
                         </span>
                       </Inset>
@@ -230,7 +278,7 @@ export function ConfirmationCard({
                     onClick={onCancel}
                     disabled={status !== "review"}
                   >
-                    Cancel
+                    {labels.cancel}
                   </Button>
                 )}
                 {onEdit && (
@@ -240,7 +288,7 @@ export function ConfirmationCard({
                     onClick={onEdit}
                     disabled={status !== "review"}
                   >
-                    Edit
+                    {labels.edit}
                   </Button>
                 )}
                 <Button
@@ -250,9 +298,13 @@ export function ConfirmationCard({
                   disabled={!items.length}
                   onClick={() => onConfirm?.(items)}
                 >
-                  {status === "confirming"
-                    ? "Confirming…"
-                    : `${confirmLabel} · ${money(total)}`}
+                  {status === "confirming" ? (
+                    labels.confirming
+                  ) : (
+                    <>
+                      {confirmLabel} · <span dir="ltr">{money(total)}</span>
+                    </>
+                  )}
                 </Button>
               </div>
             </motion.div>
@@ -260,7 +312,7 @@ export function ConfirmationCard({
         </AnimatePresence>
         <p role="status" aria-live="polite" className="sr-only">
           {status === "confirming"
-            ? "Confirming"
+            ? labels.confirmingStatus
             : status === "done"
               ? `${doneLabel}, ${money(total)}`
               : ""}
@@ -274,12 +326,14 @@ function Done({
   data,
   total,
   label,
+  labels,
   onUndo,
   undoSeconds,
 }: {
   data: ConfirmationCardProps["data"];
   total: string;
   label: string;
+  labels: ConfirmationCardLabels;
   onUndo?: () => void;
   undoSeconds: number;
 }) {
@@ -314,15 +368,15 @@ function Done({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: enter }}
             exit={{ opacity: 0, transition: exit }}
-            className="flex items-center gap-3 pt-1.5 pl-3"
+            className="flex items-center gap-3 ps-3 pt-1.5"
           >
             <ProgressBar
               value={left}
               max={undoSeconds}
               size="sm"
               tone="neutral"
-              label="Time left to undo"
-              valueText={`${left} seconds`}
+              label={labels.undoTimeLeft}
+              valueText={labels.seconds(left)}
               className="flex-1"
             />
             <Button
@@ -332,7 +386,7 @@ function Done({
               iconWeight="bold"
               onClick={onUndo}
             >
-              Undo · <RollingNumber value={`${left}s`} />
+              {labels.undo} · <RollingNumber value={labels.secondsShort(left)} />
             </Button>
           </motion.div>
         )}

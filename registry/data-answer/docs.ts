@@ -74,6 +74,18 @@ export function AnalyticsScreen({ workspace, chat }: { workspace: Workspace; cha
       type: "(open: boolean) => void",
       description: "Called when the sidebar toggle is used on a wide screen.",
     },
+    {
+      name: "labels",
+      type: "Partial<DataAnswerLabels>",
+      description:
+        'Your own UI strings (sidebar, source statuses, placeholder), plus `thread`, `composer` and `suggestions` labels passed to those components, for translating. Right-to-left works under `dir="rtl"`: the sidebar and drawer move to the right.',
+    },
+    {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "Intl locale for message times, e.g. `he-IL`.",
+    },
     { name: "className", type: "string", description: "Extra classes for the root." },
   ],
   types: `type DataAnswerData = {

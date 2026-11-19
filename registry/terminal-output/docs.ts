@@ -40,6 +40,12 @@ export function CommandOutput({ run }: { run: TerminalRun }) {
         "Height in px after which the output scrolls. Scrolling up pauses auto-follow and shows Jump to latest.",
     },
     {
+      name: "labels",
+      type: "Partial<TerminalOutputLabels>",
+      description:
+        'Your own UI strings: status, line count, buttons and screen-reader text, for translating. Right-to-left works under `dir="rtl"`; the command and output stay left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root section.",

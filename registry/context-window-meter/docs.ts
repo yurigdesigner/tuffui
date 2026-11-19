@@ -64,6 +64,18 @@ export function ContextUsage({ usage }: { usage: Usage }) {
         "A panel with a 100-cell grid (1% per cell) and a legend, or a 20-cell row for a composer footer.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for token counts and percentages.",
+    },
+    {
+      name: "labels",
+      type: "Partial<ContextWindowMeterLabels>",
+      description:
+        'Your own UI strings (button, captions, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the cells fill from the right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

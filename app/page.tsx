@@ -54,6 +54,19 @@ export default async function Home() {
           <div className="rounded-[1.375rem] bg-surface p-1.5">
             <div className="flex flex-col items-center rounded-2xl bg-surface-inset px-4 py-20 text-center sm:px-6 sm:py-28">
               <div className="flex max-w-3xl flex-col items-center">
+                <Link
+                  href="/components/chat-thread"
+                  className="group mb-6 inline-flex h-8 items-center gap-2 rounded-full bg-foreground/[0.06] ps-1 pe-3 text-[0.8125rem] text-muted-foreground transition-[background-color,color,scale] hover:bg-foreground/[0.09] hover:text-foreground active:scale-[0.97]"
+                >
+                  <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium text-brand">
+                    New
+                  </span>
+                  Right-to-left support for Hebrew and Arabic
+                  <ArrowRight
+                    className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </Link>
                 <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
                   Free components for AI interfaces.
                 </h1>

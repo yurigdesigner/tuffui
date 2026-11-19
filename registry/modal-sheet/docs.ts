@@ -37,7 +37,7 @@ export const docs: ComponentDocs = {
       type: "ReactNode",
       description: "Body, placed in an inset panel.",
     },
-    { name: "footer", type: "ReactNode", description: "Actions row, right-aligned." },
+    { name: "footer", type: "ReactNode", description: "Actions row, end-aligned." },
     {
       name: "trigger",
       type: "ReactElement",
@@ -56,9 +56,16 @@ export const docs: ComponentDocs = {
     },
     {
       name: "side",
-      type: '"left" | "right" | "bottom"',
-      default: '"left"',
-      description: "Sheet only. The edge it slides in from.",
+      type: '"start" | "end" | "left" | "right" | "bottom"',
+      default: '"start"',
+      description:
+        "Sheet only. The edge it slides in from; start and end follow the reading direction.",
+    },
+    {
+      name: "labels",
+      type: "Partial<ModalLabels>",
+      description:
+        'Your own UI strings (the close button), for translating. Right-to-left works under `dir="rtl"`: the panel takes the direction even though it renders in a portal.',
     },
   ],
 };

@@ -15,8 +15,9 @@ export const docs: ComponentDocs = {
     {
       name: "label",
       type: "string",
-      default: '"Loading"',
-      description: "Spinner: spoken label, also the visible text with showLabel.",
+      default: '"Loading" / "Thinking"',
+      description:
+        'Spoken label, also the Spinner\'s visible text with showLabel. Thinking defaults to "Thinking" and speaks it when no words are shown.',
     },
     {
       name: "showLabel",

@@ -23,8 +23,8 @@ const tones: Record<StatusTone, string> = {
 };
 
 const sizes = {
-  sm: { pill: "h-5 gap-1 px-2 text-[0.6875rem]", icon: "size-3" },
-  md: { pill: "h-6 gap-1.5 px-2.5 text-xs", icon: "size-3.5" },
+  sm: { pill: "h-5 gap-1 px-2 text-[0.6875rem]", gap: "gap-1", icon: "size-3" },
+  md: { pill: "h-6 gap-1.5 px-2.5 text-xs", gap: "gap-1.5", icon: "size-3.5" },
 } as const;
 
 const CIRCLE = <circle cx="8" cy="8" r="8" />;
@@ -127,15 +127,21 @@ export function StatusPill({
           aria-hidden="true"
         />
       ) : null}
-      {children}
+      {/* Isolated so "200 OK" keeps its order inside RTL text; flex keeps the gap
+          between a number and the words after it. */}
+      <bdi className={cn("inline-flex items-center", sizes[size].gap)}>{children}</bdi>
     </span>
   );
 }
 
-/** Small mono chip for identifiers: transports, models, branches, file types. */
+/**
+ * Small mono chip for identifiers: transports, models, branches, file types.
+ * `dir="auto"` keeps a Latin identifier like `.tsx` in order inside RTL text.
+ */
 export function Tag({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
+      dir="auto"
       className={cn(
         "inline-flex h-5 shrink-0 items-center rounded-md bg-foreground/[0.06] px-1.5 font-mono text-[0.6875rem] text-muted-foreground",
         className,

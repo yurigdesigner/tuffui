@@ -48,5 +48,11 @@ export const docs: ComponentDocs = {
       default: "false",
       description: "Row layout for empty lists inside a panel.",
     },
+    {
+      name: "labels",
+      type: "Partial<EmptyStateLabels>",
+      description:
+        'Your own UI strings (the automatic Retry), for translating. Right-to-left works under `dir="rtl"`.',
+    },
   ],
 };

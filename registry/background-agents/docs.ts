@@ -53,6 +53,12 @@ export function AgentsPanel({ agents }: { agents: BackgroundAgent[] }) {
       description: "Called when the viewer picks or collapses an agent in the dock.",
     },
     {
+      name: "labels",
+      type: "Partial<BackgroundAgentsLabels>",
+      description:
+        'Your own UI strings: status names, Review and screen-reader text, for translating. Right-to-left works under `dir="rtl"`; the dock\'s level fills from the start edge.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root section.",

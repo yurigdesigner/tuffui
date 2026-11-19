@@ -35,7 +35,26 @@ export type StatGridProps = {
   /** Show sparklines when stats carry a trend. */
   sparklines?: boolean;
   onSelect?: (stat: Stat) => void;
+  /** BCP 47 locale for percentages, e.g. `he-IL`. */
+  locale?: string;
+  /** Screen-reader strings, for translating. */
+  labels?: Partial<StatGridLabels>;
   className?: string;
+};
+
+export type StatGridLabels = {
+  /** Read after a delta under 0.05%. */
+  flat: string;
+  better: string;
+  worse: string;
+  goalProgress: (percent: number, goal: string) => string;
+};
+
+const defaultLabels: StatGridLabels = {
+  flat: "flat",
+  better: ", better",
+  worse: ", worse",
+  goalProgress: (percent, goal) => `${percent}% of ${goal}`,
 };
 
 export function StatGrid({
@@ -44,8 +63,11 @@ export function StatGrid({
   subtitle,
   sparklines = true,
   onSelect,
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: StatGridProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   return (
     <MotionConfig reducedMotion="user">
       <Shell className={cn("max-w-2xl", className)}>
@@ -65,6 +87,8 @@ export function StatGrid({
               index={i}
               sparkline={sparklines}
               onSelect={onSelect}
+              labels={labels}
+              locale={locale}
             />
           ))}
         </div>
@@ -78,12 +102,23 @@ function StatCard({
   index,
   sparkline,
   onSelect,
+  labels,
+  locale,
 }: {
   stat: Stat;
   index: number;
   sparkline: boolean;
   onSelect?: (stat: Stat) => void;
+  labels: StatGridLabels;
+  locale: string;
 }) {
+  const percent = (ratio: number, digits: number, signed = false) =>
+    new Intl.NumberFormat(locale, {
+      style: "percent",
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+      signDisplay: signed ? "exceptZero" : "auto",
+    }).format(ratio);
   const { delta, higherIsBetter = true } = stat;
   const flat = delta === undefined || Math.abs(delta) < 0.05;
   const good = !flat && delta > 0 === higherIsBetter;
@@ -98,7 +133,7 @@ function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, ease: EASE_OUT, delay: index * 0.05 }}
       className={cn(
-        "text-left",
+        "text-start",
         onSelect &&
           "rounded-2xl transition-[scale] duration-150 ease-out active:scale-[0.98]",
       )}
@@ -108,7 +143,7 @@ function StatCard({
         <div className="flex items-end justify-between gap-3">
           <RollingNumber
             value={stat.value}
-            className="text-[1.625rem] leading-none font-medium tracking-tight"
+            className="text-[1.625rem] leading-none font-medium tracking-tight rtl:tracking-normal"
           />
           {sparkline && stat.trend && stat.trend.length > 1 && (
             <Sparkline
@@ -125,9 +160,9 @@ function StatCard({
               icon={DeltaIcon}
               iconWeight="bold"
             >
-              <RollingNumber value={`${delta > 0 ? "+" : ""}${delta.toFixed(1)}%`} />
+              <RollingNumber value={percent(delta / 100, 1, true)} />
               <span className="sr-only">
-                {flat ? "flat" : good ? ", better" : ", worse"}
+                {flat ? labels.flat : good ? labels.better : labels.worse}
               </span>
             </StatusPill>
           )}
@@ -142,11 +177,16 @@ function StatCard({
               striped
               tone={stat.goal.ratio >= 1 ? "positive" : "brand"}
               label={`${stat.label}: ${stat.goal.label}`}
-              valueText={`${Math.round(stat.goal.ratio * 100)}% of ${stat.goal.label}`}
+              valueText={labels.goalProgress(
+                Math.round(stat.goal.ratio * 100),
+                stat.goal.label,
+              )}
             />
             <p className="flex justify-between text-xs text-muted-foreground">
               <span>{stat.goal.label}</span>
-              <span className="tabular-nums">{Math.round(stat.goal.ratio * 100)}%</span>
+              <span dir="ltr" className="tabular-nums">
+                {percent(stat.goal.ratio, 0)}
+              </span>
             </p>
           </div>
         )}
@@ -182,6 +222,7 @@ function Sparkline({ values, tone }: { values: number[]; tone: keyof typeof tone
   const color = toneColor[tone];
 
   return (
+    // SVG coordinates don't mirror, so time runs left to right in any language.
     <svg width={w} height={h} aria-hidden="true" className="shrink-0 overflow-visible">
       <defs>
         <linearGradient id={id} x1="0" x2="0" y1="0" y2="1">

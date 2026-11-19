@@ -113,9 +113,9 @@ export default async function ComponentPage({ params }: PageProps<"/components/[
           <>
             <DocsSection id="preview" title="Preview">
               {isScreen(entry) ? (
-                <ScreenPreview slug={slug} variants={entry.variants} />
+                <ScreenPreview slug={slug} variants={entry.variants} rtl={entry.rtl} />
               ) : (
-                <ComponentPreview slug={slug} variants={entry.variants} />
+                <ComponentPreview slug={slug} variants={entry.variants} rtl={entry.rtl} />
               )}
             </DocsSection>
             <DocsSection

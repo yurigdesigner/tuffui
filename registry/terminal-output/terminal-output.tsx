@@ -13,7 +13,7 @@ import {
   XCircle,
 } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/action-button";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -45,7 +45,48 @@ export type TerminalOutputProps = {
   onCopy?: (text: string) => void;
   /** Height in px after which the output scrolls. */
   maxHeight?: number;
+  /** UI strings, for translating the chrome. Output itself is shown as is. */
+  labels?: Partial<TerminalOutputLabels>;
   className?: string;
+};
+
+export type TerminalOutputLabels = {
+  running: string;
+  exit: (code: number) => string;
+  /** Screen-reader names of the panel and the output log. */
+  region: (command: string) => string;
+  output: (command: string) => string;
+  waiting: string;
+  /** Screen-reader prefix of stderr lines. */
+  error: string;
+  jump: string;
+  /** Footer count; `n` is an animated number. */
+  lines: (n: ReactNode, count: number) => ReactNode;
+  copy: string;
+  copied: string;
+  stop: string;
+  /** Announced when the command ends. */
+  finished: (command: string, success: boolean, code: number, time: string) => string;
+};
+
+const defaultLabels: TerminalOutputLabels = {
+  running: "Running",
+  exit: (code) => `Exit ${code}`,
+  region: (command) => `Terminal: ${command}`,
+  output: (command) => `Output of ${command}`,
+  waiting: "Waiting for output…",
+  error: "Error: ",
+  jump: "Jump to latest",
+  lines: (n, count) => (
+    <>
+      {n} {count === 1 ? "line" : "lines"}
+    </>
+  ),
+  copy: "Copy",
+  copied: "Copied",
+  stop: "Stop",
+  finished: (command, success, code, time) =>
+    `${command} ${success ? "finished" : "failed"} with exit code ${code} after ${time}`,
 };
 
 const statuses = {
@@ -73,8 +114,10 @@ export function TerminalOutput({
   onStop,
   onCopy,
   maxHeight = 280,
+  labels: labelOverrides,
   className,
 }: TerminalOutputProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const { command, cwd, lines, status, exitCode, durationMs } = data;
   const running = status === "running";
   const elapsed = useElapsed(running);
@@ -87,9 +130,8 @@ export function TerminalOutput({
   const reduce = useReducedMotion();
 
   const time = formatDuration(running ? elapsed : (durationMs ?? 0));
-  const statusText = running
-    ? "Running"
-    : `Exit ${exitCode ?? (status === "success" ? 0 : 1)}`;
+  const code = exitCode ?? (status === "success" ? 0 : 1);
+  const statusText = running ? labels.running : labels.exit(code);
 
   // Follow new output unless the reader has scrolled up.
   useLayoutEffect(() => {
@@ -121,16 +163,22 @@ export function TerminalOutput({
 
   return (
     <MotionConfig reducedMotion="user">
-      <Shell aria-label={`Terminal: ${command}`} className={cn("max-w-xl", className)}>
+      <Shell aria-label={labels.region(command)} className={cn("max-w-xl", className)}>
         <ShellHeader
           icon={TerminalWindow}
           title={
-            <span className="font-mono text-[0.8125rem] font-normal">
+            <span dir="ltr" className="font-mono text-[0.8125rem] font-normal">
               <span className="text-muted-foreground select-none">$ </span>
               {command}
             </span>
           }
-          subtitle={cwd && <span className="font-mono text-xs">{cwd}</span>}
+          subtitle={
+            cwd && (
+              <span dir="ltr" className="font-mono text-xs">
+                {cwd}
+              </span>
+            )
+          }
           aside={
             <StatusPill tone={statuses[status].tone} className="h-7">
               <StatusIcon
@@ -152,13 +200,17 @@ export function TerminalOutput({
             onScroll={onScroll}
             role="log"
             aria-live="polite"
-            aria-label={`Output of ${command}`}
+            aria-label={labels.output(command)}
             tabIndex={0}
+            // Output reads left to right in any language.
+            dir="ltr"
             style={{ maxHeight }}
             className="overflow-x-hidden overflow-y-auto rounded-2xl py-3 font-mono text-xs leading-5"
           >
             {lines.length === 0 && (
-              <p className="px-4 text-muted-foreground">Waiting for output…</p>
+              <p dir="auto" className="px-4 text-muted-foreground">
+                {labels.waiting}
+              </p>
             )}
             {lines.map((line, i) => (
               <p
@@ -173,7 +225,9 @@ export function TerminalOutput({
                   {line.stream === "stderr" ? "!" : ""}
                 </span>
                 <span className="min-w-0 break-words">
-                  {line.stream === "stderr" && <span className="sr-only">Error: </span>}
+                  {line.stream === "stderr" && (
+                    <span className="sr-only">{labels.error}</span>
+                  )}
                   {line.text || " "}
                 </span>
               </p>
@@ -186,7 +240,7 @@ export function TerminalOutput({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 4, transition: { duration: 0.12 } }}
                 transition={enter}
-                className="absolute right-3 bottom-3"
+                className="absolute end-3 bottom-3"
               >
                 <Button
                   icon={ArrowDown}
@@ -194,16 +248,15 @@ export function TerminalOutput({
                   onClick={jump}
                   className="h-7 px-3 text-xs"
                 >
-                  Jump to latest
+                  {labels.jump}
                 </Button>
               </motion.div>
             )}
           </AnimatePresence>
         </Panel>
-        <footer className="flex min-h-11 items-center justify-between gap-3 py-1.5 pr-1.5 pl-3.5">
+        <footer className="flex min-h-11 items-center justify-between gap-3 py-1.5 ps-3.5 pe-1.5">
           <p className="font-mono text-xs text-muted-foreground tabular-nums">
-            <RollingNumber value={String(lines.length)} />{" "}
-            {lines.length === 1 ? "line" : "lines"}
+            {labels.lines(<RollingNumber value={String(lines.length)} />, lines.length)}
           </p>
           <div className="flex gap-1.5">
             <Button
@@ -212,19 +265,17 @@ export function TerminalOutput({
               onClick={copy}
               disabled={!lines.length}
             >
-              {copied ? "Copied" : "Copy"}
+              {copied ? labels.copied : labels.copy}
             </Button>
             {running && onStop && (
               <Button variant="danger" icon={Stop} onClick={onStop}>
-                Stop
+                {labels.stop}
               </Button>
             )}
           </div>
         </footer>
         <p role="status" aria-live="polite" className="sr-only">
-          {running
-            ? ""
-            : `${command} ${status === "success" ? "finished" : "failed"} with exit code ${exitCode ?? (status === "success" ? 0 : 1)} after ${time}`}
+          {running ? "" : labels.finished(command, status === "success", code, time)}
         </p>
       </Shell>
     </MotionConfig>

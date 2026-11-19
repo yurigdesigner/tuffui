@@ -40,6 +40,66 @@ export type DeliveryStat = {
   tone?: "neutral" | "brand" | "negative";
 };
 
+export type DeliveryHeatmapLabels = {
+  /** Accessible name of the range switch. */
+  range: string;
+  /** Range switch options. */
+  ranges: Record<DeliveryRange, string>;
+  /** Legend entry for a failing bucket, per range. */
+  failing: Record<DeliveryRange, string>;
+  /** Legend ends. */
+  fewer: string;
+  more: string;
+  /** Default footer stats. */
+  attempts: string;
+  delivered: string;
+  failed: string;
+  /** Tooltip lines; counts come formatted. */
+  tipFailed: (failed: string) => string;
+  tipOf: (attempts: string) => string;
+  tipDelivered: (attempts: string) => string;
+  /** Screen reader hint after the heading on the grid. */
+  gridHint: string;
+  /** Screen reader label for one cell. */
+  cell: (cell: {
+    endpoint: string;
+    column: string;
+    attempts: string;
+    failed: string;
+    status?: number | string;
+    failing: boolean;
+  }) => string;
+  /** Screen reader summary of the whole chart. */
+  summary: (summary: {
+    heading: string;
+    date?: string;
+    endpoints: number;
+    columns: number;
+    attempts: string;
+    failed: string;
+    failing: { endpoint: string; column: string }[];
+  }) => string;
+};
+
+const defaultLabels: DeliveryHeatmapLabels = {
+  range: "Range",
+  ranges: { "1h": "1h", "24h": "24h", "7d": "7d" },
+  failing: { "1h": "Failing 5 min", "24h": "Failing hour", "7d": "Failing day" },
+  fewer: "Fewer",
+  more: "More",
+  attempts: "Attempts",
+  delivered: "Delivered",
+  failed: "Failed",
+  tipFailed: (failed) => `${failed} failed`,
+  tipOf: (attempts) => `of ${attempts}`,
+  tipDelivered: (attempts) => `${attempts} delivered`,
+  gridHint: "Arrow keys move between cells.",
+  cell: (c) =>
+    `${c.endpoint}, ${c.column}: ${c.attempts} attempts, ${c.failed} failed${c.status !== undefined ? `, status ${c.status}` : ""}${c.failing ? ", failing" : ""}`,
+  summary: (s) =>
+    `${s.heading}${s.date ? `, ${s.date}` : ""}: ${s.endpoints} endpoints over ${s.columns} columns, ${s.attempts} attempts, ${s.failed} failed.${s.failing.length ? ` Failing: ${s.failing.map((f) => `${f.endpoint} at ${f.column}`).join(", ")}.` : " Nothing failing."}`,
+};
+
 export type DeliveryHeatmapProps = {
   /** One row per endpoint, top to bottom. */
   endpoints: DeliveryEndpoint[];
@@ -68,22 +128,16 @@ export type DeliveryHeatmapProps = {
   /** Fills the cells in on mount. Off renders the finished chart. */
   intro?: boolean;
   formatCount?: (n: number) => string;
+  /** BCP 47 locale for the default count format. */
+  locale?: string;
+  /** Your own UI strings, for translating. (`labels` is taken by the columns.) */
+  strings?: Partial<DeliveryHeatmapLabels>;
   /** Called when a cell is clicked or picked with Enter. */
   onSelect?: (endpoint: DeliveryEndpoint, bucketIndex: number) => void;
   className?: string;
 };
 
-const RANGES: { value: DeliveryRange; label: string }[] = [
-  { value: "1h", label: "1h" },
-  { value: "24h", label: "24h" },
-  { value: "7d", label: "7d" },
-];
-
-const FAILING: Record<DeliveryRange, string> = {
-  "1h": "Failing 5 min",
-  "24h": "Failing hour",
-  "7d": "Failing day",
-};
+const RANGES: DeliveryRange[] = ["1h", "24h", "7d"];
 
 /** Bar height per volume level; level 0 is an empty slot. */
 const LEVELS = [0, 0.14, 0.32, 0.52, 0.75, 1];
@@ -91,8 +145,6 @@ const DOT_ROWS = 9;
 const GAP = 6; // px between a cell and its tooltip
 const STEPS = [1, 2, 3, 4, 6, 8, 12, 24, 48];
 const EMPTY: DeliveryBucket = { attempts: 0, failed: 0 };
-
-const count = (n: number) => Math.round(n).toLocaleString("en-US");
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
@@ -139,10 +191,13 @@ export function DeliveryHeatmap({
   date,
   stats,
   intro = true,
-  formatCount = count,
+  locale = "en-US",
+  formatCount = (n: number) => Math.round(n).toLocaleString(locale),
+  strings,
   onSelect,
   className,
 }: DeliveryHeatmapProps) {
+  const t = { ...defaultLabels, ...strings };
   const reduce = useReducedMotion();
   const summaryId = useId();
   const [inner, setInner] = useState<DeliveryRange>(defaultRange);
@@ -187,9 +242,9 @@ export function DeliveryHeatmap({
   const sharePeak = Math.max(1, ...totals.map((t) => t.attempts));
 
   const footer: DeliveryStat[] = stats ?? [
-    { label: "Attempts", value: attempts, tone: "neutral" },
-    { label: "Delivered", value: attempts - failed, tone: "brand" },
-    { label: "Failed", value: failed, tone: "negative" },
+    { label: t.attempts, value: attempts, tone: "neutral" },
+    { label: t.delivered, value: attempts - failed, tone: "brand" },
+    { label: t.failed, value: failed, tone: "negative" },
   ];
 
   // Dot columns get wider when there are fewer, wider columns.
@@ -201,9 +256,19 @@ export function DeliveryHeatmap({
   const ticks = ticksProp ?? labels.flatMap((_, i) => (i % step === 0 ? [i] : []));
 
   const failingCells = endpoints.flatMap((e) =>
-    e.buckets.flatMap((b, c) => (isFailing(b) ? [`${e.label} at ${labels[c]}`] : [])),
+    e.buckets.flatMap((b, c) =>
+      isFailing(b) ? [{ endpoint: e.label, column: labels[c] }] : [],
+    ),
   );
-  const summary = `${heading}${date ? `, ${date}` : ""}: ${rows} endpoints over ${n} columns, ${formatCount(attempts)} attempts, ${formatCount(failed)} failed.${failingCells.length ? ` Failing: ${failingCells.join(", ")}.` : " Nothing failing."}`;
+  const summary = t.summary({
+    heading,
+    date,
+    endpoints: rows,
+    columns: n,
+    attempts: formatCount(attempts),
+    failed: formatCount(failed),
+    failing: failingCells,
+  });
 
   useEffect(() => {
     if (settled === range) return;
@@ -289,7 +354,12 @@ export function DeliveryHeatmap({
   const tipBucket = active && tipEndpoint ? bucket(tipEndpoint, active.c) : undefined;
 
   const rangeControl = onRangeChange && (
-    <Segmented label="Range" options={RANGES} value={range} onValueChange={setRange} />
+    <Segmented
+      label={t.range}
+      options={RANGES.map((value) => ({ value, label: t.ranges[value] }))}
+      value={range}
+      onValueChange={setRange}
+    />
   );
 
   return (
@@ -330,8 +400,10 @@ export function DeliveryHeatmap({
             onPointerLeave={() => active && !active.keyboard && setActive(null)}
             className="relative [--dot:3px] [--gap:2px] [--label:4.25rem] [--r:2px] [--row:1.125rem] [--share:0px] @sm:[--dot:4px] @sm:[--gap:3px] @sm:[--label:6.5rem] @sm:[--r:4px] @sm:[--row:1.5rem] @sm:[--share:3rem] @lg:[--dot:5px] @lg:[--label:7.5rem] @lg:[--row:1.625rem] @lg:[--share:3.75rem]"
           >
+            {/* The plot reads left to right in every language: time runs that way. */}
             <motion.div
               key={range}
+              dir="ltr"
               initial={appear ? { opacity: 0 } : false}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.2, ease: EASE_OUT }}
@@ -417,7 +489,7 @@ export function DeliveryHeatmap({
               <div
                 ref={gridRef}
                 role="grid"
-                aria-label={`${heading}. Arrow keys move between cells.`}
+                aria-label={`${heading}. ${t.gridHint}`}
                 aria-describedby={summaryId}
                 onKeyDown={onKeyDown}
                 onBlur={(event) => {
@@ -455,7 +527,14 @@ export function DeliveryHeatmap({
                               role="gridcell"
                               data-cell={`${r}-${c}`}
                               tabIndex={focus.r === r && focus.c === c ? 0 : -1}
-                              aria-label={`${e.label}, ${label}: ${formatCount(b.attempts)} attempts, ${formatCount(b.failed)} failed${b.status !== undefined && b.failed > 0 ? `, status ${b.status}` : ""}${bad ? ", failing" : ""}`}
+                              aria-label={t.cell({
+                                endpoint: e.label,
+                                column: label,
+                                attempts: formatCount(b.attempts),
+                                failed: formatCount(b.failed),
+                                status: b.failed > 0 ? b.status : undefined,
+                                failing: bad,
+                              })}
                               onPointerEnter={(event) =>
                                 activate(r, c, event.currentTarget, false)
                               }
@@ -576,18 +655,18 @@ export function DeliveryHeatmap({
                     {tipBucket.failed > 0 ? (
                       <>
                         <span className={cn(isFailing(tipBucket) && "text-negative")}>
-                          {formatCount(tipBucket.failed)} failed
+                          {t.tipFailed(formatCount(tipBucket.failed))}
                         </span>
                         <span className="text-muted-foreground">
                           {" "}
-                          of {formatCount(tipBucket.attempts)}
+                          {t.tipOf(formatCount(tipBucket.attempts))}
                         </span>
                         {tipBucket.status !== undefined && (
                           <span className="font-mono"> · {tipBucket.status}</span>
                         )}
                       </>
                     ) : (
-                      `${formatCount(tipBucket.attempts)} delivered`
+                      t.tipDelivered(formatCount(tipBucket.attempts))
                     )}
                   </p>
                 </motion.div>
@@ -597,17 +676,17 @@ export function DeliveryHeatmap({
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
-              Fewer
+              {t.fewer}
               <span aria-hidden="true" className="flex items-end gap-[3px]">
                 {LEVELS.map((h, i) => (
                   <Swatch key={i} height={h} />
                 ))}
               </span>
-              More
+              {t.more}
             </div>
             <div className="flex items-center gap-2">
               <Swatch height={0.52} failing />
-              {FAILING[range]}
+              {t.failing[range]}
             </div>
           </div>
 

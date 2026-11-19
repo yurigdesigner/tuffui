@@ -104,6 +104,18 @@ export function AgentTools({ agent, window }: { agent: Agent; window: ToolStats[
         "Called when a tool node is clicked or pressed. Hover and focus highlight the node's edge on their own.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for counts and percentages.",
+    },
+    {
+      name: "labels",
+      type: "Partial<ToolCallGraphLabels>",
+      description:
+        'Your own UI strings (metric names, footer, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the graph itself still flows from the agent on the left.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

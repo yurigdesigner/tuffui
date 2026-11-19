@@ -50,6 +50,17 @@ export function SuccessRate({ ok, total }: { ok: number; total: number }) {
       description: "Right side of the header, e.g. a status pill.",
     },
     {
+      name: "labels",
+      type: "Partial<TickGaugeLabels>",
+      description:
+        'Your own UI strings (the screen-reader target text), for translating. Right-to-left works under `dir="rtl"`; the arc still fills clockwise.',
+    },
+    {
+      name: "locale",
+      type: "string",
+      description: "BCP 47 locale for the default percent format. Defaults to en-US.",
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

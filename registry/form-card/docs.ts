@@ -62,6 +62,12 @@ export function AgentForm({ call }: { call: { title: string; fields: FormField[]
       default: '"Submit"',
       description: "Text of the primary button.",
     },
+    {
+      name: "labels",
+      type: "Partial<FormCardLabels>",
+      description:
+        'Your own UI strings (validation messages, Required, Edit answers…), for translating. Right-to-left works under `dir="rtl"`.',
+    },
     { name: "className", type: "string", description: "Extra classes for the shell." },
   ],
   types: `type FormField = {

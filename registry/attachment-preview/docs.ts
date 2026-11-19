@@ -41,6 +41,12 @@ export function ComposerAttachments({ files, setFiles }: {
         "Called when an image opens in the enlarged view and with null when it closes.",
     },
     {
+      name: "labels",
+      type: "Partial<AttachmentPreviewLabels>",
+      description:
+        'Your own UI strings (remove, retry, upload progress and screen-reader text), for translating. Right-to-left works under `dir="rtl"`.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

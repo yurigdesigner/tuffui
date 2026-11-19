@@ -112,6 +112,17 @@ export function AgentScreen({ run }: { run: AgentRun }) {
       type: "(checkpoint: Checkpoint) => void",
       description: "Called after the user confirms restoring to a checkpoint.",
     },
+    {
+      name: "locale",
+      type: "string",
+      description: "Intl locale for message times in the thread.",
+    },
+    {
+      name: "labels",
+      type: "Partial<CodingAgentLabels>",
+      description:
+        'Your own UI strings (pane names, toggles, placeholders, the empty Changes tab), plus `thread`, `activity`, `composer`, `checkpoints`, `files` and `terminal` for the components inside, for translating. Right-to-left works under `dir="rtl"`: chat moves to the right, code and the terminal stay left to right.',
+    },
     { name: "className", type: "string", description: "Extra classes for the root." },
   ],
   types: `type CodingAgentData = {

@@ -41,6 +41,12 @@ export const docs: ComponentDocs = {
       type: "string / string / Intl.DateTimeFormatOptions",
       description: "DatePicker trigger text.",
     },
+    {
+      name: "labels",
+      type: "Partial<CalendarLabels>",
+      description:
+        'Your own UI strings (previous and next month buttons), for translating. Right-to-left works under `dir="rtl"`: the grid, arrow keys and month slide mirror.',
+    },
   ],
   types: `type DateRange = { from: Date | null; to: Date | null };
 // Keys: arrows move a day / week, Home / End the week, PageUp / PageDown the month,

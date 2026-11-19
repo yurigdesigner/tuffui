@@ -3,7 +3,13 @@
 import { Key } from "@phosphor-icons/react";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useMockRun, type MockStep } from "@/registry/use-mock-run/use-mock-run";
-import { BlastRadius, type BlastKind, type BlastNode } from "./blast-radius";
+import type { DemoLocale } from "@/components/docs/demo";
+import {
+  BlastRadius,
+  type BlastKind,
+  type BlastNode,
+  type BlastRadiusLabels,
+} from "./blast-radius";
 
 const kinds: Record<string, BlastKind> = {
   service: { label: "Service", color: "var(--brand)" },
@@ -198,25 +204,193 @@ const script: MockStep<number>[] = [
   { delay: 700, apply: () => 2 },
 ];
 
+/** Keeps a Latin name in reading order inside RTL text. */
+const ltr = (text: string) => `⁦${text}⁩`;
+
+type Translation = {
+  /** Kind labels by kind. */
+  kinds: Record<string, string>;
+  /** Node notes by id. */
+  notes: Record<string, string>;
+  leaked: {
+    title: string;
+    subtitle: string;
+    exposed: (n: number) => string;
+    scanning: string;
+  };
+  tools: { title: string; subtitle: string; risk: (n: number) => string };
+  labels: Partial<BlastRadiusLabels>;
+};
+
+/** Resource, tool and person names stay Latin; Hebrew and Arabic show the RTL layout. */
+const copy: Record<Exclude<DemoLocale, "en">, Translation> = {
+  he: {
+    kinds: {
+      service: "שירות",
+      database: "מסד נתונים",
+      bucket: "דלי אחסון",
+      key: "סוד",
+      person: "אדם",
+      tool: `כלי ${ltr("MCP")}`,
+    },
+    notes: {
+      warehouse: "הרשאת קריאה לכל הסכמות",
+      billing: "נקרא על ידי המפתח החדש",
+      events: "קריא דרך תצוגה במחסן הנתונים",
+      payments: `למפתח יש את ההרשאה ${ltr("payments:read")}`,
+      stripe: `מוגדר כמשתנה סביבה ב־${ltr("payments-api")}`,
+      ledger: "מדיניות ברמת השורה חוסמת את המפתח",
+      support: "אין הרשאה למפתח הזה",
+      ci: "פרויקט נפרד",
+      crm: `למפתח יש את ההרשאה ${ltr("contacts:read")}`,
+      contacts: "נקרא על ידי המפתח החדש",
+      sales: `הבעלים של ${ltr("crm-api")}`,
+      maya: "יצרה את המפתח",
+      gh: "קריאה בלבד, שני מאגרים",
+      pg: `מקבל ${ltr("SQL")} גולמי, לא רק ${ltr("SELECT")}`,
+      users: "הסוכן יכול לכתוב בו",
+      orders: "נגיש דרך מחיקה מדורגת של מפתח זר",
+      slack: `מוגבל ל־${ltr("#support")}`,
+      s3: "מדיניות הדלי מתירה דריסה",
+      backups: "הסוכן יכול לדרוס גיבויים",
+      shell: "רץ על שרת ה־worker",
+      worker: "מעטפת מלאה כמשתמש האפליקציה",
+      env: "קריא ממשתני הסביבה של התהליך",
+      fetch: "יוצא בלבד",
+      kb: "אינדקס לקריאה בלבד",
+    },
+    leaked: {
+      title: "רדיוס הפגיעה",
+      subtitle: `${ltr("sk-live-…7f2a")} · הונפק לפני 14 דקות`,
+      exposed: (n) => (n === 1 ? "משאב חשוף אחד" : `${n} חשופים`),
+      scanning: "סורק",
+    },
+    tools: {
+      title: "הרשאות כלים",
+      subtitle: `${ltr("support-agent")} · 6 כלי ${ltr("MCP")}`,
+      risk: (n) => `${n} בסיכון`,
+    },
+    labels: {
+      hops: (depth) => (depth === 1 ? "קפיצה אחת" : `${depth} קפיצות`),
+      affected: "מושפע",
+      instructions: (title) => `${title}. אפשר לעבור בין הצמתים עם מקשי החיצים.`,
+      summary: (title, affected, total, center) =>
+        `${title}: ${affected} מתוך ${total} שנגישים מ־${center} מושפעים`,
+      reading: (node, flags) =>
+        `${node.label}, ${node.kind}, ${node.hops}${flags.affected ? ", מושפע" : ""}${flags.indirect ? ", עקיף" : ""}${node.note ? `. ${node.note}` : ""}`,
+    },
+  },
+  ar: {
+    kinds: {
+      service: "خدمة",
+      database: "قاعدة بيانات",
+      bucket: "حاوية تخزين",
+      key: "سرّ",
+      person: "شخص",
+      tool: `أداة ${ltr("MCP")}`,
+    },
+    notes: {
+      warehouse: "صلاحية قراءة على كل المخططات",
+      billing: "يقرؤه المفتاح الجديد",
+      events: "قابل للقراءة عبر عرض في المستودع",
+      payments: `يملك المفتاح صلاحية ${ltr("payments:read")}`,
+      stripe: `مُثبَّت كمتغير بيئة في ${ltr("payments-api")}`,
+      ledger: "سياسة على مستوى الصفوف تحظر المفتاح",
+      support: "لا صلاحية لهذا المفتاح",
+      ci: "مشروع منفصل",
+      crm: `يملك المفتاح صلاحية ${ltr("contacts:read")}`,
+      contacts: "يقرؤه المفتاح الجديد",
+      sales: `مالكو ${ltr("crm-api")}`,
+      maya: "أنشأت المفتاح",
+      gh: "قراءة فقط، مستودعان",
+      pg: `يقبل ${ltr("SQL")} خامًا، لا ${ltr("SELECT")} فقط`,
+      users: "يستطيع الوكيل الكتابة فيه",
+      orders: "يمكن الوصول إليه عبر حذف متتالٍ لمفتاح أجنبي",
+      slack: `مقصور على ${ltr("#support")}`,
+      s3: "سياسة الحاوية تسمح بالكتابة فوق الملفات",
+      backups: "يستطيع الوكيل الكتابة فوق النسخ الاحتياطية",
+      shell: "يعمل على خادم العامل",
+      worker: "صدفة كاملة بصلاحيات مستخدم التطبيق",
+      env: "قابل للقراءة من متغيرات بيئة العملية",
+      fetch: "صادر فقط",
+      kb: "فهرس للقراءة فقط",
+    },
+    leaked: {
+      title: "نطاق الضرر",
+      subtitle: `${ltr("sk-live-…7f2a")} · صدر قبل 14 دقيقة`,
+      exposed: (n) => (n === 1 ? "مورد مكشوف" : `${n} مكشوفة`),
+      scanning: "جارٍ الفحص",
+    },
+    tools: {
+      title: "صلاحيات الأدوات",
+      subtitle: `${ltr("support-agent")} · 6 أدوات ${ltr("MCP")}`,
+      risk: (n) => `${n} في خطر`,
+    },
+    labels: {
+      hops: (depth) =>
+        depth === 1
+          ? "قفزة واحدة"
+          : depth === 2
+            ? "قفزتان"
+            : depth <= 10
+              ? `${depth} قفزات`
+              : `${depth} قفزة`,
+      affected: "متأثر",
+      instructions: (title) => `${title}. استخدم مفاتيح الأسهم لقراءة كل عقدة.`,
+      summary: (title, affected, total, center) =>
+        `${title}: ${affected} من ${total} يمكن الوصول إليها من ${center} متأثرة`,
+      reading: (node, flags) =>
+        `${node.label}، ${node.kind}، ${node.hops}${flags.affected ? "، متأثر" : ""}${flags.indirect ? "، غير مباشر" : ""}${node.note ? `. ${node.note}` : ""}`,
+    },
+  },
+};
+
+/** Swaps kind labels and node notes for the demo's language. */
+const translate = (
+  text: Translation | undefined,
+  nodes: BlastNode[],
+  kindMap: Record<string, BlastKind>,
+) =>
+  text
+    ? {
+        nodes: nodes.map((n) => ({ ...n, note: n.note && (text.notes[n.id] ?? n.note) })),
+        kinds: Object.fromEntries(
+          Object.entries(kindMap).map(([k, v]) => [
+            k,
+            { ...v, label: text.kinds[k] ?? v.label },
+          ]),
+        ),
+      }
+    : { nodes, kinds: kindMap };
+
 export default function BlastRadiusDemo({
   variant = "Leaked key",
   autoplay = true,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
   const { state: scanned } = useMockRun<number>(autoplay ? 0 : 2, script, { autoplay });
+  const text = locale === "en" ? undefined : copy[locale];
 
   if (variant === "Tool permissions") {
     const risky = tools.filter((t) => t.affected).length;
+    const local = translate(text, tools, toolKinds);
     return (
       <BlastRadius
-        title="Tool permissions"
-        subtitle="support-agent · 6 MCP tools"
+        title={text?.tools.title ?? "Tool permissions"}
+        subtitle={text?.tools.subtitle ?? "support-agent · 6 MCP tools"}
         center={{ label: "support-agent", initials: "SA" }}
-        nodes={tools}
-        kinds={toolKinds}
-        aside={<StatusPill tone="negative">{risky} at risk</StatusPill>}
+        nodes={local.nodes}
+        kinds={local.kinds}
+        labels={text?.labels}
+        aside={
+          <StatusPill tone="negative">
+            {text ? text.tools.risk(risky) : `${risky} at risk`}
+          </StatusPill>
+        }
       />
     );
   }
@@ -226,16 +400,22 @@ export default function BlastRadiusDemo({
     affected: node.affected && (hop ?? 0) <= scanned,
   }));
   const count = nodes.filter((n) => n.affected).length;
+  const local = translate(text, nodes, kinds);
   return (
     <BlastRadius
-      title="Blast radius"
-      subtitle="sk-live-…7f2a · issued 14 min ago"
+      title={text?.leaked.title ?? "Blast radius"}
+      subtitle={text?.leaked.subtitle ?? "sk-live-…7f2a · issued 14 min ago"}
       center={{ label: "sk-live-…7f2a", icon: Key }}
-      nodes={nodes}
-      kinds={kinds}
+      nodes={local.nodes}
+      kinds={local.kinds}
+      labels={text?.labels}
       aside={
         <StatusPill tone={count ? "negative" : "neutral"}>
-          {count ? `${count} exposed` : "Scanning"}
+          {count
+            ? text
+              ? text.leaked.exposed(count)
+              : `${count} exposed`
+            : (text?.leaked.scanning ?? "Scanning")}
         </StatusPill>
       }
     />

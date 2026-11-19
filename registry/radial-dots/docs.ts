@@ -57,6 +57,17 @@ export function RunsByHour({ stats }: { stats: HourlyStats }) {
       description: "Called when a sector is hovered or reached with the arrow keys.",
     },
     {
+      name: "strings",
+      type: "Partial<RadialDotsLabels>",
+      description:
+        'Your own UI strings (screen-reader hints), for translating. Right-to-left works under `dir="rtl"`; the cycle still runs clockwise.',
+    },
+    {
+      name: "locale",
+      type: "string",
+      description: "BCP 47 locale for the default number format. Defaults to en-US.",
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

@@ -116,6 +116,12 @@ export function ComposerModel({ chat, catalog }: Props) {
       description: "Formats the conversation cost.",
     },
     {
+      name: "labels",
+      type: "Partial<ModelPickerLabels>",
+      description:
+        'Your own UI strings: capability names, column heads, search, cost line and screen-reader text. Right-to-left works under `dir="rtl"`; the panel opens from the start edge.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

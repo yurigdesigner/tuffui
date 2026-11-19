@@ -61,6 +61,12 @@ export function SessionHistory({ session }: { session: AgentSession }) {
       description: "Called when the user opens or cancels the confirmation.",
     },
     {
+      name: "labels",
+      type: "Partial<CheckpointTimelineLabels>",
+      description:
+        'Your own UI strings: headings, counts, restore buttons and screen-reader text, for translating. Right-to-left works under `dir="rtl"`; checkpoints then run from the right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

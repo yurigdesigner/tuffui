@@ -65,7 +65,53 @@ export type DataTableProps<R extends DataRow = DataRow> = {
   /** Bulk actions shown when rows are selected. */
   actions?: (ids: string[]) => React.ReactNode;
   onRowClick?: (row: R) => void;
+  /** UI strings, for translating the table. */
+  labels?: Partial<DataTableLabels>;
   className?: string;
+};
+
+export type DataTableLabels = {
+  /** Word after the row count in the header. */
+  rows: (count: number) => string;
+  copyCsv: string;
+  copiedCsv: string;
+  filter: string;
+  clearFilter: string;
+  /** Word after the selected count. */
+  selected: (count: number) => string;
+  clearSelection: string;
+  selectAll: string;
+  selectRow: (name: string) => string;
+  noMatch: string;
+  noMatchDescription: (query: string) => string;
+  /** Footer range, e.g. "1–6 of 9". */
+  range: (from: number, to: number, total: number) => string;
+  previousPage: string;
+  nextPage: string;
+  /** Screen-reader status after filtering or sorting. */
+  status: (
+    count: number,
+    sort: { key: string; label: string; dir: "asc" | "desc" } | null,
+  ) => string;
+};
+
+const defaultLabels: DataTableLabels = {
+  rows: (count) => (count === 1 ? "row" : "rows"),
+  copyCsv: "Copy as CSV",
+  copiedCsv: "Copied as CSV",
+  filter: "Filter rows",
+  clearFilter: "Clear search",
+  selected: () => "selected",
+  clearSelection: "Clear",
+  selectAll: "Select all rows on this page",
+  selectRow: (name) => `Select ${name}`,
+  noMatch: "No rows match",
+  noMatchDescription: (query) => `Nothing matches “${query}”.`,
+  range: (from, to, total) => `${from}–${to} of ${total}`,
+  previousPage: "Previous page",
+  nextPage: "Next page",
+  status: (count, sort) =>
+    `${count} rows${sort ? `, sorted by ${sort.key} ${sort.dir}ending` : ""}`,
 };
 
 type Sort = { key: string; dir: "asc" | "desc" } | null;
@@ -92,8 +138,10 @@ export function DataTable<R extends DataRow>({
   onSelectedChange,
   actions,
   onRowClick,
+  labels: labelOverrides,
   className,
 }: DataTableProps<R>) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>(null);
   const [page, setPage] = useState(0);
@@ -159,7 +207,7 @@ export function DataTable<R extends DataRow>({
           subtitle={
             subtitle ?? (
               <>
-                <RollingNumber value={rows.length} /> {rows.length === 1 ? "row" : "rows"}
+                <RollingNumber value={rows.length} /> {labels.rows(rows.length)}
               </>
             )
           }
@@ -167,7 +215,7 @@ export function DataTable<R extends DataRow>({
             <IconButton
               icon={copied ? Check : Copy}
               iconWeight={copied ? "bold" : "fill"}
-              label={copied ? "Copied as CSV" : "Copy as CSV"}
+              label={copied ? labels.copiedCsv : labels.copyCsv}
               variant="quiet"
               size="sm"
               onClick={copyCsv}
@@ -179,7 +227,8 @@ export function DataTable<R extends DataRow>({
             <div className="flex items-center gap-2 p-1 pb-2">
               <SearchField
                 className="flex-1"
-                placeholder="Filter rows"
+                placeholder={labels.filter}
+                labels={{ clear: labels.clearFilter }}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -198,14 +247,15 @@ export function DataTable<R extends DataRow>({
                 exit={{ height: 0, opacity: 0, transition: exit }}
                 className="overflow-hidden"
               >
-                <div className="mx-1 mb-2 flex items-center gap-2 rounded-xl bg-brand/10 py-1.5 pr-1.5 pl-3 text-[0.8125rem]">
+                <div className="mx-1 mb-2 flex items-center gap-2 rounded-xl bg-brand/10 py-1.5 ps-3 pe-1.5 text-[0.8125rem]">
                   <span className="text-brand">
-                    <RollingNumber value={selected.length} /> selected
+                    <RollingNumber value={selected.length} />{" "}
+                    {labels.selected(selected.length)}
                   </span>
                   <Button variant="quiet" size="sm" onClick={() => setSelected([])}>
-                    Clear
+                    {labels.clearSelection}
                   </Button>
-                  <span className="ml-auto flex gap-1.5">{actions?.(selected)}</span>
+                  <span className="ms-auto flex gap-1.5">{actions?.(selected)}</span>
                 </div>
               </motion.div>
             )}
@@ -219,7 +269,7 @@ export function DataTable<R extends DataRow>({
                   {selectable && (
                     <th scope="col" className="w-9 px-2 py-2">
                       <Checkbox
-                        aria-label="Select all rows on this page"
+                        aria-label={labels.selectAll}
                         checked={allOnPage ? true : someOnPage ? "mixed" : false}
                         onCheckedChange={() =>
                           setSelected(
@@ -243,7 +293,7 @@ export function DataTable<R extends DataRow>({
                         }
                         className={cn(
                           "px-2 py-2 font-medium",
-                          c.align === "right" ? "text-right" : "text-left",
+                          c.align === "right" ? "text-end" : "text-start",
                           priorityOf(c, ci),
                         )}
                         style={{ width: c.width }}
@@ -284,7 +334,7 @@ export function DataTable<R extends DataRow>({
                       key={row.id}
                       onClick={onRowClick ? () => onRowClick(row) : undefined}
                       className={cn(
-                        "transition-colors duration-150 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl",
+                        "transition-colors duration-150 [&>td:first-child]:rounded-s-xl [&>td:last-child]:rounded-e-xl",
                         isSelected
                           ? "bg-brand/10"
                           : i % 2 === 1
@@ -296,7 +346,7 @@ export function DataTable<R extends DataRow>({
                       {selectable && (
                         <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
-                            aria-label={`Select ${String(row[columns[0].key])}`}
+                            aria-label={labels.selectRow(String(row[columns[0].key]))}
                             checked={isSelected}
                             onCheckedChange={(on) =>
                               setSelected(
@@ -315,12 +365,21 @@ export function DataTable<R extends DataRow>({
                             "px-2 py-2.5 whitespace-nowrap",
                             priorityOf(c, ci),
                             c.align === "right" &&
-                              "text-right font-mono text-xs tabular-nums",
+                              "text-end font-mono text-xs tabular-nums",
                           )}
                         >
-                          {c.format
-                            ? c.format(row[c.key], row)
-                            : String(row[c.key] ?? "—")}
+                          {c.align === "right" ? (
+                            // Signs and units stay on the correct side of numbers in RTL.
+                            <span dir="ltr">
+                              {c.format
+                                ? c.format(row[c.key], row)
+                                : String(row[c.key] ?? "—")}
+                            </span>
+                          ) : c.format ? (
+                            c.format(row[c.key], row)
+                          ) : (
+                            String(row[c.key] ?? "—")
+                          )}
                         </td>
                       ))}
                     </tr>
@@ -332,35 +391,40 @@ export function DataTable<R extends DataRow>({
               <EmptyState
                 compact
                 icon={MagnifyingGlass}
-                title="No rows match"
-                description={`Nothing matches “${query}”.`}
+                title={labels.noMatch}
+                description={labels.noMatchDescription(query)}
               />
             )}
           </div>
         </Panel>
 
-        <footer className="flex items-center justify-between gap-3 py-1.5 pr-1.5 pl-3.5 text-xs text-muted-foreground">
+        <footer className="flex items-center justify-between gap-3 py-1.5 ps-3.5 pe-1.5 text-xs text-muted-foreground">
           <span>
-            {rows.length ? current * pageSize + 1 : 0}–
-            {Math.min((current + 1) * pageSize, rows.length)} of {rows.length}
+            {labels.range(
+              rows.length ? current * pageSize + 1 : 0,
+              Math.min((current + 1) * pageSize, rows.length),
+              rows.length,
+            )}
           </span>
           <span className="flex items-center gap-1">
             <IconButton
               icon={CaretLeft}
               iconWeight="bold"
-              label="Previous page"
+              label={labels.previousPage}
+              className="rtl:[&_svg]:-scale-x-100"
               variant="quiet"
               size="sm"
               disabled={current === 0}
               onClick={() => setPage(current - 1)}
             />
-            <span className="w-14 text-center tabular-nums">
+            <span dir="ltr" className="w-14 text-center tabular-nums">
               {current + 1} / {pages}
             </span>
             <IconButton
               icon={CaretRight}
               iconWeight="bold"
-              label="Next page"
+              label={labels.nextPage}
+              className="rtl:[&_svg]:-scale-x-100"
               variant="quiet"
               size="sm"
               disabled={current >= pages - 1}
@@ -370,8 +434,14 @@ export function DataTable<R extends DataRow>({
         </footer>
         <p role="status" aria-live="polite" className="sr-only">
           {copied
-            ? "Copied as CSV"
-            : `${rows.length} rows${sort ? `, sorted by ${sort.key} ${sort.dir}ending` : ""}`}
+            ? labels.copiedCsv
+            : labels.status(
+                rows.length,
+                sort && {
+                  ...sort,
+                  label: columns.find((c) => c.key === sort.key)?.label ?? sort.key,
+                },
+              )}
         </p>
       </Shell>
     </MotionConfig>

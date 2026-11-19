@@ -1,6 +1,7 @@
 "use client";
 
-import { MirrorStrips, type MirrorRow } from "./mirror-strips";
+import type { DemoLocale } from "@/components/docs/demo";
+import { MirrorStrips, type MirrorRow, type MirrorStripsLabels } from "./mirror-strips";
 
 function rng(seed: number) {
   return () => {
@@ -77,26 +78,154 @@ const prs: MirrorRow[] = weeks.map((w, i) => ({
   current: i === 3,
 }));
 
-export default function MirrorStripsDemo({ variant = "Contract" }: { variant?: string }) {
+/** Keeps a Latin name or clause number in reading order inside RTL text. */
+const ltr = (text: string) => `⁦${text}⁩`;
+
+/** Directory names and round numbers stay Latin; Hebrew and Arabic show the RTL layout. */
+const copy: Record<
+  DemoLocale,
+  {
+    intl: string;
+    contract: {
+      title: string;
+      subtitle: string;
+      page: string;
+      up: string;
+      down: string;
+      today: string;
+      note: string;
+    };
+    prs: {
+      title: string;
+      subtitle: string;
+      week: (n: number) => string;
+      up: string;
+      down: string;
+      note: string;
+    };
+    labels?: Partial<MirrorStripsLabels>;
+  }
+> = {
+  en: {
+    intl: "en-US",
+    contract: {
+      title: "Edits by page",
+      subtitle: "42 pages · 4 rounds",
+      page: "p. 1",
+      up: "Their edits",
+      down: "Our redlines",
+      today: "today",
+      note: "§ 12.4 Indemnity — still open in R4",
+    },
+    prs: {
+      title: "Churn by directory",
+      subtitle: "Agent PRs · last 4 weeks",
+      week: (n) => `W${n}`,
+      up: "Lines added",
+      down: "Lines removed",
+      note: "lib/ — refactor still open",
+    },
+  },
+  he: {
+    intl: "he-IL",
+    contract: {
+      title: "עריכות לפי עמוד",
+      subtitle: "42 עמודים · 4 סבבים",
+      page: "עמ׳ 1",
+      up: "העריכות שלהם",
+      down: "ההערות שלנו",
+      today: "היום",
+      note: `${ltr("§ 12.4")} שיפוי — עדיין פתוח ב־${ltr("R4")}`,
+    },
+    prs: {
+      title: "שינויים לפי תיקייה",
+      subtitle: "בקשות מיזוג של הסוכן · 4 השבועות האחרונים",
+      week: (n) => `שבוע ${n}`,
+      up: "שורות שנוספו",
+      down: "שורות שנמחקו",
+      note: `${ltr("lib/")} — הריפקטור עדיין פתוח`,
+    },
+    labels: {
+      perDot: (count) => `נקודה = ${count}`,
+      instructions: (title) => `${title}. אפשר לעבור בין העמודות עם מקשי החיצים.`,
+    },
+  },
+  ar: {
+    intl: "ar",
+    contract: {
+      title: "التعديلات حسب الصفحة",
+      subtitle: "42 صفحة · 4 جولات",
+      page: "ص 1",
+      up: "تعديلاتهم",
+      down: "ملاحظاتنا",
+      today: "اليوم",
+      note: `${ltr("§ 12.4")} التعويض — لا يزال مفتوحًا في ${ltr("R4")}`,
+    },
+    prs: {
+      title: "التغييرات حسب المجلد",
+      subtitle: "طلبات الدمج من الوكيل · آخر 4 أسابيع",
+      week: (n) => `أسبوع ${n}`,
+      up: "أسطر مضافة",
+      down: "أسطر محذوفة",
+      note: `${ltr("lib/")} — إعادة الهيكلة لا تزال مفتوحة`,
+    },
+    labels: {
+      perDot: (count) => `النقطة = ${count}`,
+      instructions: (title) => `${title}. استخدم مفاتيح الأسهم لقراءة الأعمدة.`,
+    },
+  },
+};
+
+/** Date labels from the English ones ("Aug 4"), in the demo's language. */
+const localDay = (label: string, intl: string) =>
+  new Date(`${label}, 2026 12:00`).toLocaleDateString(intl, {
+    month: "short",
+    day: "numeric",
+  });
+
+export default function MirrorStripsDemo({
+  variant = "Contract",
+  locale = "en",
+}: {
+  variant?: string;
+  locale?: DemoLocale;
+}) {
+  const text = copy[locale];
+  const day = (label: string) =>
+    locale === "en"
+      ? label
+      : label === "today"
+        ? text.contract.today
+        : localDay(label, text.intl);
+
   return variant === "Pull requests" ? (
     <MirrorStrips
-      title="Churn by directory"
-      subtitle="Agent PRs · last 4 weeks"
+      title={text.prs.title}
+      subtitle={text.prs.subtitle}
       columns={dirs}
-      rows={prs}
-      series={{ up: { label: "Lines added" }, down: { label: "Lines removed" } }}
-      marks={[{ column: 9, label: "lib", note: "lib/ — refactor still open" }]}
+      rows={prs.map((row, i) => ({
+        ...row,
+        label: text.prs.week(i + 1),
+        sublabel: row.sublabel && day(row.sublabel),
+      }))}
+      series={{ up: { label: text.prs.up }, down: { label: text.prs.down } }}
+      marks={[{ column: 9, label: "lib", note: text.prs.note }]}
+      labels={text.labels}
+      locale={text.intl}
     />
   ) : (
     <MirrorStrips
-      title="Edits by page"
-      subtitle="42 pages · 4 rounds"
-      columns={pages}
-      rows={rounds}
-      series={{ up: { label: "Their edits" }, down: { label: "Our redlines" } }}
-      marks={[
-        { column: 20, label: "§ 12.4", note: "§ 12.4 Indemnity — still open in R4" },
-      ]}
+      title={text.contract.title}
+      subtitle={text.contract.subtitle}
+      columns={[text.contract.page, ...pages.slice(1)]}
+      rows={rounds.map((row) => ({
+        ...row,
+        sublabel: row.sublabel && day(row.sublabel),
+      }))}
+      series={{ up: { label: text.contract.up }, down: { label: text.contract.down } }}
+      marks={[{ column: 20, label: "§ 12.4", note: text.contract.note }]}
+      labels={text.labels}
+      locale={text.intl}
     />
   );
 }

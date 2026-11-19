@@ -79,6 +79,18 @@ export function SuiteRace({ run }: { run: EvalRun }) {
         "Called when a racer is hovered on the track or in the table, or reached with the arrow keys.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for case counts.",
+    },
+    {
+      name: "labels",
+      type: "Partial<EvalRaceLabels>",
+      description:
+        'Your own UI strings (headline, column heads, lap and gap text, screen reader text), for translating. Right-to-left works under `dir="rtl"`.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

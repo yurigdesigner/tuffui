@@ -1,7 +1,8 @@
 "use client";
 
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, wait } from "@/registry/use-mock-run/use-mock-run";
-import { SlotPicker, type Slot } from "./slot-picker";
+import { SlotPicker, type Slot, type SlotPickerLabels } from "./slot-picker";
 
 const day = (d: number) => `2026-11-${String(9 + d).padStart(2, "0")}`;
 const times = ["09:30", "11:00", "14:30", "16:00"];
@@ -23,15 +24,88 @@ const slots: Slot[] = Array.from({ length: 5 }, (_, d) =>
   })),
 ).flat();
 
+/** Keeps a time range or UTC offset in reading order inside RTL text. */
+const ltr = (text: string) => `⁦${text}⁩`;
+
+/** The same meeting in each demo language; Hebrew and Arabic show the RTL layout. */
+const copy: Record<
+  DemoLocale,
+  {
+    locale: string;
+    title: string;
+    zone: string;
+    attendeeZone: string;
+    labels?: Partial<SlotPickerLabels>;
+  }
+> = {
+  en: {
+    locale: "en-US",
+    title: "Design review with Ana",
+    zone: "Lisbon (UTC+0)",
+    attendeeZone: "New York (UTC−5)",
+  },
+  he: {
+    locale: "he-IL",
+    title: "סקירת עיצוב עם Ana",
+    zone: `ליסבון (${ltr("UTC+0")})`,
+    attendeeZone: `ניו יורק (${ltr("UTC−5")})`,
+    labels: {
+      pickTime: "בחירת מועד",
+      timesIn: (zone) => `השעות לפי ${zone}`,
+      theirTime: "השעה אצלם",
+      day: "יום",
+      availableTimes: "מועדים פנויים",
+      slot: (day, time, { busy, suggested }) =>
+        `${day} ${ltr(time)}${busy ? ", תפוס" : ""}${suggested ? ", מומלץ" : ""}`,
+      duration: (minutes) => `${minutes} דק׳`,
+      suggested: "מומלץ",
+      busy: "תפוס",
+      confirm: "אישור",
+      selected: (day, time) => `נבחר ${day} ${ltr(time)}`,
+      meetingTime: "מועד הפגישה",
+      inviteSent: "ההזמנה נשלחה",
+      pickAnother: "בחירת מועד אחר",
+      confirmed: (day, time) => `אושר ${day} ${ltr(time)}`,
+    },
+  },
+  ar: {
+    locale: "ar",
+    title: "مراجعة التصميم مع Ana",
+    zone: `لشبونة (${ltr("UTC+0")})`,
+    attendeeZone: `نيويورك (${ltr("UTC−5")})`,
+    labels: {
+      pickTime: "اختر موعدًا",
+      timesIn: (zone) => `الأوقات بتوقيت ${zone}`,
+      theirTime: "توقيتهم",
+      day: "اليوم",
+      availableTimes: "المواعيد المتاحة",
+      slot: (day, time, { busy, suggested }) =>
+        `${day} ${ltr(time)}${busy ? "، محجوز" : ""}${suggested ? "، مقترح" : ""}`,
+      duration: (minutes) => `${minutes} د`,
+      suggested: "مقترح",
+      busy: "محجوز",
+      confirm: "تأكيد",
+      selected: (day, time) => `تم اختيار ${day} ${ltr(time)}`,
+      meetingTime: "موعد الاجتماع",
+      inviteSent: "أُرسلت الدعوة",
+      pickAnother: "اختيار موعد آخر",
+      confirmed: (day, time) => `تم تأكيد ${day} ${ltr(time)}`,
+    },
+  },
+};
+
 type State = { selectedId: string | null; confirmedId: string | null };
 
 export default function SlotPickerDemo({
   variant,
   autoplay = true,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
+  const text = copy[locale];
   const { state, setState } = useMockRun<State>(
     { selectedId: null, confirmedId: null },
     [
@@ -47,11 +121,13 @@ export default function SlotPickerDemo({
     <SlotPicker
       variant={variant === "Day" ? "day" : "week"}
       data={{
-        title: "Design review with Ana",
+        title: text.title,
         slots,
-        timeZone: { label: "Lisbon (UTC+0)", offset: 0 },
-        attendeeZone: { label: "New York (UTC−5)", offset: -5 },
+        timeZone: { label: text.zone, offset: 0 },
+        attendeeZone: { label: text.attendeeZone, offset: -5 },
       }}
+      locale={text.locale}
+      labels={text.labels}
       selectedId={state.selectedId}
       onSelect={(slot) => setState((s) => ({ ...s, selectedId: slot?.id ?? null }))}
       confirmedId={state.confirmedId}

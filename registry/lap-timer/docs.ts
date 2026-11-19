@@ -69,13 +69,19 @@ export function PipelineLap({ run }: { run: PipelineRun }) {
     {
       name: "aside",
       type: "ReactNode",
-      description: "Extra content on the right of the header, e.g. a status pill.",
+      description: "Extra content at the end of the header, e.g. a status pill.",
     },
     {
       name: "format",
       type: "(seconds: number) => string",
       default: "s.toFixed(1) + ' s'",
       description: "Formats split times and the best lap. The clock is always mm:ss.t.",
+    },
+    {
+      name: "labels",
+      type: "Partial<LapTimerLabels>",
+      description:
+        'Your own UI strings (deltas, table headings, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the dial keeps turning clockwise.',
     },
     {
       name: "className",

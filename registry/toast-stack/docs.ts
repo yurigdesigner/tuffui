@@ -25,9 +25,16 @@ toast.promise(exportChat(), {
     },
     {
       name: "position",
-      type: '"bottom-right" | "bottom-center"',
-      default: '"bottom-right"',
-      description: "Toaster. Where the stack sits.",
+      type: '"bottom-end" | "bottom-right" | "bottom-center"',
+      default: '"bottom-end"',
+      description:
+        "Toaster. Where the stack sits; bottom-end is the bottom left under right-to-left.",
+    },
+    {
+      name: "labels",
+      type: "Partial<ToasterLabels>",
+      description:
+        'Toaster. Your own UI strings (region name, dismiss button, screen-reader fallback), for translating. Right-to-left works under `dir="rtl"`.',
     },
     {
       name: "toast(title, options?)",

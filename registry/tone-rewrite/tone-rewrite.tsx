@@ -65,10 +65,51 @@ export type ToneRewriteRequest = {
 };
 
 export type ToneRewriteLabels = {
-  formal?: string;
-  casual?: string;
-  brief?: string;
-  detailed?: string;
+  /** Pad axis ends. */
+  formal: string;
+  casual: string;
+  brief: string;
+  detailed: string;
+  /** Name for a point on the formal–casual axis, -1 to 1. */
+  register: (x: number) => string;
+  tone: string;
+  /** Default estimate as text, e.g. "about 45 words" for screen readers. */
+  aboutWords: (words: number) => string;
+  /** Visible estimate around the rolling number: "≈ {n} words". */
+  estimate: (count: React.ReactNode, words: number) => React.ReactNode;
+  /** Word count in the attachment chip. */
+  words: (words: string) => string;
+  remove: (name: string) => string;
+  from: (origin: string) => string;
+  instructions: string;
+  placeholder: string;
+  addContext: string;
+  model: string;
+  length: string;
+  dictate: string;
+  rewrite: string;
+  stop: string;
+  stopWriting: string;
+  writing: string;
+  done: string;
+  ready: string;
+  /** "2 of 3" while writing, around the rolling number. */
+  progress: (current: React.ReactNode, total: number) => React.ReactNode;
+  replace: string;
+  insert: string;
+  copy: string;
+  copyRewrite: string;
+  copied: string;
+  followUps: string;
+  then: string;
+  rewriteReady: (words: number) => string;
+  /** Screen-reader help for the tone pad. */
+  padHelp: (labels: {
+    formal: string;
+    casual: string;
+    brief: string;
+    detailed: string;
+  }) => string;
 };
 
 export type ToneRewriteProps = {
@@ -106,7 +147,10 @@ export type ToneRewriteProps = {
   formatEstimate?: (words: number) => string;
   /** Name for a point on the formal–casual axis, e.g. "Fairly formal". */
   describeRegister?: (x: number) => string;
-  labels?: ToneRewriteLabels;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<ToneRewriteLabels>;
+  /** BCP 47 locale for word counts, e.g. `he-IL`. */
+  locale?: string;
 
   status?: ToneRewriteStatus;
   /** The rewrite as the parent streams it: bullets, or one block of text. */
@@ -142,6 +186,7 @@ const clampTone = (t: ToneValue): ToneValue => ({
   x: +clamp(t.x, -1, 1).toFixed(3),
   y: +clamp(t.y, -1, 1).toFixed(3),
 });
+const isRtl = (el: Element | null) => !!el && getComputedStyle(el).direction === "rtl";
 const countWords = (text: string) => text.match(/\S+/g)?.length ?? 0;
 
 export function defaultRegister(x: number) {
@@ -151,6 +196,47 @@ export function defaultRegister(x: number) {
   if (x < 0.6) return "Fairly casual";
   return "Casual";
 }
+
+const defaultLabels: ToneRewriteLabels = {
+  formal: "Formal",
+  casual: "Casual",
+  brief: "Brief",
+  detailed: "Detailed",
+  register: defaultRegister,
+  tone: "Tone",
+  aboutWords: (n) => `about ${n} words`,
+  estimate: (count) => <>≈ {count} words</>,
+  words: (n) => `${n} words`,
+  remove: (name) => `Remove ${name}`,
+  from: (origin) => `from ${origin}`,
+  instructions: "Rewrite instructions",
+  placeholder: "Tell the model how to rewrite it",
+  addContext: "Add context",
+  model: "Model",
+  length: "Length",
+  dictate: "Dictate",
+  rewrite: "Rewrite",
+  stop: "Stop",
+  stopWriting: "Stop writing",
+  writing: "Writing",
+  done: "Done",
+  ready: "Ready",
+  progress: (current, total) => (
+    <>
+      {current} of {total}
+    </>
+  ),
+  replace: "Replace selection",
+  insert: "Insert below",
+  copy: "Copy",
+  copyRewrite: "Copy rewrite",
+  copied: "Copied",
+  followUps: "Follow-ups",
+  then: "Then",
+  rewriteReady: (n) => `Rewrite ready, ${n} words`,
+  padHelp: ({ formal, casual, brief, detailed }) =>
+    `Left and right move from ${formal.toLowerCase()} to ${casual.toLowerCase()}, up and down from ${brief.toLowerCase()} to ${detailed.toLowerCase()}. Home resets to neutral.`,
+};
 
 /** Controlled when `value` is passed, otherwise keeps its own state. */
 function useControllable<T>(
@@ -191,7 +277,7 @@ export function ToneRewrite({
   prompt: promptProp,
   defaultPrompt = "",
   onPromptChange,
-  placeholder = "Tell the model how to rewrite it",
+  placeholder: placeholderProp,
   models = [],
   model: modelProp,
   defaultModel,
@@ -206,13 +292,14 @@ export function ToneRewrite({
   wordRange = [20, 120],
   estimateWords,
   formatEstimate,
-  describeRegister = defaultRegister,
-  labels,
+  describeRegister: describeRegisterProp,
+  labels: labelOverrides,
+  locale = "en-US",
   status = "idle",
   output,
   progress,
-  writingLabel = "Writing",
-  doneLabel = "Done",
+  writingLabel: writingProp,
+  doneLabel: doneProp,
   onSend,
   onStop,
   onReplace,
@@ -224,6 +311,11 @@ export function ToneRewrite({
   onVoice,
   className,
 }: ToneRewriteProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const placeholder = placeholderProp ?? labels.placeholder;
+  const describeRegister = describeRegisterProp ?? labels.register;
+  const writingLabel = writingProp ?? labels.writing;
+  const doneLabel = doneProp ?? labels.done;
   const id = useId();
   const reduce = useReducedMotion();
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -245,12 +337,7 @@ export function ToneRewrite({
   );
   const [tone, setTone] = useControllable(toneProp, onToneChange, defaultTone);
 
-  const text = {
-    formal: labels?.formal ?? "Formal",
-    casual: labels?.casual ?? "Casual",
-    brief: labels?.brief ?? "Brief",
-    detailed: labels?.detailed ?? "Detailed",
-  };
+  const text = labels;
 
   const estimate = estimateWords
     ? estimateWords(tone)
@@ -329,8 +416,9 @@ export function ToneRewrite({
   };
   const fromPointer = (e: React.PointerEvent) => {
     const r = pad.current!.getBoundingClientRect();
+    const x = clamp(((e.clientX - r.left) / r.width) * 2 - 1, -1, 1);
     return {
-      x: clamp(((e.clientX - r.left) / r.width) * 2 - 1, -1, 1),
+      x: isRtl(pad.current) ? -x : x,
       y: clamp(((e.clientY - r.top) / r.height) * 2 - 1, -1, 1),
     };
   };
@@ -354,9 +442,11 @@ export function ToneRewrite({
   };
   const onHandleKeyDown = (e: React.KeyboardEvent) => {
     const d = e.shiftKey ? BIG : STEP;
+    // The pad mirrors right to left: formal sits at the start edge.
+    const h = isRtl(pad.current) ? -d : d;
     const moves: Record<string, ToneValue> = {
-      ArrowLeft: { x: tone.x - d, y: tone.y },
-      ArrowRight: { x: tone.x + d, y: tone.y },
+      ArrowLeft: { x: tone.x - h, y: tone.y },
+      ArrowRight: { x: tone.x + h, y: tone.y },
       ArrowUp: { x: tone.x, y: tone.y - d },
       ArrowDown: { x: tone.x, y: tone.y + d },
       PageUp: { x: tone.x, y: tone.y - BIG },
@@ -373,11 +463,12 @@ export function ToneRewrite({
   const still = reduce || mode === "drag" || mode === "key";
   const glide = (...props: string[]) =>
     still ? "none" : props.map((p) => `${p} 260ms ${CSS_EASE_IN_OUT}`).join(", ");
+  // From the start edge, so the pad mirrors right to left.
   const left = `${((tone.x + 1) / 2) * 100}%`;
   const top = `${((tone.y + 1) / 2) * 100}%`;
 
   const estimateText = formatEstimate ? formatEstimate(estimate) : null;
-  const valueText = `${register}, ${estimateText ?? `about ${estimate} words`}`;
+  const valueText = `${register}, ${estimateText ?? labels.aboutWords(estimate)}`;
 
   return (
     <MotionConfig reducedMotion="user">
@@ -393,7 +484,7 @@ export function ToneRewrite({
         <Panel className="px-3 pt-3 pb-2 @sm:px-4 @sm:pt-3.5">
           {attachment && (
             <div className="mb-3 flex items-center gap-2">
-              <span className="flex h-7 min-w-0 items-center gap-1.5 rounded-lg bg-foreground/[0.05] pl-2 text-xs">
+              <span className="flex h-7 min-w-0 items-center gap-1.5 rounded-lg bg-foreground/[0.05] ps-2 text-xs">
                 <FileText
                   weight="fill"
                   aria-hidden="true"
@@ -402,17 +493,17 @@ export function ToneRewrite({
                 <span className="min-w-0 truncate font-medium">{attachment.name}</span>
                 {attachment.words !== undefined && (
                   <span className="shrink-0 font-mono text-muted-foreground tabular-nums">
-                    · {attachment.words.toLocaleString("en-US")} words
+                    · {labels.words(attachment.words.toLocaleString(locale))}
                   </span>
                 )}
                 {onRemoveAttachment ? (
                   <button
                     type="button"
-                    aria-label={`Remove ${attachment.name}`}
+                    aria-label={labels.remove(attachment.name)}
                     onClick={onRemoveAttachment}
                     className={cn(
                       press,
-                      "ml-0.5 flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground focus-visible:bg-foreground/[0.1]",
+                      "ms-0.5 flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground focus-visible:bg-foreground/[0.1]",
                     )}
                   >
                     <X weight="bold" className="size-3" />
@@ -422,8 +513,8 @@ export function ToneRewrite({
                 )}
               </span>
               {attachment.origin && (
-                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                  from {attachment.origin}
+                <span className="ms-auto shrink-0 text-xs text-muted-foreground">
+                  {labels.from(attachment.origin)}
                 </span>
               )}
             </div>
@@ -431,18 +522,22 @@ export function ToneRewrite({
 
           <blockquote className="flex gap-2.5">
             <span aria-hidden="true" className="w-[3px] shrink-0 rounded-full bg-brand" />
-            <p className="line-clamp-4 text-[0.8125rem] leading-5 text-pretty text-muted-foreground">
+            <p
+              dir="auto"
+              className="line-clamp-4 text-[0.8125rem] leading-5 text-pretty text-muted-foreground"
+            >
               {source}
             </p>
           </blockquote>
 
           <label htmlFor={`${id}-prompt`} className="sr-only">
-            Rewrite instructions
+            {labels.instructions}
           </label>
           <textarea
             ref={textarea}
             id={`${id}-prompt`}
             rows={1}
+            dir="auto"
             value={prompt}
             placeholder={placeholder}
             onChange={(e) => setPrompt(e.target.value)}
@@ -454,8 +549,8 @@ export function ToneRewrite({
             {onAttach && (
               <button
                 type="button"
-                aria-label="Add context"
-                title="Add context"
+                aria-label={labels.addContext}
+                title={labels.addContext}
                 onClick={onAttach}
                 className={quietRound}
               >
@@ -464,7 +559,7 @@ export function ToneRewrite({
             )}
             {models.length > 0 && (
               <PillSelect
-                label="Model"
+                label={labels.model}
                 icon={Sparkle}
                 options={models}
                 value={model}
@@ -473,7 +568,7 @@ export function ToneRewrite({
             )}
             {lengths.length > 0 && (
               <PillSelect
-                label="Length"
+                label={labels.length}
                 options={lengths}
                 value={length}
                 onChange={setLength}
@@ -483,8 +578,8 @@ export function ToneRewrite({
             {onVoice && (
               <button
                 type="button"
-                aria-label="Dictate"
-                title="Dictate"
+                aria-label={labels.dictate}
+                title={labels.dictate}
                 onClick={onVoice}
                 className={cn(quietRound, "@max-[22rem]:hidden")}
               >
@@ -493,8 +588,8 @@ export function ToneRewrite({
             )}
             <button
               type="button"
-              aria-label={writing ? "Stop writing" : "Rewrite"}
-              title={writing ? "Stop" : "Rewrite"}
+              aria-label={writing ? labels.stopWriting : labels.rewrite}
+              title={writing ? labels.stop : labels.rewrite}
               disabled={writing ? !onStop : !prompt.trim()}
               onClick={writing ? onStop : send}
               className={cn(
@@ -524,17 +619,17 @@ export function ToneRewrite({
         <Panel className="mt-1.5 p-3 @sm:p-4">
           <div className="mb-2.5 flex items-baseline gap-2 text-[0.8125rem]">
             <h4 id={`${id}-tone`} className="font-medium">
-              Tone
+              {labels.tone}
             </h4>
             <span className="min-w-0 truncate text-xs text-muted-foreground">
               {register}
             </span>
-            <span className="ml-auto shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
-              {estimateText ?? (
-                <>
-                  ≈ <RollingNumber value={estimate} className="text-foreground" /> words
-                </>
-              )}
+            <span className="ms-auto shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+              {estimateText ??
+                labels.estimate(
+                  <RollingNumber value={estimate} className="text-foreground" />,
+                  estimate,
+                )}
             </span>
           </div>
 
@@ -561,10 +656,10 @@ export function ToneRewrite({
               aria-hidden="true"
               className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-foreground/[0.1]"
             />
-            <AxisLabel className="top-1/2 left-2.5 -translate-y-1/2">
+            <AxisLabel className="start-2.5 top-1/2 -translate-y-1/2">
               {text.formal}
             </AxisLabel>
-            <AxisLabel className="top-1/2 right-2.5 -translate-y-1/2">
+            <AxisLabel className="end-2.5 top-1/2 -translate-y-1/2">
               {text.casual}
             </AxisLabel>
             <AxisLabel className="top-2 left-1/2 -translate-x-1/2">
@@ -587,12 +682,12 @@ export function ToneRewrite({
             />
             <span
               aria-hidden="true"
-              className="absolute inset-y-0 w-px -translate-x-1/2 text-brand/60"
+              className="absolute inset-y-0 w-px -translate-x-1/2 text-brand/60 rtl:translate-x-1/2"
               style={{
-                left,
+                insetInlineStart: left,
                 background:
                   "linear-gradient(to bottom, currentColor 0 4px, transparent 4px 8px) 0 0 / 1px 8px repeat-y",
-                transition: glide("left"),
+                transition: glide("inset-inline-start"),
               }}
             />
 
@@ -610,8 +705,12 @@ export function ToneRewrite({
               aria-valuetext={valueText}
               onKeyDown={onHandleKeyDown}
               onBlur={() => mode === "key" && setMode("idle")}
-              className="group absolute flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none"
-              style={{ left, top, transition: glide("left", "top") }}
+              className="group absolute flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none rtl:translate-x-1/2"
+              style={{
+                insetInlineStart: left,
+                top,
+                transition: glide("inset-inline-start", "top"),
+              }}
             >
               <span
                 aria-hidden="true"
@@ -632,9 +731,7 @@ export function ToneRewrite({
             </div>
           </div>
           <p id={`${id}-tone-help`} className="sr-only">
-            Left and right move from {text.formal.toLowerCase()} to{" "}
-            {text.casual.toLowerCase()}, up and down from {text.brief.toLowerCase()} to{" "}
-            {text.detailed.toLowerCase()}. Home resets to neutral.
+            {labels.padHelp(text)}
           </p>
         </Panel>
 
@@ -651,12 +748,14 @@ export function ToneRewrite({
                 <StatusRow
                   writing={writing}
                   done={done}
-                  label={writing ? writingLabel : done ? doneLabel : "Ready"}
+                  label={writing ? writingLabel : done ? doneLabel : labels.ready}
                   progress={progress}
                   fill={done ? 1 : Math.min(outputWords / Math.max(estimate, 1), 0.96)}
                   from={fromWords}
                   to={outputWords}
                   onStop={onStop}
+                  labels={labels}
+                  locale={locale}
                 />
 
                 <Output
@@ -681,10 +780,10 @@ export function ToneRewrite({
                             onClick={() => onReplace(outputText)}
                             className={cn(
                               pill,
-                              "bg-foreground pr-1.5 pl-3.5 text-background hover:bg-foreground/90",
+                              "bg-foreground ps-3.5 pe-1.5 text-background hover:bg-foreground/90",
                             )}
                           >
-                            Replace selection
+                            {labels.replace}
                             <Kbd
                               aria-hidden="true"
                               className="bg-background/15 text-background/80"
@@ -699,18 +798,18 @@ export function ToneRewrite({
                             onClick={() => onInsert(outputText)}
                             className={cn(
                               pill,
-                              "bg-foreground/[0.07] pr-1.5 pl-3.5 text-foreground hover:bg-foreground/[0.11] focus-visible:bg-foreground/[0.14]",
+                              "bg-foreground/[0.07] ps-3.5 pe-1.5 text-foreground hover:bg-foreground/[0.11] focus-visible:bg-foreground/[0.14]",
                             )}
                           >
-                            Insert below
+                            {labels.insert}
                             <KeyCombo keys="mod+enter" className="@max-[24rem]:hidden" />
                           </button>
                         )}
                         <span className="flex-1" />
                         <button
                           type="button"
-                          aria-label={copied ? "Copied" : "Copy rewrite"}
-                          title="Copy"
+                          aria-label={copied ? labels.copied : labels.copyRewrite}
+                          title={labels.copy}
                           onClick={copy}
                           className={quietRound}
                         >
@@ -750,10 +849,10 @@ export function ToneRewrite({
             >
               <div
                 role="group"
-                aria-label="Follow-ups"
+                aria-label={labels.followUps}
                 className="flex flex-wrap items-center gap-1.5 px-2 pt-2.5 pb-1"
               >
-                <span className="mr-1 text-xs text-muted-foreground">Then</span>
+                <span className="me-1 text-xs text-muted-foreground">{labels.then}</span>
                 {followUps.map((f) => (
                   <button
                     key={f.id}
@@ -761,7 +860,7 @@ export function ToneRewrite({
                     onClick={() => followUp(f)}
                     className={cn(
                       press,
-                      "inline-flex h-7 items-center gap-1.5 rounded-full bg-foreground/[0.06] pr-3 pl-2.5 text-xs font-medium hover:bg-foreground/[0.1] focus-visible:bg-foreground/[0.14]",
+                      "inline-flex h-7 items-center gap-1.5 rounded-full bg-foreground/[0.06] ps-2.5 pe-3 text-xs font-medium hover:bg-foreground/[0.1] focus-visible:bg-foreground/[0.14]",
                     )}
                   >
                     <Sparkle
@@ -778,11 +877,7 @@ export function ToneRewrite({
         </AnimatePresence>
 
         <p role="status" aria-live="polite" className="sr-only">
-          {writing
-            ? `${writingLabel}…`
-            : done
-              ? `Rewrite ready, ${outputWords} words`
-              : ""}
+          {writing ? `${writingLabel}…` : done ? labels.rewriteReady(outputWords) : ""}
         </p>
       </Shell>
     </MotionConfig>
@@ -818,6 +913,8 @@ function StatusRow({
   from,
   to,
   onStop,
+  labels,
+  locale,
 }: {
   writing: boolean;
   done: boolean;
@@ -827,6 +924,8 @@ function StatusRow({
   from: number;
   to: number;
   onStop?: () => void;
+  labels: ToneRewriteLabels;
+  locale: string;
 }) {
   return (
     <div className="flex h-7 items-center gap-2.5 text-xs">
@@ -847,8 +946,10 @@ function StatusRow({
       </span>
       {progress && (
         <span className="shrink-0 font-mono text-muted-foreground tabular-nums">
-          <RollingNumber value={progress.current} className="text-foreground" /> of{" "}
-          {progress.total}
+          {labels.progress(
+            <RollingNumber value={progress.current} className="text-foreground" />,
+            progress.total,
+          )}
         </span>
       )}
       <span
@@ -856,12 +957,16 @@ function StatusRow({
         className="relative h-1 w-10 shrink-0 overflow-hidden rounded-full bg-foreground/[0.1] @sm:w-14"
       >
         <span
-          className="absolute inset-y-0 left-0 rounded-full bg-brand transition-[width] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]"
+          className="absolute inset-y-0 start-0 rounded-full bg-brand transition-[width] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]"
           style={{ width: `${fill * 100}%` }}
         />
       </span>
-      <span className="min-w-0 truncate font-mono text-muted-foreground tabular-nums">
-        {from.toLocaleString("en-US")} →{" "}
+      {/* "142 → 46" reads left to right in every language. */}
+      <span
+        dir="ltr"
+        className="min-w-0 truncate font-mono text-muted-foreground tabular-nums"
+      >
+        {from.toLocaleString(locale)} →{" "}
         <RollingNumber value={to} className="text-foreground" />
       </span>
       <span className="flex-1" />
@@ -876,10 +981,10 @@ function StatusRow({
             exit={{ opacity: 0, transition: exit }}
             className={cn(
               pill,
-              "h-7 gap-1.5 pr-1 pl-2.5 text-xs text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground focus-visible:bg-foreground/[0.1]",
+              "h-7 gap-1.5 ps-2.5 pe-1 text-xs text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground focus-visible:bg-foreground/[0.1]",
             )}
           >
-            Stop
+            {labels.stop}
             <Kbd aria-hidden="true">esc</Kbd>
           </motion.button>
         )}
@@ -902,7 +1007,7 @@ function Output({
   const caret = (
     <motion.span
       aria-hidden="true"
-      className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.18em] rounded-full bg-brand"
+      className="ms-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.18em] rounded-full bg-brand"
       initial={{ opacity: 1 }}
       animate={{ opacity: [1, 1, 0, 0] }}
       transition={{
@@ -915,7 +1020,7 @@ function Output({
   );
   if (!list)
     return (
-      <p className="mt-3 text-sm leading-6 text-pretty whitespace-pre-line">
+      <p dir="auto" className="mt-3 text-sm leading-6 text-pretty whitespace-pre-line">
         <Words text={bullets[0]} />
         {writing && caret}
       </p>
@@ -935,7 +1040,7 @@ function Output({
               aria-hidden="true"
               className="mt-[0.6875rem] size-1.5 shrink-0 rounded-full bg-foreground/35"
             />
-            <span className="min-w-0">
+            <span dir="auto" className="min-w-0">
               <Words text={b} />
               {writing && i === last && caret}
             </span>
@@ -990,8 +1095,8 @@ function PillSelect({
         onKeyDown={() => setViaKeyboard(true)}
         className={cn(
           pill,
-          "max-w-[10rem] min-w-0 shrink bg-foreground/[0.06] pr-2.5 text-foreground hover:bg-foreground/[0.1] focus-visible:bg-foreground/[0.14] data-[state=open]:bg-foreground/[0.12]",
-          IconComponent ? "pl-2.5" : "pl-3",
+          "max-w-[10rem] min-w-0 shrink bg-foreground/[0.06] pe-2.5 text-foreground hover:bg-foreground/[0.1] focus-visible:bg-foreground/[0.14] data-[state=open]:bg-foreground/[0.12]",
+          IconComponent ? "ps-2.5" : "ps-3",
         )}
       >
         {IconComponent && (
@@ -1033,7 +1138,7 @@ function PillSelect({
                 <SelectPrimitive.Item
                   key={o.value}
                   value={o.value}
-                  className="flex cursor-default items-center gap-2 rounded-xl py-1.5 pr-3 pl-2 text-[0.8125rem] outline-none select-none data-[highlighted]:bg-foreground/[0.07]"
+                  className="flex cursor-default items-center gap-2 rounded-xl py-1.5 ps-2 pe-3 text-[0.8125rem] outline-none select-none data-[highlighted]:bg-foreground/[0.07]"
                 >
                   <span className="flex w-4 shrink-0 justify-center">
                     <SelectPrimitive.ItemIndicator>
@@ -1042,7 +1147,7 @@ function PillSelect({
                   </span>
                   <SelectPrimitive.ItemText>{o.label}</SelectPrimitive.ItemText>
                   {o.hint && (
-                    <span className="ml-auto pl-4 text-xs whitespace-nowrap text-muted-foreground">
+                    <span className="ms-auto ps-4 text-xs whitespace-nowrap text-muted-foreground">
                       {o.hint}
                     </span>
                   )}

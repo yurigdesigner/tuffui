@@ -5,7 +5,7 @@
 import { X } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { useState } from "react";
+import { createContext, useContext, useLayoutEffect, useRef, useState } from "react";
 import { IconButton } from "@/components/ui/action-button";
 import { EASE_OUT } from "@/lib/motion-tokens";
 import { cn } from "@/lib/utils";
@@ -26,10 +26,36 @@ type OverlayProps = {
   title: React.ReactNode;
   description?: React.ReactNode;
   children?: React.ReactNode;
-  /** Actions row, usually Buttons. Sits at the bottom, right-aligned. */
+  /** Actions row, usually Buttons. Sits at the bottom, end-aligned. */
   footer?: React.ReactNode;
+  /** UI strings, for translating. */
+  labels?: Partial<ModalLabels>;
   className?: string;
 };
+
+export type ModalLabels = {
+  close: string;
+};
+
+const defaultLabels: ModalLabels = { close: "Close" };
+const Labels = createContext(defaultLabels);
+
+/**
+ * The portal renders under <body>, outside any `dir="rtl"` wrapper, so the
+ * direction is read where the component sits and set on the panel itself.
+ */
+function useDirection(open: boolean) {
+  const marker = useRef<HTMLSpanElement>(null);
+  const [dir, setDir] = useState<"ltr" | "rtl">("ltr");
+  useLayoutEffect(() => {
+    const read = () =>
+      marker.current && getComputedStyle(marker.current).direction === "rtl"
+        ? "rtl"
+        : "ltr";
+    setDir(read());
+  }, [open]);
+  return { dir, marker: <span ref={marker} hidden /> };
+}
 
 function useOpen(open?: boolean, onOpenChange?: (open: boolean) => void) {
   const [state, setState] = useState(false);
@@ -59,8 +85,9 @@ function Overlay() {
 }
 
 function Header({ title, description }: Pick<OverlayProps, "title" | "description">) {
+  const labels = useContext(Labels);
   return (
-    <div className="flex items-start gap-3 pt-1.5 pr-1 pb-3 pl-2.5">
+    <div className="flex items-start gap-3 ps-2.5 pe-1 pt-1.5 pb-3">
       <div className="min-w-0 flex-1 pt-1">
         <DialogPrimitive.Title className="text-[0.9375rem] font-medium">
           {title}
@@ -76,7 +103,7 @@ function Header({ title, description }: Pick<OverlayProps, "title" | "descriptio
         )}
       </div>
       <DialogPrimitive.Close {...slot}>
-        <IconButton icon={X} iconWeight="bold" label="Close" />
+        <IconButton icon={X} iconWeight="bold" label={labels.close} />
       </DialogPrimitive.Close>
     </div>
   );
@@ -96,13 +123,16 @@ export function Dialog({
   children,
   footer,
   size = "md",
+  labels,
   className,
 }: DialogProps) {
   const reduce = useReducedMotion();
   const [open, setOpen] = useOpen(openProp, onOpenChange);
+  const { dir, marker } = useDirection(open);
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
+      {marker}
       {trigger && <DialogPrimitive.Trigger {...slot}>{trigger}</DialogPrimitive.Trigger>}
       <AnimatePresence>
         {open && (
@@ -111,6 +141,7 @@ export function Dialog({
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
               <DialogPrimitive.Content forceMount {...slot}>
                 <motion.div
+                  dir={dir}
                   initial={{ opacity: 0, scale: reduce ? 1 : 0.96 }}
                   animate={{
                     opacity: 1,
@@ -129,7 +160,9 @@ export function Dialog({
                     className,
                   )}
                 >
-                  <Header title={title} description={description} />
+                  <Labels.Provider value={{ ...defaultLabels, ...labels }}>
+                    <Header title={title} description={description} />
+                  </Labels.Provider>
                   {children && (
                     <div className="rounded-2xl bg-surface-inset p-4 text-sm">
                       {children}
@@ -162,7 +195,21 @@ const sides = {
   bottom: { className: "inset-x-2 bottom-2 max-h-[85vh]", hidden: { y: "105%" } },
 } as const;
 
-export type SheetProps = OverlayProps & { side?: keyof typeof sides };
+type Side = "start" | "end" | keyof typeof sides;
+
+/** Start and end resolve to left or right by the reading direction. */
+const physical = (side: Side, dir: "ltr" | "rtl") =>
+  side === "start"
+    ? dir === "rtl"
+      ? "right"
+      : "left"
+    : side === "end"
+      ? dir === "rtl"
+        ? "left"
+        : "right"
+      : side;
+
+export type SheetProps = OverlayProps & { side?: Side };
 
 /** Panel that slides in from an edge — chat history on mobile, settings, details. */
 export function Sheet({
@@ -173,15 +220,19 @@ export function Sheet({
   description,
   children,
   footer,
-  side = "left",
+  side = "start",
+  labels,
   className,
 }: SheetProps) {
   const reduce = useReducedMotion();
   const [open, setOpen] = useOpen(openProp, onOpenChange);
-  const hidden = reduce ? { opacity: 0 } : sides[side].hidden;
+  const { dir, marker } = useDirection(open);
+  const edge = sides[physical(side, dir)];
+  const hidden = reduce ? { opacity: 0 } : edge.hidden;
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
+      {marker}
       {trigger && <DialogPrimitive.Trigger {...slot}>{trigger}</DialogPrimitive.Trigger>}
       <AnimatePresence>
         {open && (
@@ -189,6 +240,7 @@ export function Sheet({
             <Overlay />
             <DialogPrimitive.Content forceMount {...slot}>
               <motion.div
+                dir={dir}
                 initial={hidden}
                 animate={{
                   x: 0,
@@ -200,11 +252,13 @@ export function Sheet({
                 className={cn(
                   surface,
                   "fixed z-50 flex flex-col rounded-[1.375rem] p-1.5",
-                  sides[side].className,
+                  edge.className,
                   className,
                 )}
               >
-                <Header title={title} description={description} />
+                <Labels.Provider value={{ ...defaultLabels, ...labels }}>
+                  <Header title={title} description={description} />
+                </Labels.Provider>
                 {children && (
                   <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl bg-surface-inset p-2 text-sm">
                     {children}

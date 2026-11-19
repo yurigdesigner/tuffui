@@ -1,7 +1,13 @@
 "use client";
 
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, type MockStep } from "@/registry/use-mock-run/use-mock-run";
-import { ChartCard, type ChartSeries, type ChartType } from "./chart-card";
+import {
+  ChartCard,
+  type ChartCardLabels,
+  type ChartSeries,
+  type ChartType,
+} from "./chart-card";
 
 type Dataset = {
   title: string;
@@ -95,6 +101,92 @@ const datasets: Record<ChartType, Dataset> = {
   },
 };
 
+/** Keeps a Latin name in reading order inside RTL text. */
+const ltr = (text: string) => `⁦${text}⁩`;
+
+type Translation = {
+  title: string;
+  subtitle: string;
+  /** Series labels by id. */
+  series?: Record<string, string>;
+};
+
+/** Model and plan names stay Latin; Hebrew and Arabic show the RTL layout. */
+const copy: Record<
+  Exclude<DemoLocale, "en">,
+  {
+    intl: string;
+    sets: Record<ChartType, Translation>;
+    labels: Partial<ChartCardLabels>;
+  }
+> = {
+  he: {
+    intl: "he-IL",
+    sets: {
+      bar: {
+        title: "הרשמות שבועיות",
+        subtitle: "עצמאי מול מכירות · 8 השבועות האחרונים",
+        series: { self: "הרשמה עצמאית", sales: "דרך מכירות" },
+      },
+      line: {
+        title: "זמן תגובה",
+        subtitle: `${ltr("opus-5.5")} · היום · ${ltr("p95")} אחרון`,
+      },
+      area: {
+        title: "טוקנים ביום",
+        subtitle: "קלט ופלט · אוקטובר",
+        series: { in: "קלט", out: "פלט" },
+      },
+      donut: { title: "הכנסות לפי תוכנית", subtitle: `${ltr("MRR")} באוקטובר` },
+    },
+    labels: {
+      series: "סדרות",
+      label: "תווית",
+      total: "סה״כ",
+      instructions: (title) => `${title}. אפשר לעבור בין הערכים עם מקשי החיצים.`,
+      summary: (type, series, from, to) =>
+        `תרשים ${{ bar: "עמודות", line: "קו", area: "שטח", donut: "טבעת" }[type]} של ${series.join(", ")} מ־${from} עד ${to}`,
+    },
+  },
+  ar: {
+    intl: "ar",
+    sets: {
+      bar: {
+        title: "التسجيلات الأسبوعية",
+        subtitle: "ذاتي مقابل المبيعات · آخر 8 أسابيع",
+        series: { self: "تسجيل ذاتي", sales: "عبر المبيعات" },
+      },
+      line: {
+        title: "زمن الاستجابة",
+        subtitle: `${ltr("opus-5.5")} · اليوم · آخر ${ltr("p95")}`,
+      },
+      area: {
+        title: "الرموز يوميًا",
+        subtitle: "الإدخال والإخراج · أكتوبر",
+        series: { in: "الإدخال", out: "الإخراج" },
+      },
+      donut: { title: "الإيرادات حسب الخطة", subtitle: `${ltr("MRR")} لشهر أكتوبر` },
+    },
+    labels: {
+      series: "السلاسل",
+      label: "التسمية",
+      total: "الإجمالي",
+      instructions: (title) => `${title}. استخدم مفاتيح الأسهم لقراءة القيم.`,
+      summary: (type, series, from, to) =>
+        `مخطط ${{ bar: "أعمدة", line: "خطي", area: "مساحي", donut: "حلقي" }[type]} لـ${series.join("، ")} من ${from} إلى ${to}`,
+    },
+  },
+};
+
+/** Day labels from the English ones ("Sep 8"), in the demo's language. */
+const localDays = (labels: string[], intl: string) =>
+  labels.map((label) =>
+    new Date(`${label}, 2026 12:00`).toLocaleDateString(intl, {
+      month: "short",
+      day: "numeric",
+    }),
+  );
+
 // The data refreshes once so the chart shows how it animates between values.
 const refresh = (type: ChartType): MockStep<ChartSeries[]>[] => [
   {
@@ -116,23 +208,36 @@ const refresh = (type: ChartType): MockStep<ChartSeries[]>[] => [
 export default function ChartCardDemo({
   variant = "Bar",
   autoplay = true,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
-  const type = variant.toLowerCase() as ChartType;
-  const set = datasets[type] ?? datasets.bar;
+  const type = (
+    variant.toLowerCase() in datasets ? variant.toLowerCase() : "bar"
+  ) as ChartType;
+  const set = datasets[type];
   const { state } = useMockRun<ChartSeries[]>(set.series, refresh(type), { autoplay });
+  const text = locale === "en" ? null : copy[locale];
+  const local = text?.sets[type];
 
   return (
     <ChartCard
       type={type}
-      title={set.title}
-      subtitle={set.subtitle}
+      title={local?.title ?? set.title}
+      subtitle={local?.subtitle ?? set.subtitle}
       total={set.total(state)}
       format={set.format}
       partialLast={set.partialLast}
-      data={{ labels: set.labels, series: state }}
+      labels={text?.labels}
+      data={{
+        labels:
+          text && (type === "bar" || type === "area")
+            ? localDays(set.labels, text.intl)
+            : set.labels,
+        series: state.map((s) => ({ ...s, label: local?.series?.[s.id] ?? s.label })),
+      }}
     />
   );
 }

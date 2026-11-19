@@ -32,7 +32,26 @@ export type DotHistogramProps = {
   /** Formats axis labels and the tooltip. */
   format?: (value: number) => string;
   onSelect?: (bin: DotHistogramBin) => void;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<DotHistogramLabels>;
+  /** BCP 47 locale for the sample count in the header. */
+  locale?: string;
   className?: string;
+};
+
+export type DotHistogramLabels = {
+  /** A number of samples. `formatted` is `count` already formatted. Defaults to "{count} {unit}". */
+  count: (count: number, formatted: string) => string;
+  median: string;
+  p95: string;
+  /** Footer note when tall columns group samples. */
+  perDot: (count: string) => string;
+  /** Screen-reader summary of the chart. */
+  summary: (count: string, median: string, p95: string) => string;
+  /** Screen-reader hint on the chart. */
+  instructions: (title: string) => string;
+  /** Screen-reader reading of one column. */
+  range: (from: string, to: string, count: string) => string;
 };
 
 const STEP = 7;
@@ -78,8 +97,21 @@ export function DotHistogram({
   unit = "samples",
   format = (v) => `${+v.toFixed(2)}`,
   onSelect,
+  labels: labelOverrides,
+  locale = "en-US",
   className,
 }: DotHistogramProps) {
+  const labels: DotHistogramLabels = {
+    count: (_, formatted) => `${formatted} ${unit}`,
+    median: "Median",
+    p95: "p95",
+    perDot: (count) => `1 dot = ${count}`,
+    summary: (count, median, p95) => `${count}, median ${median}, p95 ${p95}`,
+    instructions: (title) => `${title}. Use arrow keys to read columns.`,
+    range: (from, to, count) => `${from} to ${to}: ${count}`,
+    ...labelOverrides,
+  };
+  const count = (n: number) => labels.count(n, String(n));
   const reduce = useReducedMotion();
   const [ref, width, measured] = useWidth();
   const [active, setActive] = useState<number | null>(null);
@@ -146,7 +178,7 @@ export function DotHistogram({
           subtitle={subtitle}
           aside={
             <span className="font-mono text-xs text-muted-foreground tabular-nums">
-              {values.length.toLocaleString("en-US")} {unit}
+              {labels.count(values.length, values.length.toLocaleString(locale))}
             </span>
           }
         />
@@ -155,19 +187,21 @@ export function DotHistogram({
             ref={ref}
             tabIndex={0}
             role="group"
-            aria-label={`${title}. Use arrow keys to read columns.`}
+            aria-label={labels.instructions(title)}
             onKeyDown={onKeyDown}
             onBlur={() => fromKeyboard && setActive(null)}
             className="relative rounded-xl outline-offset-4"
           >
+            {/* The value axis runs left to right in every language; labels keep their own direction. */}
             <svg
+              direction="ltr"
               key={measured ? "measured" : "guess"}
               visibility={measured ? undefined : "hidden"}
               role="img"
-              aria-label={`${values.length} ${unit}, median ${format(median)}, p95 ${format(p95)}${threshold !== undefined ? `, ${flagged} ${thresholdLabel}` : ""}`}
+              aria-label={`${labels.summary(count(values.length), format(median), format(p95))}${threshold !== undefined ? `, ${flagged} ${thresholdLabel}` : ""}`}
               width={width}
               height={plotH + AXIS}
-              className="block overflow-visible"
+              className="block overflow-visible [&_text]:[unicode-bidi:plaintext]"
               onPointerLeave={() => select(null, false)}
             >
               {[0.25, 0.5, 0.75].map((t) => (
@@ -304,13 +338,19 @@ export function DotHistogram({
                   }}
                 >
                   <p className="text-muted-foreground">
-                    {activeBin.flagged
-                      ? thresholdLabel
-                      : `${format(activeBin.from)}–${format(activeBin.to)}`}
+                    {activeBin.flagged ? (
+                      thresholdLabel
+                    ) : (
+                      <span dir="ltr">
+                        {format(activeBin.from)}–{format(activeBin.to)}
+                      </span>
+                    )}
                   </p>
                   <p className="font-mono text-foreground tabular-nums">
-                    {activeBin.count} {unit} ·{" "}
-                    {((activeBin.count / Math.max(values.length, 1)) * 100).toFixed(1)}%
+                    {count(activeBin.count)} ·{" "}
+                    <span dir="ltr">
+                      {((activeBin.count / Math.max(values.length, 1)) * 100).toFixed(1)}%
+                    </span>
                   </p>
                 </motion.div>
               )}
@@ -323,30 +363,36 @@ export function DotHistogram({
                 aria-hidden="true"
                 className="h-3 w-0.5 rounded-full bg-foreground/70"
               />
-              Median <span className="font-mono text-foreground">{format(median)}</span>
+              {labels.median}{" "}
+              <span dir="ltr" className="font-mono text-foreground">
+                {format(median)}
+              </span>
             </span>
             <span>
-              p95 <span className="font-mono text-foreground">{format(p95)}</span>
+              {labels.p95}{" "}
+              <span dir="ltr" className="font-mono text-foreground">
+                {format(p95)}
+              </span>
             </span>
             {threshold !== undefined && (
               <span className="flex items-center gap-1.5">
                 <span aria-hidden="true" className="size-2 rounded-full bg-negative" />
                 {thresholdLabel}{" "}
-                <span className="font-mono text-foreground tabular-nums">
+                <span dir="ltr" className="font-mono text-foreground tabular-nums">
                   {flagged} · {((flagged / Math.max(values.length, 1)) * 100).toFixed(1)}%
                 </span>
               </span>
             )}
-            {per > 1 && (
-              <span className="ml-auto">
-                1 dot = {per} {unit}
-              </span>
-            )}
+            {per > 1 && <span className="ms-auto">{labels.perDot(count(per))}</span>}
           </div>
 
           <p role="status" aria-live="polite" className="sr-only">
             {fromKeyboard && activeBin
-              ? `${format(activeBin.from)} to ${format(activeBin.to)}: ${activeBin.count} ${unit}`
+              ? labels.range(
+                  format(activeBin.from),
+                  format(activeBin.to),
+                  count(activeBin.count),
+                )
               : ""}
           </p>
         </Panel>

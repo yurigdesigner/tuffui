@@ -68,6 +68,17 @@ export function SiteWithSupport({ chat, children }: { chat: SupportChat; childre
       type: "() => void",
       description: "The end-chat button. Minimising only hides the panel.",
     },
+    {
+      name: "locale",
+      type: "string",
+      description: "BCP 47 locale for message times.",
+    },
+    {
+      name: "labels",
+      type: "Partial<SupportWidgetLabels>",
+      description:
+        'Your own UI strings (header, queue line, placeholders, launcher…) plus labels for the inner components (`chatThread`, `suggestions`, `feedback`, `ratingReasons`), for translating. Right-to-left works under `dir="rtl"`: the launcher and panel sit bottom left.',
+    },
     { name: "className", type: "string", description: "Extra classes for the root." },
   ],
   types: `type SupportPerson = { name: string; avatar?: string; role?: string };

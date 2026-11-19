@@ -9,7 +9,7 @@ import {
   ClockCounterClockwise,
 } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Button, IconButton } from "@/components/ui/action-button";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -41,7 +41,62 @@ export type CheckpointTimelineProps = {
   /** Controlled confirmation step before restoring. */
   confirming?: boolean;
   onConfirmingChange?: (confirming: boolean) => void;
+  /** UI strings, for translating the timeline. */
+  labels?: Partial<CheckpointTimelineLabels>;
   className?: string;
+};
+
+export type CheckpointTimelineLabels = {
+  title: string;
+  turns: (n: number) => string;
+  /** Under each tick. */
+  files: (n: number) => string;
+  /** Screen-reader name of a tick. */
+  tick: (n: number, label: string, files: number, at: string) => string;
+  /** Screen-reader name of the preview panel. */
+  panel: (n: number) => string;
+  /** Preview heading; `n` is an animated number. */
+  heading: (n: ReactNode) => ReactNode;
+  current: string;
+  noFiles: string;
+  /** Footer after the line counts. */
+  atCheckpoint: (n: number) => string;
+  /** Compact row; `n` and `total` are animated numbers. */
+  position: (n: ReactNode, total: ReactNode) => ReactNode;
+  previous: string;
+  next: string;
+  drops: (n: number) => string;
+  cancel: string;
+  restore: string;
+  restoreHere: string;
+  currentState: string;
+  restored: (n: number, label: string) => string;
+};
+
+const defaultLabels: CheckpointTimelineLabels = {
+  title: "Checkpoints",
+  turns: (n) => `${n} turns`,
+  files: (n) => `${n} file${n === 1 ? "" : "s"}`,
+  tick: (n, label, files, at) =>
+    `Checkpoint ${n}: ${label}, ${files} files changed, ${at}`,
+  panel: (n) => `Checkpoint ${n}`,
+  heading: (n) => <>Checkpoint {n}</>,
+  current: "current",
+  noFiles: "No files changed in this turn",
+  atCheckpoint: (n) => `at checkpoint ${n}`,
+  position: (n, total) => (
+    <>
+      Checkpoint {n} of {total}
+    </>
+  ),
+  previous: "Previous checkpoint",
+  next: "Next checkpoint",
+  drops: (n) => `Drops ${n} later checkpoint${n === 1 ? "" : "s"}`,
+  cancel: "Cancel",
+  restore: "Restore",
+  restoreHere: "Restore to here",
+  currentState: "Current state",
+  restored: (n, label) => `Restored to checkpoint ${n}: ${label}`,
 };
 
 const sum = (files: CheckpointFile[], key: "additions" | "deletions") =>
@@ -55,8 +110,17 @@ export function CheckpointTimeline({
   onRestore,
   confirming: confirmingProp,
   onConfirmingChange,
+  labels: labelOverrides,
   className,
 }: CheckpointTimelineProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  // Set from the first tick or button the user touches; flips motion and arrow keys.
+  const [rtl, setRtl] = useState(false);
+  const readDir = (el: Element | null) => {
+    if (!el) return;
+    const next = getComputedStyle(el).direction === "rtl";
+    if (next !== rtl) setRtl(next);
+  };
   const [ownSelected, setOwnSelected] = useState<string>();
   const [hovered, setHovered] = useState<string>();
   const [ownConfirming, setOwnConfirming] = useState(false);
@@ -95,9 +159,11 @@ export function CheckpointTimeline({
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    // Checkpoints run from the start side: in RTL the left arrow moves forward.
+    const step = getComputedStyle(e.currentTarget).direction === "rtl" ? -1 : 1;
     const to = {
-      ArrowLeft: selectedIndex - 1,
-      ArrowRight: selectedIndex + 1,
+      ArrowLeft: selectedIndex - step,
+      ArrowRight: selectedIndex + step,
       Home: 0,
       End: latest,
     }[e.key];
@@ -109,7 +175,7 @@ export function CheckpointTimeline({
   const restore = () => {
     setConfirming(false);
     setOwnSelected(undefined);
-    setAnnouncement(`Restored to checkpoint ${selectedIndex + 1}: ${selected.label}`);
+    setAnnouncement(labels.restored(selectedIndex + 1, selected.label));
     onRestore?.(selected);
   };
 
@@ -120,20 +186,20 @@ export function CheckpointTimeline({
       {confirming ? (
         <motion.div
           key="confirm"
-          initial={{ opacity: 0, x: 8 }}
+          initial={{ opacity: 0, x: rtl ? -8 : 8 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, transition: exit }}
           transition={enter}
           className="flex items-center gap-2"
         >
           <span className="text-[0.8125rem] text-muted-foreground">
-            Drops {dropped} later checkpoint{dropped === 1 ? "" : "s"}
+            {labels.drops(dropped)}
           </span>
           <Button onClick={() => setConfirming(false)} className="px-3">
-            Cancel
+            {labels.cancel}
           </Button>
           <Button variant="primary" onClick={restore}>
-            Restore
+            {labels.restore}
           </Button>
         </motion.div>
       ) : dropped > 0 ? (
@@ -148,14 +214,17 @@ export function CheckpointTimeline({
             variant="primary"
             icon={ArrowCounterClockwise}
             iconWeight="bold"
-            onClick={() => setConfirming(true)}
+            onClick={(e) => {
+              readDir(e.currentTarget);
+              setConfirming(true);
+            }}
           >
-            Restore to here
+            {labels.restoreHere}
           </Button>
         </motion.div>
       ) : (
         <motion.span key="current" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <StatusPill tone="positive">Current state</StatusPill>
+          <StatusPill tone="positive">{labels.currentState}</StatusPill>
         </motion.span>
       )}
     </AnimatePresence>
@@ -171,14 +240,15 @@ export function CheckpointTimeline({
     return (
       <MotionConfig reducedMotion="user">
         <div
+          ref={readDir}
           className={cn(
-            "flex w-full max-w-xl items-center gap-2 rounded-full bg-surface py-1.5 pr-1.5 pl-2",
+            "flex w-full max-w-xl items-center gap-2 rounded-full bg-surface py-1.5 ps-2 pe-1.5",
             className,
           )}
         >
           {[
-            { dir: -1, icon: CaretLeft, label: "Previous checkpoint" },
-            { dir: 1, icon: CaretRight, label: "Next checkpoint" },
+            { dir: -1, icon: CaretLeft, label: labels.previous },
+            { dir: 1, icon: CaretRight, label: labels.next },
           ].map(({ dir, icon: Icon, label }) => (
             <IconButton
               key={dir}
@@ -188,13 +258,15 @@ export function CheckpointTimeline({
               label={label}
               disabled={dir < 0 ? selectedIndex === 0 : selectedIndex === latest}
               onClick={() => select(selectedIndex + dir)}
-              className="disabled:opacity-30 [&_svg]:size-4"
+              className="disabled:opacity-30 [&_svg]:size-4 rtl:[&_svg]:-scale-x-100"
             />
           ))}
           <p className="min-w-0 flex-1 truncate px-1 text-[0.8125rem]">
             <span className="text-muted-foreground tabular-nums">
-              Checkpoint <RollingNumber value={String(selectedIndex + 1)} /> of{" "}
-              <RollingNumber value={String(data.length)} />
+              {labels.position(
+                <RollingNumber value={String(selectedIndex + 1)} />,
+                <RollingNumber value={String(data.length)} />,
+              )}
             </span>
             {!confirming && ` · ${selected.label}`}
           </p>
@@ -207,20 +279,24 @@ export function CheckpointTimeline({
 
   return (
     <MotionConfig reducedMotion="user">
-      <Shell aria-label="Checkpoints" className={cn("max-w-xl", className)}>
+      <Shell
+        ref={readDir}
+        aria-label={labels.title}
+        className={cn("max-w-xl", className)}
+      >
         <ShellHeader
           icon={ClockCounterClockwise}
-          title="Checkpoints"
+          title={labels.title}
           aside={
             <span className="text-[0.8125rem] text-muted-foreground tabular-nums">
-              {data.length} turns
+              {labels.turns(data.length)}
             </span>
           }
         />
         <Panel className="p-4">
           <div
             role="tablist"
-            aria-label="Checkpoints"
+            aria-label={labels.title}
             onKeyDown={onKeyDown}
             onMouseLeave={() => setHovered(undefined)}
             className="relative flex items-start justify-between"
@@ -231,8 +307,8 @@ export function CheckpointTimeline({
             />
             <span
               aria-hidden="true"
-              className="absolute inset-x-6 top-3 h-2 -translate-y-1/2 rounded-full bg-foreground/30 bg-[image:repeating-linear-gradient(-45deg,rgb(255_255_255/0.16)_0_3px,transparent_3px_7px)] transition-[clip-path] duration-300 motion-reduce:transition-none"
-              // Clip instead of scaleX, so the stripes keep their angle.
+              className="absolute inset-x-6 top-3 h-2 -translate-y-1/2 rounded-full bg-foreground/30 bg-[image:repeating-linear-gradient(-45deg,rgb(255_255_255/0.16)_0_3px,transparent_3px_7px)] transition-[clip-path] duration-300 motion-reduce:transition-none rtl:-scale-x-100"
+              // Clip instead of scaleX, so the stripes keep their angle. Mirrored in RTL.
               style={{
                 transitionTimingFunction: CSS_EASE_IN_OUT,
                 clipPath: `inset(0 ${latest ? 100 - (selectedIndex / latest) * 100 : 100}% 0 0 round 9999px)`,
@@ -252,7 +328,12 @@ export function CheckpointTimeline({
                     type="button"
                     role="tab"
                     aria-selected={active}
-                    aria-label={`Checkpoint ${i + 1}: ${checkpoint.label}, ${changed} files changed, ${checkpoint.at}`}
+                    aria-label={labels.tick(
+                      i + 1,
+                      checkpoint.label,
+                      changed,
+                      checkpoint.at,
+                    )}
                     tabIndex={active ? 0 : -1}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{
@@ -276,22 +357,18 @@ export function CheckpointTimeline({
                       {i + 1}
                     </span>
                     <span className="font-mono text-[0.625rem] text-muted-foreground tabular-nums">
-                      {changed > 0 ? `${changed} file${changed === 1 ? "" : "s"}` : "—"}
+                      {changed > 0 ? labels.files(changed) : "—"}
                     </span>
                   </motion.button>
                 );
               })}
             </AnimatePresence>
           </div>
-          <div
-            role="tabpanel"
-            aria-label={`Checkpoint ${shownIndex + 1}`}
-            className="mt-4"
-          >
+          <div role="tabpanel" aria-label={labels.panel(shownIndex + 1)} className="mt-4">
             <p className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
               <span>
-                Checkpoint <RollingNumber value={String(shownIndex + 1)} />
-                {shownIndex === latest && " · current"}
+                {labels.heading(<RollingNumber value={String(shownIndex + 1)} />)}
+                {shownIndex === latest && ` · ${labels.current}`}
               </span>
               <span>{shown.at}</span>
             </p>
@@ -305,8 +382,10 @@ export function CheckpointTimeline({
                       className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 font-mono text-xs"
                     >
                       <span className="min-w-0 flex-1 truncate">{f.path}</span>
-                      <span className="text-positive tabular-nums">+{f.additions}</span>
-                      <span className="w-8 text-right text-negative tabular-nums">
+                      <span dir="ltr" className="text-positive tabular-nums">
+                        +{f.additions}
+                      </span>
+                      <span dir="ltr" className="w-8 text-end text-negative tabular-nums">
                         −{f.deletions}
                       </span>
                     </li>
@@ -315,16 +394,18 @@ export function CheckpointTimeline({
               </Inset>
             ) : (
               <Inset className="mt-3 px-3 py-2.5 text-xs text-muted-foreground">
-                No files changed in this turn
+                {labels.noFiles}
               </Inset>
             )}
           </div>
         </Panel>
-        <footer className="flex min-h-12 items-center justify-between gap-3 py-1.5 pr-1.5 pl-3.5 text-[0.8125rem] text-muted-foreground">
+        <footer className="flex min-h-12 items-center justify-between gap-3 py-1.5 ps-3.5 pe-1.5 text-[0.8125rem] text-muted-foreground">
           <span className="font-mono text-xs tabular-nums">
-            <span className="text-positive">+{sum(selected.files, "additions")}</span>{" "}
-            <span className="text-negative">−{sum(selected.files, "deletions")}</span> at
-            checkpoint {selectedIndex + 1}
+            <span dir="ltr">
+              <span className="text-positive">+{sum(selected.files, "additions")}</span>{" "}
+              <span className="text-negative">−{sum(selected.files, "deletions")}</span>
+            </span>{" "}
+            {labels.atCheckpoint(selectedIndex + 1)}
           </span>
           {restoreControls}
         </footer>

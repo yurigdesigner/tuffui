@@ -43,6 +43,12 @@ export function AnswerCode({ block }: { block: { code: string; lang: string; fil
       type: "(code: string) => void",
       description: "Called after the code is copied to the clipboard.",
     },
+    {
+      name: "labels",
+      type: "Partial<CodeBlockLabels>",
+      description:
+        'Your own UI strings (wrap, copy, show all, collapse and screen-reader text), for translating. Under `dir="rtl"` the header mirrors and the code stays left to right.',
+    },
     { name: "className", type: "string", description: "Extra classes for the shell." },
   ],
   types: `type CodeLanguage = "ts" | "tsx" | "js" | "json" | "bash" | "python" | "text";

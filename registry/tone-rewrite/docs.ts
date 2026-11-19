@@ -162,8 +162,9 @@ export function RewriteSelection({ doc, selection }: { doc: Doc; selection: stri
     },
     {
       name: "labels",
-      type: "{ formal?; casual?; brief?; detailed? }",
-      description: "Axis labels on the pad.",
+      type: "Partial<ToneRewriteLabels>",
+      description:
+        'Your own UI strings: pad axes and register names, buttons, status row and screen-reader text, for translating. Right-to-left works under `dir="rtl"`; the pad mirrors, so formal sits at the start edge.',
     },
     {
       name: "status",
@@ -238,6 +239,12 @@ export function RewriteSelection({ doc, selection }: { doc: Doc; selection: stri
       name: "onVoice",
       type: "() => void",
       description: "Shows the mic button.",
+    },
+    {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "Locale for word counts.",
     },
     {
       name: "className",

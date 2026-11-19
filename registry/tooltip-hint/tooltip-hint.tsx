@@ -21,16 +21,17 @@ export type TooltipProps = {
   className?: string;
 };
 
+// `start` and `end` follow the reading direction, so they swap sides under dir="rtl".
 const placement = {
   top: {
-    start: "bottom-full left-0 mb-1.5 origin-bottom-left",
+    start: "bottom-full start-0 mb-1.5 ltr:origin-bottom-left rtl:origin-bottom-right",
     center: "bottom-full left-1/2 mb-1.5 -translate-x-1/2 origin-bottom",
-    end: "bottom-full right-0 mb-1.5 origin-bottom-right",
+    end: "bottom-full end-0 mb-1.5 ltr:origin-bottom-right rtl:origin-bottom-left",
   },
   bottom: {
-    start: "top-full left-0 mt-1.5 origin-top-left",
+    start: "top-full start-0 mt-1.5 ltr:origin-top-left rtl:origin-top-right",
     center: "top-full left-1/2 mt-1.5 -translate-x-1/2 origin-top",
-    end: "top-full right-0 mt-1.5 origin-top-right",
+    end: "top-full end-0 mt-1.5 ltr:origin-top-right rtl:origin-top-left",
   },
 } as const;
 

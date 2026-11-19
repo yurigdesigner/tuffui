@@ -56,7 +56,7 @@ export type ShellHeaderProps = Omit<DivProps, "title"> & {
   icon?: Icon;
   title: React.ReactNode;
   subtitle?: React.ReactNode;
-  /** Right side: a stat, a pill or actions. Vertically centered with the title. */
+  /** End side (right in LTR): a stat, a pill or actions. Vertically centered with the title. */
   aside?: React.ReactNode;
   /** Heading level for the title. */
   as?: "h2" | "h3" | "h4";
@@ -77,11 +77,11 @@ export function ShellHeader({
 }: ShellHeaderProps) {
   return (
     <div
-      className={cn("flex items-center gap-3 pt-1.5 pr-3.5 pb-3 pl-1.5", className)}
+      className={cn("flex items-center gap-3 ps-1.5 pe-3.5 pt-1.5 pb-3", className)}
       {...props}
     >
       {icon && <IconTile icon={icon} />}
-      <div className={cn("min-w-0 flex-1", !icon && "pl-2")}>
+      <div className={cn("min-w-0 flex-1", !icon && "ps-2")}>
         <Heading className="truncate text-[0.9375rem] font-medium">{title}</Heading>
         {subtitle && (
           <p className="truncate text-[0.8125rem] text-muted-foreground">{subtitle}</p>

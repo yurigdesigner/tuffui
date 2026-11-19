@@ -43,6 +43,18 @@ export function MetricsAnswer({ m }: { m: Metrics }) {
       description: "Makes each card a button, e.g. to open a chart for that metric.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for the delta and goal percentages.",
+    },
+    {
+      name: "labels",
+      type: "Partial<StatGridLabels>",
+      description:
+        'Your own screen-reader strings (better, worse, % of goal), for translating. Right-to-left works under `dir="rtl"`; sparklines still run left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

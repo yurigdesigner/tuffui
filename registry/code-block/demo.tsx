@@ -1,6 +1,32 @@
 "use client";
 
-import { CodeBlock } from "./code-block";
+import type { DemoLocale } from "@/components/docs/demo";
+import { CodeBlock, type CodeBlockLabels } from "./code-block";
+
+/** Only the chrome is translated; code stays as written. */
+const labels: Record<DemoLocale, Partial<CodeBlockLabels> | undefined> = {
+  en: undefined,
+  he: {
+    code: "קוד",
+    wrap: "גלישת שורות",
+    unwrap: "ביטול גלישת שורות",
+    copy: "העתקת הקוד",
+    copied: "הועתק",
+    copiedStatus: "הקוד הועתק",
+    showAll: (lines) => `הצגת כל ${lines} השורות`,
+    collapse: "כיווץ",
+  },
+  ar: {
+    code: "الشيفرة",
+    wrap: "التفاف الأسطر",
+    unwrap: "إيقاف التفاف الأسطر",
+    copy: "نسخ الشيفرة",
+    copied: "تم النسخ",
+    copiedStatus: "تم نسخ الشيفرة",
+    showAll: (lines) => `عرض كل الأسطر (${lines})`,
+    collapse: "طيّ",
+  },
+};
 
 const short = `import { createCache } from "./cache";
 
@@ -22,7 +48,13 @@ const long = Array.from(
 `,
 ).join("\n");
 
-export default function CodeBlockDemo({ variant }: { variant?: string }) {
+export default function CodeBlockDemo({
+  variant,
+  locale = "en",
+}: {
+  variant?: string;
+  locale?: DemoLocale;
+}) {
   if (variant === "Long") {
     return (
       <CodeBlock
@@ -33,6 +65,7 @@ export default function CodeBlockDemo({ variant }: { variant?: string }) {
           filename: "routes.gen.ts",
         }}
         collapseAfter={12}
+        labels={labels[locale]}
       />
     );
   }
@@ -45,6 +78,7 @@ export default function CodeBlockDemo({ variant }: { variant?: string }) {
         filename: "src/site/images.ts",
         highlight: [5, 6, 7],
       }}
+      labels={labels[locale]}
     />
   );
 }

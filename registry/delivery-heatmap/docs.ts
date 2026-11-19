@@ -123,6 +123,18 @@ export function WebhookDeliveries({ day }: { day: string }) {
         "Called when a cell is clicked, or picked with Enter. Cells take arrow keys, Home and End; hover and focus show the tooltip on their own.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for the default count format.",
+    },
+    {
+      name: "strings",
+      type: "Partial<DeliveryHeatmapLabels>",
+      description:
+        'Your own UI strings (range switch, legend, footer, tooltip, screen reader text), for translating. Named `strings` because `labels` holds the columns. Right-to-left works under `dir="rtl"`; the plot itself stays left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

@@ -1,9 +1,14 @@
 "use client";
 
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, wait, type MockStep } from "@/registry/use-mock-run/use-mock-run";
-import { ToolApprovalQueue, type ToolApprovalRequest } from "./tool-approval-queue";
+import {
+  ToolApprovalQueue,
+  type ToolApprovalQueueLabels,
+  type ToolApprovalRequest,
+} from "./tool-approval-queue";
 
-const requests: ToolApprovalRequest[] = [
+const requestsEn: ToolApprovalRequest[] = [
   {
     id: "changelog",
     tool: "fs.write",
@@ -62,6 +67,103 @@ const requests: ToolApprovalRequest[] = [
   },
 ];
 
+/** Keeps a Latin name or version in reading order inside RTL text. */
+const ltr = (text: string) => `⁦${text}⁩`;
+
+/** Request titles and UI strings per language; commands, diffs and JSON stay as they are. */
+const copy: Record<
+  DemoLocale,
+  { titles?: Record<string, string>; labels?: Partial<ToolApprovalQueueLabels> }
+> = {
+  en: {},
+  he: {
+    titles: {
+      changelog: `הוספת הגרסה ${ltr("2.4.0")} ליומן השינויים`,
+      release: "יצירת ה־release ב־GitHub",
+      slack: `הודעה על הגרסה ב־${ltr("#releases")}`,
+      publish: "פרסום ה־SDK ב־npm",
+    },
+    labels: {
+      title: "בקשות הרשאה",
+      waiting: (n) => <>{n} ממתינות לך</>,
+      allClear: "הכול טופל",
+      selected: (n) => <>{n} נבחרו</>,
+      clear: "ניקוי",
+      deny: "דחייה",
+      approve: "אישור",
+      approveFor: (scope) =>
+        ({ once: "אישור חד־פעמי", session: "אישור לסשן", always: "אישור תמיד" })[scope],
+      grantFor: "תוקף ההרשאה",
+      scopes: { once: "פעם אחת", session: "הסשן הזה", always: "תמיד" },
+      risk: { high: "סיכון גבוה", medium: "סיכון בינוני", low: "סיכון נמוך" },
+      riskShort: { high: "גבוה", medium: "בינוני", low: "נמוך" },
+      requests: "בקשות",
+      emptyTitle: "אין מה לבדוק",
+      emptyDescription: "בקשות חדשות יופיעו כאן.",
+      select: (title) => `בחירת ${title}`,
+      resolved: (n) => `טופלו · ${n}`,
+      outcome: (decision, scope) =>
+        decision === "approved"
+          ? { once: "אושר פעם אחת", session: "אושר לסשן", always: "אושר תמיד" }[scope]
+          : "נדחה",
+      undo: "ביטול",
+      decided: (title, count, decision, scope) => {
+        const subject = count === 1 ? title : `${count} בקשות`;
+        if (decision === "denied") return `${subject}: נדחה`;
+        return `${subject}: ${{ once: "אושר פעם אחת", session: "אושר לסשן", always: "אושר תמיד" }[scope]}`;
+      },
+      backInQueue: (title) => `${title} חזר לתור`,
+    },
+  },
+  ar: {
+    titles: {
+      changelog: `إضافة قسم الإصدار ${ltr("2.4.0")} إلى سجل التغييرات`,
+      release: "إنشاء الإصدار على GitHub",
+      slack: `الإعلان عن الإصدار في ${ltr("#releases")}`,
+      publish: "نشر الـ SDK على npm",
+    },
+    labels: {
+      title: "طلبات الأذونات",
+      waiting: (n) => <>{n} بانتظارك</>,
+      allClear: "لا شيء معلّق",
+      selected: (n) => <>تم تحديد {n}</>,
+      clear: "مسح",
+      deny: "رفض",
+      approve: "موافقة",
+      approveFor: (scope) =>
+        ({
+          once: "موافقة لمرة واحدة",
+          session: "موافقة لهذه الجلسة",
+          always: "موافقة دائمة",
+        })[scope],
+      grantFor: "مدة الإذن",
+      scopes: { once: "مرة واحدة", session: "هذه الجلسة", always: "دائمًا" },
+      risk: { high: "خطورة عالية", medium: "خطورة متوسطة", low: "خطورة منخفضة" },
+      riskShort: { high: "عالية", medium: "متوسطة", low: "منخفضة" },
+      requests: "الطلبات",
+      emptyTitle: "لا شيء للمراجعة",
+      emptyDescription: "ستظهر الطلبات الجديدة هنا.",
+      select: (title) => `تحديد ${title}`,
+      resolved: (n) => `تمت معالجتها · ${n}`,
+      outcome: (decision, scope) =>
+        decision === "approved"
+          ? {
+              once: "تمت الموافقة لمرة واحدة",
+              session: "تمت الموافقة لهذه الجلسة",
+              always: "تمت الموافقة دائمًا",
+            }[scope]
+          : "مرفوض",
+      undo: "تراجع",
+      decided: (title, count, decision, scope) => {
+        const subject = count === 1 ? title : `${count} طلبات`;
+        if (decision === "denied") return `${subject}: مرفوض`;
+        return `${subject}: ${{ once: "تمت الموافقة لمرة واحدة", session: "تمت الموافقة لهذه الجلسة", always: "تمت الموافقة دائمًا" }[scope]}`;
+      },
+      backInQueue: (title) => `أُعيد ${title} إلى قائمة الانتظار`,
+    },
+  },
+};
+
 type State = { data: ToolApprovalRequest[]; selected: string[] };
 
 const resolve = (ids: string[], status: "approved" | "denied") => (s: State) => ({
@@ -69,7 +171,7 @@ const resolve = (ids: string[], status: "approved" | "denied") => (s: State) => 
   selected: s.selected.filter((id) => !ids.includes(id)),
 });
 
-const script: MockStep<State>[] = [
+const script = (requests: ToolApprovalRequest[]): MockStep<State>[] => [
   // Requests arrive while the agent works.
   ...requests.map((r, i) => ({
     delay: i ? 700 : 400,
@@ -85,14 +187,20 @@ const script: MockStep<State>[] = [
 export default function ToolApprovalQueueDemo({
   variant,
   autoplay = true,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
+  const { titles, labels } = copy[locale];
+  const requests = titles
+    ? requestsEn.map((r) => ({ ...r, title: titles[r.id] }))
+    : requestsEn;
   const { state, setState } = useMockRun<State>(
     // Paused thumbnails show the full queue.
     { data: autoplay ? [] : requests, selected: [] },
-    script,
+    script(requests),
     { autoplay },
   );
 
@@ -104,6 +212,7 @@ export default function ToolApprovalQueueDemo({
         data={state.data}
         layout={variant === "Flat" ? "flat" : "grouped"}
         defaultExpanded="publish"
+        labels={labels}
         selected={state.selected}
         onSelectedChange={(selected) => setState((s) => ({ ...s, selected }))}
         onUndo={(request) =>

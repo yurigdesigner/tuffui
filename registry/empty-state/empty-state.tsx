@@ -12,6 +12,13 @@ export type EmptyStateAction = {
   iconWeight?: "fill" | "bold";
 };
 
+export type EmptyStateLabels = {
+  /** The automatic action for `tone="error"` with `onRetry`. */
+  retry: string;
+};
+
+const defaultLabels: EmptyStateLabels = { retry: "Retry" };
+
 export type EmptyStateProps = {
   /** Phosphor icon, filled. Defaults to a warning for `tone="error"`. */
   icon?: Icon;
@@ -25,6 +32,8 @@ export type EmptyStateProps = {
   onRetry?: () => void;
   /** Tighter spacing and a row layout, for empty lists inside a panel. */
   compact?: boolean;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<EmptyStateLabels>;
   className?: string;
 };
 
@@ -37,15 +46,17 @@ export function EmptyState({
   tone = "neutral",
   onRetry,
   compact = false,
+  labels: labelOverrides,
   className,
 }: EmptyStateProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const error = tone === "error";
   const IconComponent = icon ?? (error ? WarningCircle : undefined);
   const primary =
     action ??
     (error && onRetry
       ? {
-          label: "Retry",
+          label: labels.retry,
           onClick: onRetry,
           icon: ArrowClockwise,
           iconWeight: "bold" as const,
@@ -58,7 +69,7 @@ export function EmptyState({
       className={cn(
         "flex",
         compact
-          ? "items-center gap-3 px-3 py-3 text-left"
+          ? "items-center gap-3 px-3 py-3 text-start"
           : "flex-col items-center px-6 py-10 text-center",
         className,
       )}

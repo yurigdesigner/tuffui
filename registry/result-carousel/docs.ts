@@ -57,6 +57,12 @@ export function HotelsAnswer({ results }: { results: Hotel[] }) {
       description: "Makes the title and image open the item.",
     },
     {
+      name: "labels",
+      type: "Partial<ResultCarouselLabels>",
+      description:
+        'Your own UI strings (results, Previous / Next, screen-reader text). Right-to-left works under `dir="rtl"`; paging and the arrows flip.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

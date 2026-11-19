@@ -38,7 +38,8 @@ export function RollingNumber({
   const chars = Array.from(text);
 
   return (
-    <span className={cn("inline-flex tabular-nums", className)}>
+    // Numbers always read left to right, even inside RTL text.
+    <span dir="ltr" className={cn("inline-flex tabular-nums", className)}>
       <span className="sr-only">{text}</span>
       <span aria-hidden="true" className="inline-flex">
         {chars.map((char, i) => {

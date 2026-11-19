@@ -13,6 +13,14 @@ export type SliderMark = { value: number; label?: string };
 
 type Value = number | [number, number];
 
+export type SliderLabels = {
+  /** Screen-reader names of the two thumbs in a range. */
+  minimum: string;
+  maximum: string;
+};
+
+const defaultLabels: SliderLabels = { minimum: "Minimum", maximum: "Maximum" };
+
 export type SliderProps<V extends Value> = {
   /** A number for one thumb, a `[low, high]` pair for a range. */
   value?: V;
@@ -31,6 +39,8 @@ export type SliderProps<V extends Value> = {
   /** Formats the bubble and aria-valuetext, e.g. `(v) => v.toFixed(1)`. */
   format?: (value: number) => string;
   disabled?: boolean;
+  /** UI strings, for translating. */
+  labels?: Partial<SliderLabels>;
   className?: string;
 };
 
@@ -50,8 +60,10 @@ export function Slider<V extends Value>({
   label,
   format = (v) => String(v),
   disabled,
+  labels: labelOverrides,
   className,
 }: SliderProps<V>) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const [inner, setInner] = useState<V>(defaultValue);
   const value = valueProp ?? inner;
   const range = Array.isArray(value);
@@ -85,9 +97,14 @@ export function Slider<V extends Value>({
     if (next[i] !== values[i] || commit) emit(next, commit);
   };
 
+  // Under dir="rtl" the track runs right to left: min sits at the right end.
+  const isRtl = () =>
+    !!track.current && getComputedStyle(track.current).direction === "rtl";
+
   const fromPointer = (clientX: number) => {
     const rect = track.current!.getBoundingClientRect();
-    return min + clamp((clientX - rect.left) / rect.width, 0, 1) * (max - min);
+    const along = isRtl() ? rect.right - clientX : clientX - rect.left;
+    return min + clamp(along / rect.width, 0, 1) * (max - min);
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -104,10 +121,11 @@ export function Slider<V extends Value>({
 
   const onKeyDown = (i: number) => (e: React.KeyboardEvent) => {
     const big = Math.max(step, (max - min) / 10);
+    const right = isRtl() ? -step : step;
     const moves: Record<string, number> = {
-      ArrowRight: values[i] + step,
+      ArrowRight: values[i] + right,
       ArrowUp: values[i] + step,
-      ArrowLeft: values[i] - step,
+      ArrowLeft: values[i] - right,
       ArrowDown: values[i] - step,
       PageUp: values[i] + big,
       PageDown: values[i] - big,
@@ -153,8 +171,8 @@ export function Slider<V extends Value>({
         <div
           className="absolute h-1.5 rounded-full bg-brand"
           style={{
-            left: `${lo}%`,
-            right: `${100 - hi}%`,
+            insetInlineStart: `${lo}%`,
+            insetInlineEnd: `${100 - hi}%`,
             backgroundImage: striped ? STRIPES : undefined,
             transition: glide,
           }}
@@ -165,7 +183,7 @@ export function Slider<V extends Value>({
             role="slider"
             tabIndex={disabled ? -1 : 0}
             aria-labelledby={labelId}
-            aria-label={range ? (i === 0 ? "Minimum" : "Maximum") : undefined}
+            aria-label={range ? (i === 0 ? labels.minimum : labels.maximum) : undefined}
             aria-valuemin={range && i === 1 ? values[0] : min}
             aria-valuemax={range && i === 0 ? values[1] : max}
             aria-valuenow={v}
@@ -174,10 +192,10 @@ export function Slider<V extends Value>({
             onKeyDown={onKeyDown(i)}
             onFocus={() => setActive(i)}
             onBlur={() => !dragging && setActive(null)}
-            className="group absolute top-1/2 -translate-x-1/2 -translate-y-1/2 outline-none"
+            className="group absolute top-1/2 -translate-x-1/2 -translate-y-1/2 outline-none rtl:translate-x-1/2"
             style={{
-              left: `${pct(v)}%`,
-              transition: dragging ? "none" : `left 150ms ${EASE}`,
+              insetInlineStart: `${pct(v)}%`,
+              transition: dragging ? "none" : `left 150ms ${EASE}, right 150ms ${EASE}`,
             }}
           >
             <span
@@ -211,10 +229,10 @@ export function Slider<V extends Value>({
                 m.value <= min
                   ? ""
                   : m.value >= max
-                    ? "-translate-x-full"
-                    : "-translate-x-1/2",
+                    ? "-translate-x-full rtl:translate-x-full"
+                    : "-translate-x-1/2 rtl:translate-x-1/2",
               )}
-              style={{ left: `${pct(m.value)}%` }}
+              style={{ insetInlineStart: `${pct(m.value)}%` }}
             >
               {m.label ?? format(m.value)}
             </span>

@@ -50,7 +50,10 @@ export function Segmented<T extends string = string>({
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    // Left and right follow the reading direction: ArrowLeft moves forward in RTL.
+    const rtl = !!ref.current && getComputedStyle(ref.current).direction === "rtl";
+    const side = rtl ? -1 : 1;
+    const step = { ArrowRight: side, ArrowDown: 1, ArrowLeft: -side, ArrowUp: -1 }[e.key];
     if (!step) return;
     e.preventDefault();
     const enabled = options.filter((o) => !o.disabled);

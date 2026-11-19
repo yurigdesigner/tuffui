@@ -67,6 +67,17 @@ export function TripPlanner({ trip, run }: { trip: Trip; run: AgentRun }) {
       type: "(open: boolean) => void",
       description: "Called when the side panel is shown or hidden.",
     },
+    {
+      name: "locale",
+      type: "string",
+      description: "BCP 47 locale for message times and the progress bar.",
+    },
+    {
+      name: "labels",
+      type: "Partial<BookingAssistantLabels>",
+      description:
+        'Your own UI strings (summary panel, toggle, placeholder…) plus labels for the inner components (`chatThread`, `composer`), for translating. Right-to-left works under `dir="rtl"`: the summary sits on the left.',
+    },
     { name: "className", type: "string", description: "Extra classes for the root." },
   ],
   types: `type BookingAssistantData = {

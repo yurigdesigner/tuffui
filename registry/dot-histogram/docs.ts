@@ -57,6 +57,17 @@ export function LatencyAnswer({ runs }: { runs: Run[] }) {
       description: "Called when a column is hovered or reached with the arrow keys.",
     },
     {
+      name: "labels",
+      type: "Partial<DotHistogramLabels>",
+      description:
+        'Your own UI strings (sample count, median, footer note, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the value axis still runs left to right.',
+    },
+    {
+      name: "locale",
+      type: "string",
+      description: "BCP 47 locale for the sample count in the header. Defaults to en-US.",
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

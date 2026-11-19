@@ -38,17 +38,43 @@ function matches(file: File, accept?: string) {
   });
 }
 
+export type DropZoneLabels = {
+  release: string;
+  browse: string;
+  /** Rejection reasons. Sizes come formatted, e.g. "10.0 MB". */
+  unsupported: string;
+  tooLarge: (max: string) => string;
+  tooMany: string;
+  /** Default hint parts: one accepted type, and the size limit. */
+  type: (rule: string) => string;
+  upTo: (max: string) => string;
+};
+
+const defaultLabels: DropZoneLabels = {
+  release: "Release to attach",
+  browse: "Browse files",
+  unsupported: "Type not supported",
+  tooLarge: (max) => `Larger than ${max}`,
+  tooMany: "Too many files",
+  type: (rule) => describeType(rule),
+  upTo: (max) => `up to ${max}`,
+};
+
 /** Splits files into accepted and rejected with a reason for each rejection. */
-export function checkFiles(files: File[], rules: FileRules) {
+export function checkFiles(
+  files: File[],
+  rules: FileRules,
+  labelOverrides?: Partial<DropZoneLabels>,
+) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const accepted: File[] = [];
   const rejected: RejectedFile[] = [];
   const limit = rules.multiple === false ? 1 : (rules.maxFiles ?? Infinity);
   for (const file of files) {
-    if (!matches(file, rules.accept))
-      rejected.push({ file, reason: "Type not supported" });
+    if (!matches(file, rules.accept)) rejected.push({ file, reason: labels.unsupported });
     else if (rules.maxSize && file.size > rules.maxSize)
-      rejected.push({ file, reason: `Larger than ${formatBytes(rules.maxSize)}` });
-    else if (accepted.length >= limit) rejected.push({ file, reason: "Too many files" });
+      rejected.push({ file, reason: labels.tooLarge(formatBytes(rules.maxSize)) });
+    else if (accepted.length >= limit) rejected.push({ file, reason: labels.tooMany });
     else accepted.push(file);
   }
   return { accepted, rejected };
@@ -102,6 +128,8 @@ export type DropZoneProps = FileRules & {
   /** Hint under the title; defaults to the accepted types and size limit. */
   hint?: string;
   disabled?: boolean;
+  /** UI strings, for translating the zone and its rejection reasons. */
+  labels?: Partial<DropZoneLabels>;
   className?: string;
 };
 
@@ -112,23 +140,28 @@ export function DropZone({
   title = "Drop files here",
   hint,
   disabled,
+  labels: labelOverrides,
   className,
   ...rules
 }: DropZoneProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const input = useRef<HTMLInputElement>(null);
   const [rejected, setRejected] = useState<RejectedFile[]>([]);
   const statusId = useId();
 
   const take = (files: File[]) => {
-    const result = checkFiles(files, rules);
+    const result = checkFiles(files, rules, labels);
     setRejected(result.rejected);
     if (result.accepted.length) onFiles(result.accepted);
     if (result.rejected.length) onReject?.(result.rejected);
   };
   const { dragging, handlers } = useDragging(take);
   const defaultHint = [
-    rules.accept?.split(",").map(describeType).join(", "),
-    rules.maxSize && `up to ${formatBytes(rules.maxSize)}`,
+    rules.accept
+      ?.split(",")
+      .map((rule) => labels.type(rule.trim()))
+      .join(", "),
+    rules.maxSize && labels.upTo(formatBytes(rules.maxSize)),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -156,9 +189,7 @@ export function DropZone({
             <FileArrowUp weight="fill" aria-hidden="true" className="size-5" />
           </motion.span>
           <div>
-            <p className="text-sm font-medium">
-              {dragging ? "Release to attach" : title}
-            </p>
+            <p className="text-sm font-medium">{dragging ? labels.release : title}</p>
             {(hint ?? defaultHint) && (
               <p className="mt-0.5 text-[0.8125rem] text-muted-foreground">
                 {hint ?? defaultHint}
@@ -171,7 +202,7 @@ export function DropZone({
             aria-describedby={statusId}
             onClick={() => input.current?.click()}
           >
-            Browse files
+            {labels.browse}
           </Button>
           <input
             ref={input}
@@ -232,6 +263,8 @@ export type DropOverlayProps = FileRules & {
   title?: string;
   /** Shows the overlay regardless of dragging, e.g. for a page-level drag you track yourself. */
   show?: boolean;
+  /** Rejection reasons, for translating. */
+  labels?: Partial<DropZoneLabels>;
   children: React.ReactNode;
   className?: string;
 };
@@ -245,12 +278,13 @@ export function DropOverlay({
   onReject,
   title = "Drop to attach to this chat",
   show,
+  labels,
   children,
   className,
   ...rules
 }: DropOverlayProps) {
   const drag = useDragging((files) => {
-    const { accepted, rejected } = checkFiles(files, rules);
+    const { accepted, rejected } = checkFiles(files, rules, labels);
     if (accepted.length) onFiles(accepted);
     if (rejected.length) onReject?.(rejected);
   });

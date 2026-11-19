@@ -53,6 +53,18 @@ export function Billing({ report }: { report: UsageReport }) {
       description: "Heading and accessible name of the card.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for dates, costs and percentages.",
+    },
+    {
+      name: "labels",
+      type: "Partial<UsageSummaryLabels>",
+      description:
+        'Your own UI strings (subtitle, budget states, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the days still run left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

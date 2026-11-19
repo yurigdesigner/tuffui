@@ -4,6 +4,7 @@
 
 import { ArrowsIn, Lock, Warning } from "@phosphor-icons/react";
 import { MotionConfig } from "motion/react";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/action-button";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { Tag } from "@/components/ui/status-pill";
@@ -30,7 +31,52 @@ export type ContextWindowMeterProps = {
   compacting?: boolean;
   /** `card` for a panel, `inline` for a single row in a composer footer. */
   variant?: "card" | "inline";
+  /** BCP 47 locale for token counts and percentages, e.g. `he-IL`. */
+  locale?: string;
+  /** UI strings, for translating the meter. */
+  labels?: Partial<ContextWindowMeterLabels>;
   className?: string;
+};
+
+export type ContextWindowMeterLabels = {
+  region: string;
+  meter: string;
+  /** Spoken meter value; numbers come formatted. */
+  valueText: (used: string, limit: string, percent: string) => string;
+  compact: string;
+  compacting: string;
+  compactAria: string;
+  compactingAria: string;
+  approaching: string;
+  nearLimit: string;
+  context: string;
+  /** Line next to the big number; `percent` is the animated number. */
+  ofLimit: (limit: string, percent: ReactNode) => ReactNode;
+  warningZone: (left: string) => string;
+  /** `percent` is the warning zone's share, e.g. "20%". */
+  tinted: (percent: string) => string;
+  pinned: string;
+};
+
+const defaultLabels: ContextWindowMeterLabels = {
+  region: "Context window",
+  meter: "Context window usage",
+  valueText: (used, limit, percent) => `${used} of ${limit} tokens (${percent})`,
+  compact: "Compact",
+  compacting: "Compacting…",
+  compactAria: "Compact context",
+  compactingAria: "Compacting context",
+  approaching: "Approaching context limit",
+  nearLimit: "Near limit",
+  context: "Context",
+  ofLimit: (limit, percent) => (
+    <>
+      of {limit} · {percent} full
+    </>
+  ),
+  warningZone: (left) => `In the warning zone — ${left} tokens left`,
+  tinted: (percent) => `Tinted cells mark the last ${percent}`,
+  pinned: "Pinned",
 };
 
 // Segment colors: the brand blue, indigo, purple, teal, green, gray.
@@ -61,8 +107,13 @@ export function ContextWindowMeter({
   onCompact,
   compacting = false,
   variant = "card",
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: ContextWindowMeterProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const pct = (n: number) =>
+    new Intl.NumberFormat(locale, { style: "percent" }).format(n / 100);
   const { limit, segments } = data;
   const used = segments.reduce((n, s) => n + s.tokens, 0);
   const ratio = used / limit;
@@ -79,11 +130,15 @@ export function ContextWindowMeter({
   const grid = (
     <div
       role="meter"
-      aria-label="Context window usage"
+      aria-label={labels.meter}
       aria-valuemin={0}
       aria-valuemax={limit}
       aria-valuenow={used}
-      aria-valuetext={`${used.toLocaleString("en-US")} of ${limit.toLocaleString("en-US")} tokens (${percent}%)`}
+      aria-valuetext={labels.valueText(
+        used.toLocaleString(locale),
+        limit.toLocaleString(locale),
+        pct(percent),
+      )}
       className={cn(
         "grid",
         inline ? "w-28 grid-cols-[repeat(20,1fr)] gap-px" : "grid-cols-20 gap-1",
@@ -113,21 +168,21 @@ export function ContextWindowMeter({
       loading={compacting}
       icon={ArrowsIn}
       iconWeight="bold"
-      aria-label={compacting ? "Compacting context" : "Compact context"}
+      aria-label={compacting ? labels.compactingAria : labels.compactAria}
       className={cn(
         "disabled:opacity-70",
         warning && "bg-warning/15 text-warning hover:bg-warning/25",
         inline && "h-6 gap-1.5 px-2.5 text-[0.6875rem]",
       )}
     >
-      {compacting ? "Compacting…" : "Compact"}
+      {compacting ? labels.compacting : labels.compact}
     </Button>
   );
 
   const announcement = compacting
-    ? "Compacting context"
+    ? labels.compactingAria
     : warning
-      ? "Approaching context limit"
+      ? labels.approaching
       : "";
 
   if (inline) {
@@ -138,11 +193,11 @@ export function ContextWindowMeter({
             <Warning
               weight="fill"
               className="size-3.5 text-warning"
-              aria-label="Near limit"
+              aria-label={labels.nearLimit}
             />
           )}
           {grid}
-          <span className="font-mono text-muted-foreground tabular-nums">
+          <span dir="ltr" className="font-mono text-muted-foreground tabular-nums">
             <span className={cn("text-foreground", warning && "text-warning")}>
               <RollingNumber value={formatTokens(used)} />
             </span>
@@ -160,13 +215,13 @@ export function ContextWindowMeter({
 
   return (
     <MotionConfig reducedMotion="user">
-      <Shell aria-label="Context window" className={cn("max-w-md", className)}>
+      <Shell aria-label={labels.region} className={cn("max-w-md", className)}>
         <Panel className="p-4">
           <div className="mb-1 flex items-center justify-between gap-3">
             <h3 className="text-[0.8125rem] text-muted-foreground">
-              Context
+              {labels.context}
               {data.model && (
-                <Tag className="ml-2 rounded-full px-2 text-foreground">{data.model}</Tag>
+                <Tag className="ms-2 rounded-full px-2 text-foreground">{data.model}</Tag>
               )}
             </h3>
             {compactButton}
@@ -181,7 +236,10 @@ export function ContextWindowMeter({
               <RollingNumber value={formatTokens(used)} />
             </span>
             <span className="text-[0.8125rem] text-muted-foreground">
-              of {formatTokens(limit)} · <RollingNumber value={`${percent}%`} /> full
+              {labels.ofLimit(
+                formatTokens(limit),
+                <RollingNumber value={pct(percent)} />,
+              )}
             </span>
           </p>
           {grid}
@@ -195,8 +253,8 @@ export function ContextWindowMeter({
               <Warning weight="fill" className="size-3.5 shrink-0" aria-hidden="true" />
             )}
             {warning
-              ? `In the warning zone — ${formatTokens(Math.max(limit - used, 0))} tokens left`
-              : `Tinted cells mark the last ${100 - Math.round(warnAt * 100)}%`}
+              ? labels.warningZone(formatTokens(Math.max(limit - used, 0)))
+              : labels.tinted(pct(100 - Math.round(warnAt * 100)))}
           </p>
         </Panel>
         <ul className="grid grid-cols-1 gap-x-4 gap-y-1 px-3 py-3 @sm:grid-cols-2">
@@ -214,7 +272,7 @@ export function ContextWindowMeter({
                     <Lock
                       weight="fill"
                       className="size-3 shrink-0 text-muted-foreground"
-                      aria-label="Pinned"
+                      aria-label={labels.pinned}
                     />
                   )}
                 </span>

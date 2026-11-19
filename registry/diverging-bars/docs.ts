@@ -75,6 +75,12 @@ export function TriageVolume({ report }: { report: TriageReport }) {
         "Called when a column is hovered, clicked or reached with the arrow keys.",
     },
     {
+      name: "strings",
+      type: "Partial<DivergingBarsLabels>",
+      description:
+        'Your own UI strings (legend group, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the plot still runs left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

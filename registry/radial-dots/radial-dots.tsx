@@ -30,7 +30,24 @@ export type RadialDotsProps = {
   axis?: number[];
   format?: (value: number) => string;
   onSelect?: (index: number) => void;
+  /** Your own UI strings, for translating. `labels` is taken by the sectors. */
+  strings?: Partial<RadialDotsLabels>;
+  /** BCP 47 locale for the default number format. */
+  locale?: string;
   className?: string;
+};
+
+export type RadialDotsLabels = {
+  /** Screen-reader hint on the chart. `hourly` is true for 24 sectors. */
+  instructions: (title: string, hourly: boolean) => string;
+  /** Screen-reader summary of the busiest sector. */
+  summary: (title: string, label: string, value: string) => string;
+};
+
+const defaultLabels: RadialDotsLabels = {
+  instructions: (title, hourly) =>
+    `${title}. Use arrow keys to read each ${hourly ? "hour" : "slot"}.`,
+  summary: (title, label, value) => `${title}: busiest ${label} with ${value}`,
 };
 
 const SIZE = 300;
@@ -65,10 +82,13 @@ export function RadialDots({
   subtitle,
   center,
   axis,
-  format = (v) => v.toLocaleString("en-US"),
+  locale = "en-US",
+  format = (v) => v.toLocaleString(locale),
   onSelect,
+  strings,
   className,
 }: RadialDotsProps) {
+  const text = { ...defaultLabels, ...strings };
   const reduce = useReducedMotion();
   const [active, setActive] = useState<number | null>(null);
   const [fromKeyboard, setFromKeyboard] = useState(false);
@@ -124,16 +144,18 @@ export function RadialDots({
           <div
             tabIndex={0}
             role="group"
-            aria-label={`${title}. Use arrow keys to read each ${n === 24 ? "hour" : "slot"}.`}
+            aria-label={text.instructions(title, n === 24)}
             onKeyDown={onKeyDown}
             onBlur={() => fromKeyboard && setActive(null)}
             className="relative mx-auto w-full max-w-72 rounded-full outline-offset-4"
           >
+            {/* Clockwise like a clock face in every language; labels keep their own direction. */}
             <svg
+              direction="ltr"
               viewBox={`-20 -20 ${SIZE + 40} ${SIZE + 40}`}
               role="img"
-              aria-label={`${title}: busiest ${labels[totals.indexOf(peak)]} with ${format(peak)}`}
-              className="block w-full overflow-visible"
+              aria-label={text.summary(title, labels[totals.indexOf(peak)], format(peak))}
+              className="block w-full overflow-visible [&_text]:[unicode-bidi:plaintext]"
               onPointerLeave={() => select(null, false)}
             >
               {labels.map((label, i) => {
@@ -242,7 +264,9 @@ export function RadialDots({
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
               {active === null ? (
                 <>
-                  <p className="text-2xl font-medium tracking-tight">{center.value}</p>
+                  <p className="text-2xl font-medium tracking-tight rtl:tracking-normal">
+                    {center.value}
+                  </p>
                   {center.caption && (
                     <p className="text-xs text-muted-foreground">{center.caption}</p>
                   )}

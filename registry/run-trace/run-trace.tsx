@@ -4,7 +4,14 @@
 
 import { CaretRight } from "@phosphor-icons/react";
 import { MotionConfig, motion } from "motion/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { Segmented } from "@/components/ui/segmented-control";
@@ -37,16 +44,73 @@ export type RunTraceProps = {
   view?: "flame" | "breakdown";
   /** Called when the flame graph zooms into a span, or back out (`null`). */
   onZoom?: (span: TraceSpan | null) => void;
+  /** BCP 47 locale for costs and shares, e.g. `he-IL`. */
+  locale?: string;
+  /** UI strings, for translating the trace. */
+  labels?: Partial<RunTraceLabels>;
   className?: string;
 };
 
 type Metric = "time" | "tokens" | "cost";
 
+export type RunTraceLabels = {
+  region: string;
+  kinds: Record<SpanKind, string>;
+  zoomPath: string;
+  wholeRun: string;
+  running: string;
+  failed: string;
+  /** Accessible name of a block; `duration` is already "running" while it runs. */
+  block: (name: string, kind: string, duration: string, failed: boolean) => string;
+  /** Token count in the hover tooltip, e.g. "19.5k tok". */
+  tokensShort: (tokens: string) => string;
+  /** Token count in the line under the graph, e.g. "19.5k tokens". */
+  tokens: (tokens: string) => string;
+  hint: string;
+  excluded: string;
+  metric: string;
+  metrics: Record<Metric, string>;
+  errors: (count: number) => string;
+  share: (name: string, metric: string) => string;
+  waiting: string;
+  recording: string;
+  finishedIn: string;
+  /** Span count in the footer; `count` is the animated number. */
+  spans: (count: ReactNode) => ReactNode;
+  finished: (time: string) => string;
+};
+
+const defaultLabels: RunTraceLabels = {
+  region: "Run trace",
+  kinds: { llm: "LLM", tool: "Tool", agent: "Agent", retrieval: "Retrieval" },
+  zoomPath: "Zoom path",
+  wholeRun: "Whole run",
+  running: "running",
+  failed: "failed",
+  block: (name, kind, duration, failed) =>
+    `${name}, ${kind}, ${duration}${failed ? ", failed" : ""}. Zoom in`,
+  tokensShort: (tokens) => `${tokens} tok`,
+  tokens: (tokens) => `${tokens} tokens`,
+  hint: "Click a block to zoom in, Esc to step back out",
+  excluded: "Agent spans excluded — they wrap their children",
+  metric: "Metric",
+  metrics: { time: "Time", tokens: "Tokens", cost: "Cost" },
+  errors: (count) => `${count} failed`,
+  share: (name, metric) => `${name} share of ${metric}`,
+  waiting: "Waiting for spans…",
+  recording: "Recording",
+  finishedIn: "Finished in",
+  spans: (count) => <>{count} spans</>,
+  finished: (time) => `Run finished in ${time}`,
+};
+
+const LabelsContext = createContext({ ...defaultLabels, locale: "en-US" });
+
 const kinds = {
-  llm: { label: "LLM", color: "var(--brand)", ink: "#fff" },
-  tool: { label: "Tool", color: "#40b4ff", ink: "#04263d" },
-  agent: { label: "Agent", color: "#bf5af2", ink: "#26073a" },
-  retrieval: { label: "Retrieval", color: "#f5c000", ink: "#3d2e00" },
+  llm: { color: "var(--brand)", ink: "#fff" },
+  tool: { color: "#40b4ff", ink: "#04263d" },
+  agent: { color: "#bf5af2", ink: "#26073a" },
+  retrieval: { color: "#f5c000", ink: "#3d2e00" },
 } as const;
 
 // Movement on screen: a short spring with no bounce. Zoom is a spatial move, so it
@@ -62,7 +126,15 @@ export const formatMs = (ms: number) =>
   ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
 export const formatTokens = (n: number) =>
   n < 1000 ? `${Math.round(n)}` : `${(n / 1000).toFixed(1)}k`;
-export const formatCost = (usd: number) => `$${usd.toFixed(usd < 0.1 ? 4 : 3)}`;
+export const formatCost = (usd: number, locale = "en-US") => {
+  const digits = usd < 0.1 ? 4 : 3;
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(usd);
+};
 
 const tokensOf = (s: TraceSpan) => (s.tokens ? s.tokens.input + s.tokens.output : 0);
 
@@ -97,7 +169,10 @@ function Flame({
   zoomId: string | null;
   onZoom: (id: string | null) => void;
 }) {
+  const labels = useContext(LabelsContext);
   const [hoverId, setHoverId] = useState<string | null>(null);
+  // The plot runs left to right in every direction; only the tooltip text follows it.
+  const [rtl, setRtl] = useState(false);
   // Zooms from the keyboard (Enter, Esc) jump instantly; clicks animate.
   const [keyboard, setKeyboard] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -105,6 +180,7 @@ function Flame({
   useEffect(() => {
     const el = box.current;
     if (!el) return;
+    setRtl(!!el.parentElement && getComputedStyle(el.parentElement).direction === "rtl");
     const observer = new ResizeObserver(([entry]) =>
       setBoxWidth(entry.contentRect.width),
     );
@@ -135,7 +211,7 @@ function Flame({
   return (
     <>
       <nav
-        aria-label="Zoom path"
+        aria-label={labels.zoomPath}
         className="mb-2 flex flex-wrap items-center gap-0.5 text-xs"
       >
         {[null, ...trail].map((s, i) => (
@@ -143,7 +219,7 @@ function Flame({
             {i > 0 && (
               <CaretRight
                 weight="bold"
-                className="size-3 text-muted-foreground"
+                className="size-3 text-muted-foreground rtl:-scale-x-100"
                 aria-hidden="true"
               />
             )}
@@ -161,18 +237,22 @@ function Flame({
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {s?.name ?? "Whole run"}
+              {s?.name ?? labels.wholeRun}
             </button>
           </span>
         ))}
       </nav>
-      <div className="mb-1 flex justify-between font-mono text-[0.625rem] text-muted-foreground tabular-nums">
+      <div
+        dir="ltr"
+        className="mb-1 flex justify-between font-mono text-[0.625rem] text-muted-foreground tabular-nums"
+      >
         <span>{formatMs(from)}</span>
         <span>{formatMs((from + to) / 2)}</span>
         <span>{formatMs(to)}</span>
       </div>
       <div
         ref={box}
+        dir="ltr"
         className="relative overflow-hidden rounded-xl"
         style={{ height: rows * 30 }}
         onPointerLeave={() => setHoverId(null)}
@@ -212,9 +292,14 @@ function Flame({
               onPointerEnter={() => setHoverId(s.id)}
               onFocus={() => setHoverId(s.id)}
               onBlur={() => setHoverId(null)}
-              aria-label={`${s.name}, ${kinds[s.kind].label}, ${running ? "running" : formatMs(endOf(s) - s.startMs)}${error ? ", failed" : ""}. Zoom in`}
+              aria-label={labels.block(
+                s.name,
+                labels.kinds[s.kind],
+                running ? labels.running : formatMs(endOf(s) - s.startMs),
+                error,
+              )}
               className={cn(
-                "absolute flex h-7 items-center gap-1 overflow-hidden rounded-lg px-2 text-left text-[0.6875rem] font-medium whitespace-nowrap outline-offset-1 transition-opacity duration-150",
+                "absolute flex h-7 items-center gap-1 overflow-hidden rounded-lg px-2 text-start text-[0.6875rem] font-medium whitespace-nowrap outline-offset-1 transition-opacity duration-150",
                 hoverId && hoverId !== s.id && "opacity-70",
                 running && "animate-pulse",
               )}
@@ -235,6 +320,7 @@ function Flame({
         {hover && (
           <div
             role="tooltip"
+            dir={rtl ? "rtl" : undefined}
             className="pointer-events-none absolute z-10 rounded-lg bg-surface-raised px-2 py-1 font-mono text-[0.6875rem] whitespace-nowrap"
             style={{
               top: Math.max((lane.get(hover.id)! - top) * 30 - 26, 0),
@@ -242,7 +328,8 @@ function Flame({
             }}
           >
             {hover.name} · {formatMs(endOf(hover) - hover.startMs)}
-            {tokensOf(hover) > 0 && ` · ${formatTokens(tokensOf(hover))} tok`}
+            {tokensOf(hover) > 0 &&
+              ` · ${labels.tokensShort(formatTokens(tokensOf(hover)))}`}
           </div>
         )}
       </div>
@@ -250,15 +337,18 @@ function Flame({
         {focus ? (
           <>
             <span className="text-foreground">{focus.name}</span> ·{" "}
-            {kinds[focus.kind].label}
+            {labels.kinds[focus.kind]}
             {focus.model && ` · ${focus.model}`} ·{" "}
             {formatMs(endOf(focus) - focus.startMs)}
-            {tokensOf(focus) > 0 && ` · ${formatTokens(tokensOf(focus))} tokens`}
-            {focus.costUsd !== undefined && ` · ${formatCost(focus.costUsd)}`}
-            {focus.status === "error" && <span className="text-negative"> · failed</span>}
+            {tokensOf(focus) > 0 && ` · ${labels.tokens(formatTokens(tokensOf(focus)))}`}
+            {focus.costUsd !== undefined &&
+              ` · ${formatCost(focus.costUsd, labels.locale)}`}
+            {focus.status === "error" && (
+              <span className="text-negative"> · {labels.failed}</span>
+            )}
           </>
         ) : (
-          "Click a block to zoom in, Esc to step back out"
+          labels.hint
         )}
       </p>
     </>
@@ -266,6 +356,7 @@ function Flame({
 }
 
 function Breakdown({ spans, elapsedMs }: { spans: TraceSpan[]; elapsedMs: number }) {
+  const labels = useContext(LabelsContext);
   const [metric, setMetric] = useState<Metric>("time");
   const groups = new Map<
     string,
@@ -305,23 +396,20 @@ function Breakdown({ spans, elapsedMs }: { spans: TraceSpan[]; elapsedMs: number
       ? formatMs(n)
       : metric === "tokens"
         ? formatTokens(n)
-        : formatCost(n);
+        : formatCost(n, labels.locale);
 
   return (
     <>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">
-          Agent spans excluded — they wrap their children
-        </p>
+        <p className="text-xs text-muted-foreground">{labels.excluded}</p>
         <Segmented
-          label="Metric"
+          label={labels.metric}
           value={metric}
           onValueChange={setMetric}
-          options={[
-            { value: "time", label: "Time" },
-            { value: "tokens", label: "Tokens" },
-            { value: "cost", label: "Cost" },
-          ]}
+          options={(["time", "tokens", "cost"] as const).map((value) => ({
+            value,
+            label: labels.metrics[value],
+          }))}
         />
       </div>
       <ol className="flex flex-col gap-1">
@@ -336,7 +424,7 @@ function Breakdown({ spans, elapsedMs }: { spans: TraceSpan[]; elapsedMs: number
               <p className="flex items-center gap-2 truncate font-mono text-xs">
                 {g.name}
                 <span className="font-sans text-[0.6875rem] text-muted-foreground">
-                  {kinds[g.kind].label}
+                  {labels.kinds[g.kind]}
                 </span>
                 {g.errors > 0 && (
                   <StatusPill
@@ -344,7 +432,7 @@ function Breakdown({ spans, elapsedMs }: { spans: TraceSpan[]; elapsedMs: number
                     tone="negative"
                     className="h-4 px-1.5 font-sans text-[0.625rem]"
                   >
-                    {g.errors} failed
+                    {labels.errors(g.errors)}
                   </StatusPill>
                 )}
               </p>
@@ -354,17 +442,19 @@ function Breakdown({ spans, elapsedMs }: { spans: TraceSpan[]; elapsedMs: number
                 color={kinds[g.kind].color}
                 value={g[metric]}
                 max={total}
-                label={`${g.name} share of ${metric}`}
+                label={labels.share(g.name, labels.metrics[metric].toLowerCase())}
                 className="mt-1.5 bg-foreground/[0.06]"
               />
             </div>
-            <span className="hidden text-right font-mono text-[0.6875rem] text-muted-foreground tabular-nums @md:block">
-              {g.calls}×
+            <span className="hidden text-end font-mono text-[0.6875rem] text-muted-foreground tabular-nums @md:block">
+              <bdi dir="ltr">{g.calls}×</bdi>
             </span>
-            <span className="text-right font-mono text-xs tabular-nums">
+            <span className="text-end font-mono text-xs tabular-nums">
               {show(g[metric])}
               <span className="block text-[0.625rem] text-muted-foreground">
-                {Math.round((g[metric] / total) * 100)}%
+                {new Intl.NumberFormat(labels.locale, { style: "percent" }).format(
+                  Math.round((g[metric] / total) * 100) / 100,
+                )}
               </span>
             </span>
           </motion.li>
@@ -374,7 +464,15 @@ function Breakdown({ spans, elapsedMs }: { spans: TraceSpan[]; elapsedMs: number
   );
 }
 
-export function RunTrace({ data, view = "flame", onZoom, className }: RunTraceProps) {
+export function RunTrace({
+  data,
+  view = "flame",
+  onZoom,
+  locale = "en-US",
+  labels: labelOverrides,
+  className,
+}: RunTraceProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const { spans, elapsedMs } = data;
   const [zoomId, setZoomId] = useState<string | null>(null);
   const running = spans.some((s) => s.endMs === undefined);
@@ -385,7 +483,7 @@ export function RunTrace({ data, view = "flame", onZoom, className }: RunTracePr
 
   let body: ReactNode = (
     <p className="py-8 text-center text-[0.8125rem] text-muted-foreground">
-      Waiting for spans…
+      {labels.waiting}
     </p>
   );
   if (spans.length > 0)
@@ -397,24 +495,28 @@ export function RunTrace({ data, view = "flame", onZoom, className }: RunTracePr
       );
 
   return (
-    <MotionConfig reducedMotion="user">
-      <Shell aria-label="Run trace" className={cn("max-w-2xl", className)}>
-        <Panel className="p-4">{body}</Panel>
-        <p className="flex items-center gap-1.5 px-3.5 py-2.5 text-[0.8125rem] text-muted-foreground">
-          {running && <Spinner size="sm" label="Recording" className="text-brand" />}
-          {running ? "Recording" : "Finished in"}{" "}
-          <RollingNumber
-            className="font-mono text-foreground"
-            value={formatMs(elapsedMs)}
-          />
-          <span className="ml-auto">
-            <RollingNumber value={String(spans.length)} /> spans
-          </span>
-        </p>
-        <p role="status" aria-live="polite" className="sr-only">
-          {running ? "" : `Run finished in ${formatMs(elapsedMs)}`}
-        </p>
-      </Shell>
-    </MotionConfig>
+    <LabelsContext.Provider value={{ ...labels, locale }}>
+      <MotionConfig reducedMotion="user">
+        <Shell aria-label={labels.region} className={cn("max-w-2xl", className)}>
+          <Panel className="p-4">{body}</Panel>
+          <p className="flex items-center gap-1.5 px-3.5 py-2.5 text-[0.8125rem] text-muted-foreground">
+            {running && (
+              <Spinner size="sm" label={labels.recording} className="text-brand" />
+            )}
+            {running ? labels.recording : labels.finishedIn}{" "}
+            <RollingNumber
+              className="font-mono text-foreground"
+              value={formatMs(elapsedMs)}
+            />
+            <span className="ms-auto">
+              {labels.spans(<RollingNumber value={String(spans.length)} />)}
+            </span>
+          </p>
+          <p role="status" aria-live="polite" className="sr-only">
+            {running ? "" : labels.finished(formatMs(elapsedMs))}
+          </p>
+        </Shell>
+      </MotionConfig>
+    </LabelsContext.Provider>
   );
 }

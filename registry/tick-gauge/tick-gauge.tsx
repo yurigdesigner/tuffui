@@ -23,11 +23,24 @@ export type TickGaugeProps = {
   caption?: string;
   /** Formats the big number. Defaults to one decimal percent. */
   format?: (value: number) => string;
+  /** BCP 47 locale for the default percent format. */
+  locale?: string;
   /** Number of ticks on the arc. */
   ticks?: number;
   /** Header aside, e.g. a status pill. */
   aside?: React.ReactNode;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<TickGaugeLabels>;
   className?: string;
+};
+
+export type TickGaugeLabels = {
+  /** Screen-reader text for the target, e.g. "target SLO 99%". */
+  target: (label: string) => string;
+};
+
+const defaultLabels: TickGaugeLabels = {
+  target: (label) => `target ${label}`,
 };
 
 // The arc spans 220°, opening at the bottom.
@@ -57,11 +70,19 @@ export function TickGauge({
   target,
   targetLabel,
   caption,
-  format = (v) => `${(v * 100).toFixed(1)}%`,
+  locale = "en-US",
+  format = (v) =>
+    new Intl.NumberFormat(locale, {
+      style: "percent",
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(v),
   ticks = 44,
   aside,
+  labels: labelOverrides,
   className,
 }: TickGaugeProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const reduce = useReducedMotion();
   // Ticks fill in order on mount; later changes recolor them in place.
   const [shown, setShown] = useState(reduce ? value : 0);
@@ -89,9 +110,10 @@ export function TickGauge({
           aria-valuemin={0}
           aria-valuemax={1}
           aria-valuenow={value}
-          aria-valuetext={`${format(value)}${caption ? `, ${caption}` : ""}${targetLabel ? `, target ${targetLabel}` : ""}`}
+          aria-valuetext={`${format(value)}${caption ? `, ${caption}` : ""}${targetLabel ? `, ${labels.target(targetLabel)}` : ""}`}
           className="relative mx-auto w-full max-w-72"
         >
+          {/* The arc runs clockwise from zero in every language, like a dial. */}
           <svg
             viewBox="0 0 240 196"
             className="block w-full overflow-visible"
@@ -151,7 +173,7 @@ export function TickGauge({
               fontSize="11"
               className="fill-muted-foreground"
             >
-              {format(0).replace(/\.0+(?=%|$)/, "")}
+              {format(0).replace(/[.,٫]0+(?=\D*$)/, "")}
             </text>
             {targetLabel && (
               <text

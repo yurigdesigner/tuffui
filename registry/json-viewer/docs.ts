@@ -45,6 +45,12 @@ export function ToolResult({ call }: { call: { name: string; result: unknown } }
       description:
         "Called after copying — clicking a key copies its path ($.items[2].price), the row button copies its value.",
     },
+    {
+      name: "labels",
+      type: "Partial<JsonViewerLabels>",
+      description:
+        'Your own UI strings (Expand all, Copy JSON, the keyboard hint…), for translating. Right-to-left works under `dir="rtl"`; the JSON stays left to right.',
+    },
     { name: "className", type: "string", description: "Extra classes for the shell." },
   ],
   types: `type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };

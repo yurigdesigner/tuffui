@@ -45,6 +45,12 @@ export function ToolCalls({ parts }: { parts: ToolUsePart[] }) {
       description: "Shows a Retry button next to the error when the call failed.",
     },
     {
+      name: "labels",
+      type: "Partial<ToolCallBlockLabels>",
+      description:
+        'Your own UI strings: status names, section titles, Retry and screen-reader text, for translating. Right-to-left works under `dir="rtl"`; arguments and results stay left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

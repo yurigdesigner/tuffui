@@ -42,13 +42,16 @@ const lineWidths = ["w-11/12", "w-4/5", "w-3/5"];
 /** An assistant message loading: avatar and three lines of varied width. */
 export function MessageSkeleton({
   lines = 3,
+  label = "Loading message",
   className,
 }: {
   lines?: number;
+  /** Spoken label, for translating. */
+  label?: string;
   className?: string;
 }) {
   return (
-    <SkeletonGroup label="Loading message" className={cn("flex gap-3", className)}>
+    <SkeletonGroup label={label} className={cn("flex gap-3", className)}>
       <Skeleton className="size-7 shrink-0 rounded-full" />
       <div className="flex flex-1 flex-col gap-2 pt-1">
         <Skeleton className="h-3 w-24" />
@@ -67,14 +70,17 @@ export function MessageSkeleton({
 /** A card loading: media area, title and meta. */
 export function CardSkeleton({
   media = true,
+  label = "Loading card",
   className,
 }: {
   media?: boolean;
+  /** Spoken label, for translating. */
+  label?: string;
   className?: string;
 }) {
   return (
     <SkeletonGroup
-      label="Loading card"
+      label={label}
       className={cn("flex flex-col gap-2.5 rounded-2xl bg-surface-inset p-2", className)}
     >
       {media && <Skeleton className="aspect-[16/10] w-full rounded-xl" />}

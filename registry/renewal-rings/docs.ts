@@ -153,6 +153,18 @@ export function RenewalsAnswer({ contracts, firstDeadline }: Props) {
       description: "Month labels around the face.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "Locale for the default money, date and month formats.",
+    },
+    {
+      name: "labels",
+      type: "Partial<RenewalRingsLabels>",
+      description:
+        'Your own UI strings (title, legend, details, footer and screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the rings still run clockwise.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

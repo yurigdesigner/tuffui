@@ -35,6 +35,78 @@ export type InboxCleanupStats = {
   zone: InboxZone;
 };
 
+export type InboxCleanupLabels = {
+  /** "1 sender", "40 senders". */
+  senders: (count: number) => string;
+  inZone: string;
+  /** After an open rate, e.g. "2% open". */
+  open: string;
+  /** Default summary once ready, and when the zone is empty. */
+  summary: (stats: InboxCleanupStats, openRate: string) => React.ReactNode;
+  empty: string;
+  /** Default text while analyzing. */
+  analyzing: (count: number) => string;
+  /** Screen-reader name of the chart. */
+  chart: (chartTitle: string, count: number) => string;
+  /** Screen-reader text for one sender. */
+  sender: (sender: {
+    name: string;
+    perWeek: string;
+    openRate: string;
+    state: "out" | "selected" | "kept";
+  }) => string;
+  /** Screen-reader summary of the zone. */
+  zone: (count: number, minPerWeek: string, openRate: string) => string;
+  minPerWeek: string;
+  minPerWeekValue: (perWeek: string) => string;
+  maxOpenRate: string;
+  maxOpenRateValue: (openRate: string) => string;
+  list: (zoneLabel: string) => string;
+  keepAll: string;
+  digest: string;
+  /** Unsubscribe button: `count` is the live number to place in the text. */
+  unsubscribe: (selected: number, count: React.ReactNode) => React.ReactNode;
+  unsubscribeLabel: (selected: number) => string;
+};
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+const defaultLabels: InboxCleanupLabels = {
+  senders: (n) => plural(n, "sender"),
+  inZone: "in zone",
+  open: "open",
+  summary: (s, rate) => (
+    <>
+      {plural(s.count, "sender")} send {num(s.zone.minPerWeek)}+ emails a week and you
+      open under {rate}. That&apos;s ~{Math.round(s.skippedPerWeek)} emails a week you
+      skip.
+    </>
+  ),
+  empty: "No sender is in the zone. Widen it to find newsletters to cut.",
+  analyzing: (n) => `Plotting ${plural(n, "sender")} by volume and opens…`,
+  chart: (title, n) =>
+    `${title}: ${plural(n, "sender")}. Arrow keys move between senders; Enter or Space checks a sender in the zone.`,
+  sender: ({ name, perWeek, openRate, state }) =>
+    `${name}: ${perWeek}, ${openRate} opened${
+      state === "selected"
+        ? ", in the zone, will unsubscribe"
+        : state === "kept"
+          ? ", in the zone, kept"
+          : ""
+    }.`,
+  zone: (n, minPerWeek, rate) =>
+    `${plural(n, "sender")} in the zone: ${minPerWeek} or more emails a week, under ${rate} opened. `,
+  minPerWeek: "Fewest emails a week in the zone",
+  minPerWeekValue: (v) => `${v} or more`,
+  maxOpenRate: "Highest open rate in the zone",
+  maxOpenRateValue: (v) => `under ${v} opened`,
+  list: (zoneLabel) => `${zoneLabel}: senders`,
+  keepAll: "Keep all",
+  digest: "Digest instead",
+  unsubscribe: (_, count) => <>Unsubscribe from{count}</>,
+  unsubscribeLabel: (n) => `Unsubscribe from ${plural(n, "sender")}`,
+};
+
 export type InboxCleanupProps = {
   senders: InboxSender[];
   zone?: InboxZone;
@@ -81,6 +153,10 @@ export type InboxCleanupProps = {
   formatYTick?: (value: number) => string;
   /** Dots fade and scale in on mount. Skipped with reduced motion. */
   intro?: boolean;
+  /** BCP 47 locale for the default percentages, e.g. `he-IL`. */
+  locale?: string;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<InboxCleanupLabels>;
   className?: string;
 };
 
@@ -93,30 +169,20 @@ const n2 = (v: number) => Math.round(v * 100) / 100;
 
 const num = (v: number) => (Number.isInteger(r1(v)) ? String(r1(v)) : r1(v).toFixed(1));
 const defaultPerWeek = (v: number) => `${num(v)} / wk`;
-const defaultOpenRate = (v: number) => {
+const percent = (locale: string, v: number) =>
+  new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 }).format(v);
+const defaultOpenRate = (locale: string) => (v: number) => {
   const p = v * 100;
-  if (p > 0 && p < 1) return "<1%";
-  return `${Math.round(p)}%`;
+  if (p > 0 && p < 1) return `<${percent(locale, 0.01)}`;
+  return percent(locale, Math.round(p) / 100);
 };
 const defaultXTick = (v: number, i: number, ticks: number[]) =>
   i === ticks.length - 1 ? `${num(v)} / wk` : num(v);
-const defaultYTick = (v: number) => `${Math.round(v * 100)}%`;
+const defaultYTick = (locale: string) => (v: number) =>
+  percent(locale, Math.round(v * 100) / 100);
 
 export function inZone(sender: InboxSender, zone: InboxZone) {
   return sender.perWeek >= zone.minPerWeek && sender.openRate < zone.maxOpenRate;
-}
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-
-function defaultSummary(s: InboxCleanupStats, fmtRate: (v: number) => string) {
-  if (!s.count) return "No sender is in the zone. Widen it to find newsletters to cut.";
-  return (
-    <>
-      {plural(s.count, "sender")} send {num(s.zone.minPerWeek)}+ emails a week and you
-      open under {fmtRate(s.zone.maxOpenRate)}. That&apos;s ~
-      {Math.round(s.skippedPerWeek)} emails a week you skip.
-    </>
-  );
 }
 
 /**
@@ -152,12 +218,17 @@ export function InboxCleanup({
   period = "Last 90 days",
   zoneLabel = "Unsubscribe zone",
   formatPerWeek = defaultPerWeek,
-  formatOpenRate = defaultOpenRate,
+  formatOpenRate: formatOpenRateProp,
   formatXTick = defaultXTick,
-  formatYTick = defaultYTick,
+  formatYTick: formatYTickProp,
   intro = true,
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: InboxCleanupProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const formatOpenRate = formatOpenRateProp ?? defaultOpenRate(locale);
+  const formatYTick = formatYTickProp ?? defaultYTick(locale);
   const reduce = useReducedMotion();
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const hatchId = `ic-hatch-${uid}`;
@@ -279,16 +350,18 @@ export function InboxCleanup({
   const summaryNode =
     typeof summary === "function"
       ? summary(stats)
-      : (summary ?? defaultSummary(stats, formatOpenRate));
+      : (summary ??
+        (stats.count
+          ? labels.summary(stats, formatOpenRate(zone.maxOpenRate))
+          : labels.empty));
 
   const describe = (s: InboxSender) =>
-    `${s.name}: ${formatPerWeek(s.perWeek)}, ${formatOpenRate(s.openRate)} opened${
-      zoneIds.has(s.id)
-        ? isSelected(s.id)
-          ? ", in the zone, will unsubscribe"
-          : ", in the zone, kept"
-        : ""
-    }.`;
+    labels.sender({
+      name: s.name,
+      perWeek: formatPerWeek(s.perWeek),
+      openRate: formatOpenRate(s.openRate),
+      state: zoneIds.has(s.id) ? (isSelected(s.id) ? "selected" : "kept") : "out",
+    });
 
   // Pointer: the nearest dot within reach, so small dots stay easy to hit.
   const local = (e: React.PointerEvent) => {
@@ -413,7 +486,7 @@ export function InboxCleanup({
         <ShellHeader
           icon={icon}
           title={title}
-          subtitle={subtitle ?? `${plural(senders.length, "sender")} · ${period}`}
+          subtitle={subtitle ?? `${labels.senders(senders.length)} · ${period}`}
           aside={
             ready ? (
               <StatusPill
@@ -422,7 +495,7 @@ export function InboxCleanup({
                 className="font-mono tabular-nums"
               >
                 <RollingNumber value={zoneSenders.length} />
-                in zone
+                {labels.inZone}
               </StatusPill>
             ) : null
           }
@@ -449,30 +522,30 @@ export function InboxCleanup({
                 >
                   {ready
                     ? summaryNode
-                    : (analyzingText ??
-                      `Plotting ${plural(senders.length, "sender")} by volume and opens…`)}
+                    : (analyzingText ?? labels.analyzing(senders.length))}
                 </motion.p>
               </AnimatePresence>
             </div>
           </div>
 
           <div className="mb-2 flex items-baseline justify-between gap-3">
-            <h4 className="text-[0.6875rem] font-medium tracking-[0.08em] uppercase">
+            <h4 className="text-[0.6875rem] font-medium tracking-[0.08em] uppercase rtl:tracking-normal">
               {chartTitle}
             </h4>
-            <p className="shrink-0 font-mono text-[0.625rem] tracking-[0.06em] text-muted-foreground uppercase">
+            <p className="shrink-0 font-mono text-[0.625rem] tracking-[0.06em] text-muted-foreground uppercase rtl:tracking-normal">
               {period}
             </p>
           </div>
 
-          <div ref={boxRef} className="relative w-full" style={{ height }}>
+          {/* The plot keeps left-to-right axes; the tooltip text follows the page direction. */}
+          <div ref={boxRef} dir="ltr" className="relative w-full" style={{ height }}>
             <svg
               ref={svgRef}
               width={width}
               height={height}
               viewBox={`0 0 ${width} ${height}`}
               role="group"
-              aria-label={`${chartTitle}: ${plural(senders.length, "sender")}. Arrow keys move between senders; Enter or Space checks a sender in the zone.`}
+              aria-label={labels.chart(chartTitle, senders.length)}
               aria-describedby={summaryId}
               onPointerMove={onPointerMove}
               onPointerDown={onPointerDown}
@@ -588,7 +661,7 @@ export function InboxCleanup({
                         x={plotR - 8}
                         y={zy + 14}
                         textAnchor="end"
-                        className="fill-brand font-mono text-[9.5px] font-medium tracking-[0.08em] uppercase"
+                        className="fill-brand font-mono text-[9.5px] font-medium tracking-[0.08em] uppercase rtl:tracking-normal"
                         style={{
                           stroke: "var(--surface-inset)",
                           strokeWidth: 3,
@@ -720,11 +793,11 @@ export function InboxCleanup({
                     axis="x"
                     x={zx}
                     y={zy + Math.min(zh, plotB - zy) / 2}
-                    label="Fewest emails a week in the zone"
+                    label={labels.minPerWeek}
                     value={zone.minPerWeek}
                     min={x0 + 0.5}
                     max={x1 - 0.5}
-                    valueText={`${formatPerWeek(zone.minPerWeek)} or more`}
+                    valueText={labels.minPerWeekValue(formatPerWeek(zone.minPerWeek))}
                     active={dragging === "x"}
                     onPointerDown={(e) => startDrag("x", e)}
                     onKeyDown={(e) => onHandleKey("x", e)}
@@ -733,11 +806,11 @@ export function InboxCleanup({
                     axis="y"
                     x={zx + zw / 2}
                     y={zy}
-                    label="Highest open rate in the zone"
+                    label={labels.maxOpenRate}
                     value={Math.round(zone.maxOpenRate * 1000) / 10}
                     min={Math.round(ylo * 150) / 1}
                     max={Math.round(yhi * 90)}
-                    valueText={`under ${formatOpenRate(zone.maxOpenRate)} opened`}
+                    valueText={labels.maxOpenRateValue(formatOpenRate(zone.maxOpenRate))}
                     active={dragging === "y"}
                     onPointerDown={(e) => startDrag("y", e)}
                     onKeyDown={(e) => onHandleKey("y", e)}
@@ -758,7 +831,7 @@ export function InboxCleanup({
                     transition: { duration: 0.15, ease: EASE_OUT },
                   }}
                   exit={{ opacity: 0, transition: { duration: 0.1, ease: EASE_OUT } }}
-                  className="pointer-events-none absolute z-10 w-max max-w-[15rem] rounded-lg bg-surface-raised px-2.5 py-1.5 font-mono text-[0.625rem] leading-[1.45] tracking-[0.04em] uppercase tabular-nums"
+                  className="pointer-events-none absolute z-10 w-max max-w-[15rem] rounded-lg bg-surface-raised px-2.5 py-1.5 font-mono text-[0.625rem] leading-[1.45] tracking-[0.04em] uppercase tabular-nums rtl:tracking-normal rtl:[direction:rtl]"
                   style={{
                     left: active.cx,
                     top: below ? active.cy + tipGap : active.cy - tipGap,
@@ -769,7 +842,7 @@ export function InboxCleanup({
                   <p className="truncate text-foreground">{active.s.name}</p>
                   <p className="text-muted-foreground">
                     {formatPerWeek(active.s.perWeek)} ·{" "}
-                    {formatOpenRate(active.s.openRate)} open
+                    {formatOpenRate(active.s.openRate)} {labels.open}
                   </p>
                 </motion.div>
               )}
@@ -777,7 +850,11 @@ export function InboxCleanup({
           </div>
 
           <p id={summaryId} className="sr-only">
-            {`${plural(zoneSenders.length, "sender")} in the zone: ${num(zone.minPerWeek)} or more emails a week, under ${formatOpenRate(zone.maxOpenRate)} opened. `}
+            {labels.zone(
+              zoneSenders.length,
+              num(zone.minPerWeek),
+              formatOpenRate(zone.maxOpenRate),
+            )}
             {zoneSenders.map(describe).join(" ")}
           </p>
         </Panel>
@@ -794,7 +871,7 @@ export function InboxCleanup({
             >
               {list && zoneSenders.length > 0 && (
                 <Panel className="mt-1.5 p-1.5">
-                  <ul aria-label={`${zoneLabel}: senders`}>
+                  <ul aria-label={labels.list(zoneLabel)}>
                     {[...zoneSenders]
                       .sort((a, b) => b.perWeek - a.perWeek || a.openRate - b.openRate)
                       .map((s) => {
@@ -848,12 +925,15 @@ export function InboxCleanup({
                               >
                                 {s.name}
                               </span>
-                              <span className="w-[4.5rem] shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums">
+                              <span className="w-[4.5rem] shrink-0 text-end font-mono text-xs text-muted-foreground tabular-nums">
                                 {formatPerWeek(s.perWeek)}
                               </span>
-                              <span className="w-[4.25rem] shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums @max-[24rem]:w-9">
+                              <span className="w-[4.25rem] shrink-0 text-end font-mono text-xs text-muted-foreground tabular-nums @max-[24rem]:w-9">
                                 {formatOpenRate(s.openRate)}
-                                <span className="@max-[24rem]:hidden"> open</span>
+                                <span className="@max-[24rem]:hidden">
+                                  {" "}
+                                  {labels.open}
+                                </span>
                               </span>
                             </label>
                           </li>
@@ -864,10 +944,10 @@ export function InboxCleanup({
               )}
 
               {(onUnsubscribe || onKeep || onDigest) && (
-                <div className="flex flex-wrap items-center justify-end gap-2 pt-2 pr-1 pb-0.5 pl-1">
+                <div className="flex flex-wrap items-center justify-end gap-2 ps-1 pe-1 pt-2 pb-0.5">
                   {onKeep && (
                     <Button variant="quiet" onClick={onKeep} className="@max-sm:px-3">
-                      Keep all
+                      {labels.keepAll}
                     </Button>
                   )}
                   {onDigest && (
@@ -876,7 +956,7 @@ export function InboxCleanup({
                       disabled={!selected.length}
                       onClick={() => onDigest(selected)}
                     >
-                      Digest instead
+                      {labels.digest}
                     </Button>
                   )}
                   {onUnsubscribe && (
@@ -885,11 +965,16 @@ export function InboxCleanup({
                       icon={Broom}
                       disabled={!selected.length}
                       onClick={() => onUnsubscribe(selected)}
-                      aria-label={`Unsubscribe from ${plural(selected.length, "sender")}`}
+                      aria-label={labels.unsubscribeLabel(selected.length)}
                       className="@max-sm:w-full"
                     >
-                      Unsubscribe from
-                      <RollingNumber value={selected.length} className="tabular-nums" />
+                      {labels.unsubscribe(
+                        selected.length,
+                        <RollingNumber
+                          value={selected.length}
+                          className="tabular-nums"
+                        />,
+                      )}
                     </Button>
                   )}
                 </div>

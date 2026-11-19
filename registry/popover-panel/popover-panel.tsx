@@ -4,7 +4,7 @@
 
 import { X } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Popover as PopoverPrimitive } from "radix-ui";
+import { Direction, Popover as PopoverPrimitive } from "radix-ui";
 import { useState } from "react";
 import { IconButton } from "@/components/ui/action-button";
 import { EASE_OUT, instant } from "@/lib/motion-tokens";
@@ -27,8 +27,17 @@ export type PopoverProps = {
   align?: "start" | "center" | "end";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<PopoverLabels>;
   className?: string;
 };
+
+export type PopoverLabels = {
+  /** The close button's accessible name. */
+  close: string;
+};
+
+const defaultLabels: PopoverLabels = { close: "Close" };
 
 /**
  * A panel anchored to its trigger. It grows from the trigger, closes on
@@ -43,9 +52,14 @@ export function Popover({
   align = "center",
   open: openProp,
   onOpenChange,
+  labels: labelOverrides,
   className,
 }: PopoverProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const reduce = useReducedMotion();
+  // The panel is portaled out of any dir="rtl" ancestor, so it takes the
+  // direction from Radix's Direction.Provider; `align` start/end then follow it.
+  const rtl = Direction.useDirection() === "rtl";
   const [openState, setOpenState] = useState(false);
   // Opened with Enter/Space: appear instantly, the user is moving fast.
   const [viaKeyboard, setViaKeyboard] = useState(false);
@@ -78,6 +92,7 @@ export function Popover({
               align={align}
               sideOffset={8}
               collisionPadding={12}
+              dir={rtl ? "rtl" : undefined}
               aria-label={typeof title === "string" ? title : undefined}
             >
               <motion.div
@@ -101,7 +116,7 @@ export function Popover({
                 )}
               >
                 {(title || showClose) && (
-                  <div className="mb-2 flex items-center gap-2 pl-1">
+                  <div className="mb-2 flex items-center gap-2 ps-1">
                     {title && (
                       <p className="flex-1 text-[0.9375rem] font-medium">{title}</p>
                     )}
@@ -110,8 +125,8 @@ export function Popover({
                         <IconButton
                           icon={X}
                           iconWeight="bold"
-                          label="Close"
-                          className="-my-1 ml-auto"
+                          label={labels.close}
+                          className="-my-1 ms-auto"
                         />
                       </PopoverPrimitive.Close>
                     )}

@@ -22,6 +22,8 @@ export type CatalogEntry = {
   status: "ready" | "planned";
   /** Release date (YYYY-MM-DD); dated entries lead the home grid, newest first. */
   added?: string;
+  /** Lays out right to left under `dir="rtl"`; the preview shows English, Hebrew and Arabic. */
+  rtl?: boolean;
 };
 
 export const catalog: CatalogEntry[] = [
@@ -33,6 +35,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Layers", "Headers"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "action-button",
@@ -42,6 +45,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Variants", "States"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "choice-controls",
@@ -51,6 +55,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Controls", "With labels"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "status-pill",
@@ -60,6 +65,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Tones", "Tags"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "segmented-control",
@@ -69,6 +75,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Default", "Sizes"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "progress-bar",
@@ -78,6 +85,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Bars", "Segmented"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "rolling-number",
@@ -96,6 +104,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Fields", "States"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "tooltip-hint",
@@ -105,6 +114,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Default", "Placement"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "action-menu",
@@ -114,6 +124,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Dropdown", "Context"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "popover-panel",
@@ -123,6 +134,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Default", "Form"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "modal-sheet",
@@ -132,6 +144,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Dialog", "Sheet"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "toast-stack",
@@ -141,6 +154,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Default", "Actions"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "select-field",
@@ -150,6 +164,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Select", "Combobox"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "tab-panels",
@@ -159,6 +174,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Default", "Pills"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "disclosure",
@@ -168,6 +184,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Accordion", "Single"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "agent-avatar",
@@ -177,6 +194,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Single", "Group"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "loading-skeleton",
@@ -185,6 +203,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Message", "Cards"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "range-slider",
@@ -194,6 +213,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Single", "Range"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "key-hint",
@@ -203,6 +223,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Keys", "Inline"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "loader",
@@ -212,6 +233,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Spinner", "Thinking"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "empty-state",
@@ -220,6 +242,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Empty", "Error"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "date-field",
@@ -229,6 +252,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Calendar", "Picker"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "drop-zone",
@@ -238,6 +262,7 @@ export const catalog: CatalogEntry[] = [
     category: "foundations",
     variants: ["Default", "Overlay"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "ai-chat",
@@ -247,6 +272,7 @@ export const catalog: CatalogEntry[] = [
     category: "screens",
     variants: ["Conversation", "New chat"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "coding-agent",
@@ -256,6 +282,7 @@ export const catalog: CatalogEntry[] = [
     category: "screens",
     variants: ["Working", "Review"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "data-answer",
@@ -265,6 +292,7 @@ export const catalog: CatalogEntry[] = [
     category: "screens",
     variants: ["Overview", "Drill-down"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "booking-assistant",
@@ -274,6 +302,7 @@ export const catalog: CatalogEntry[] = [
     category: "screens",
     variants: ["Plan trip", "Confirmed"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "agent-console",
@@ -283,6 +312,7 @@ export const catalog: CatalogEntry[] = [
     category: "screens",
     variants: ["Overview", "Incident"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "support-widget",
@@ -292,6 +322,7 @@ export const catalog: CatalogEntry[] = [
     category: "screens",
     variants: ["Bot", "Handoff"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "handoff-inbox",
@@ -301,6 +332,7 @@ export const catalog: CatalogEntry[] = [
     category: "screens",
     variants: ["Inbox", "Takeover"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "model-picker",
@@ -311,6 +343,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Default"],
     status: "ready",
     added: "2026-11-16",
+    rtl: true,
   },
   {
     slug: "voice-session",
@@ -321,6 +354,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Default"],
     status: "ready",
     added: "2026-11-16",
+    rtl: true,
   },
   {
     slug: "streaming-message",
@@ -330,6 +364,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Default", "Reasoning", "Error"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "agent-status",
@@ -339,6 +374,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Line", "Steps"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "message-branches",
@@ -348,6 +384,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Inline", "Map"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "response-feedback",
@@ -357,6 +394,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Inline", "Detailed"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "agent-composer",
@@ -366,6 +404,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Default", "Minimal"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "agent-question",
@@ -375,6 +414,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Single", "Multiple"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "tool-approval-queue",
@@ -384,6 +424,7 @@ export const catalog: CatalogEntry[] = [
     category: "tools",
     variants: ["Grouped", "Flat"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "tool-call-block",
@@ -393,6 +434,7 @@ export const catalog: CatalogEntry[] = [
     category: "tools",
     variants: ["Inline", "In chat"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "file-changes",
@@ -402,6 +444,7 @@ export const catalog: CatalogEntry[] = [
     category: "tools",
     variants: ["Split", "Stacked"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "terminal-output",
@@ -411,6 +454,7 @@ export const catalog: CatalogEntry[] = [
     category: "tools",
     variants: ["Streaming", "Failed"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "mcp-servers",
@@ -420,6 +464,7 @@ export const catalog: CatalogEntry[] = [
     category: "tools",
     variants: ["Servers", "Tools"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "background-agents",
@@ -429,6 +474,7 @@ export const catalog: CatalogEntry[] = [
     category: "planning",
     variants: ["Grid", "Dock"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "checkpoint-timeline",
@@ -438,6 +484,7 @@ export const catalog: CatalogEntry[] = [
     category: "planning",
     variants: ["Timeline", "Compact"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "run-trace",
@@ -447,6 +494,7 @@ export const catalog: CatalogEntry[] = [
     category: "observability",
     variants: ["Flame", "Breakdown"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "eval-results",
@@ -456,6 +504,7 @@ export const catalog: CatalogEntry[] = [
     category: "observability",
     variants: ["Grid", "Compare"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "lap-timer",
@@ -466,6 +515,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Default"],
     status: "ready",
     added: "2026-11-09",
+    rtl: true,
   },
   {
     slug: "eval-race",
@@ -476,6 +526,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Race", "Standings"],
     status: "ready",
     added: "2026-11-09",
+    rtl: true,
   },
   {
     slug: "tool-call-graph",
@@ -486,6 +537,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Default"],
     status: "ready",
     added: "2026-11-10",
+    rtl: true,
   },
   {
     slug: "deploy-timeline",
@@ -496,6 +548,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Default"],
     status: "ready",
     added: "2026-11-10",
+    rtl: true,
   },
   {
     slug: "tone-rewrite",
@@ -506,6 +559,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Default"],
     status: "ready",
     added: "2026-11-13",
+    rtl: true,
   },
   {
     slug: "inbox-cleanup",
@@ -516,6 +570,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Default"],
     status: "ready",
     added: "2026-11-13",
+    rtl: true,
   },
   {
     slug: "clause-playbook",
@@ -526,6 +581,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Default"],
     status: "ready",
     added: "2026-11-12",
+    rtl: true,
   },
   {
     slug: "renewal-rings",
@@ -536,6 +592,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Default"],
     status: "ready",
     added: "2026-11-12",
+    rtl: true,
   },
   {
     slug: "delivery-heatmap",
@@ -546,6 +603,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Default"],
     status: "ready",
     added: "2026-11-11",
+    rtl: true,
   },
   {
     slug: "message-log",
@@ -556,6 +614,7 @@ export const catalog: CatalogEntry[] = [
     variants: ["Default"],
     status: "ready",
     added: "2026-11-11",
+    rtl: true,
   },
   {
     slug: "context-window-meter",
@@ -565,6 +624,7 @@ export const catalog: CatalogEntry[] = [
     category: "usage",
     variants: ["Card", "Inline", "Near limit"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "memory-panel",
@@ -574,6 +634,7 @@ export const catalog: CatalogEntry[] = [
     category: "usage",
     variants: ["Panel", "Compact"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "usage-summary",
@@ -582,6 +643,7 @@ export const catalog: CatalogEntry[] = [
     category: "usage",
     variants: ["Week", "Month"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "rate-limits",
@@ -591,6 +653,7 @@ export const catalog: CatalogEntry[] = [
     category: "usage",
     variants: ["Healthy", "Throttled"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "chat-thread",
@@ -600,6 +663,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Default", "Dense"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "user-message",
@@ -609,6 +673,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Default", "With attachments"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "conversation-list",
@@ -618,6 +683,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Sidebar", "Compact"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "prompt-suggestions",
@@ -626,6 +692,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Cards", "Chips"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "attachment-preview",
@@ -635,6 +702,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Grid", "Uploading"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "code-block",
@@ -644,6 +712,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Default", "Long"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "source-list",
@@ -653,6 +722,7 @@ export const catalog: CatalogEntry[] = [
     category: "conversation",
     variants: ["Footnotes", "Panel"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "chart-card",
@@ -662,6 +732,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Bar", "Line", "Area", "Donut"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "dot-histogram",
@@ -671,6 +742,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Latency", "Tokens"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "tick-gauge",
@@ -680,6 +752,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Below SLO", "Healthy"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "mirror-strips",
@@ -689,6 +762,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Contract", "Pull requests"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "radial-dots",
@@ -698,6 +772,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Runs by hour", "By weekday"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "match-field",
@@ -707,6 +782,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Candidates", "Bots"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "radar-chart",
@@ -716,6 +792,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Team skills", "Model eval"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "diverging-bars",
@@ -725,6 +802,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Alerts", "Support"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "blast-radius",
@@ -734,6 +812,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Leaked key", "Tool permissions"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "iso-bars",
@@ -743,6 +822,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Tokens", "Pipeline"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "hex-density",
@@ -752,6 +832,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Retrieval", "Latency"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "data-table",
@@ -761,6 +842,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Table", "Selectable"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "stat-grid",
@@ -770,6 +852,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["KPIs", "Sparklines"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "form-card",
@@ -779,6 +862,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Form", "Validation"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "result-carousel",
@@ -788,6 +872,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Cards", "Compact"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "slot-picker",
@@ -797,6 +882,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Week", "Day"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "confirmation-card",
@@ -806,6 +892,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Summary", "Done"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "json-viewer",
@@ -815,6 +902,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Tree", "Raw"],
     status: "ready",
+    rtl: true,
   },
   {
     slug: "artifact-panel",
@@ -824,6 +912,7 @@ export const catalog: CatalogEntry[] = [
     category: "generative",
     variants: ["Preview", "Versions"],
     status: "ready",
+    rtl: true,
   },
 ];
 

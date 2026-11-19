@@ -106,6 +106,12 @@ export function Composer({ files }: { files: ComposerFile[] }) {
     },
     { name: "placeholder", type: "string", description: "Textarea placeholder." },
     {
+      name: "labels",
+      type: "Partial<AgentComposerLabels>",
+      description:
+        'Your own UI strings (modes and hints, placeholders, tray, queue, buttons and screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the text field picks its direction from what is typed.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

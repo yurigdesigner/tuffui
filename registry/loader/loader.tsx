@@ -62,6 +62,8 @@ export type ThinkingProps = {
   words?: string[];
   /** How long each word stays, in ms. */
   interval?: number;
+  /** Spoken label when no words are shown, for translating. */
+  label?: string;
   className?: string;
 };
 
@@ -70,6 +72,7 @@ export function Thinking({
   size = "md",
   words = [],
   interval = 1800,
+  label = "Thinking",
   className,
 }: ThinkingProps) {
   const reduce = useReducedMotion();
@@ -128,7 +131,7 @@ export function Thinking({
             </AnimatePresence>
           </span>
         ) : (
-          <span className="sr-only">Thinking</span>
+          <span className="sr-only">{label}</span>
         )}
       </span>
     </MotionConfig>

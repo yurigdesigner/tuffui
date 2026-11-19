@@ -41,7 +41,23 @@ export type MirrorStripsProps = {
   /** Columns pinned with a label above the chart. */
   marks?: MirrorMark[];
   onSelect?: (column: number) => void;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<MirrorStripsLabels>;
+  /** BCP 47 locale for row totals. */
+  locale?: string;
   className?: string;
+};
+
+export type MirrorStripsLabels = {
+  /** Note under the chart when dots stand for groups. */
+  perDot: (count: number) => string;
+  /** Screen-reader hint on the chart. */
+  instructions: (title: string) => string;
+};
+
+const defaultLabels: MirrorStripsLabels = {
+  perDot: (count) => `1 dot = ${count}`,
+  instructions: (title) => `${title}. Use arrow keys to read columns.`,
 };
 
 const LEFT = 64;
@@ -80,8 +96,11 @@ export function MirrorStrips({
   subtitle,
   marks = [],
   onSelect,
+  labels: labelOverrides,
+  locale = "en-US",
   className,
 }: MirrorStripsProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const reduce = useReducedMotion();
   const [ref, width, measured] = useWidth();
   const [active, setActive] = useState<number | null>(null);
@@ -160,19 +179,21 @@ export function MirrorStrips({
             ref={ref}
             tabIndex={0}
             role="group"
-            aria-label={`${title}. Use arrow keys to read columns.`}
+            aria-label={labels.instructions(title)}
             onKeyDown={onKeyDown}
             onBlur={() => fromKeyboard && setActive(null)}
             className="relative rounded-xl outline-offset-4"
           >
+            {/* Columns run left to right in every language; labels keep their own direction. */}
             <svg
+              direction="ltr"
               key={measured ? "measured" : "guess"}
               visibility={measured ? undefined : "hidden"}
               role="img"
               aria-label={`${title}: ${rows.map((row) => `${row.label} ${total(row)}`).join(", ")}`}
               width={width}
               height={height}
-              className="block overflow-visible"
+              className="block overflow-visible [&_text]:[unicode-bidi:plaintext]"
               onPointerLeave={() => select(null, false)}
             >
               {[
@@ -256,7 +277,7 @@ export function MirrorStrips({
                         row.current ? "fill-foreground" : "fill-muted-foreground",
                       )}
                     >
-                      {total(row).toLocaleString("en-US")}
+                      {total(row).toLocaleString(locale)}
                     </text>
 
                     {/* Empty slots, so the scale of each stack stays readable. */}
@@ -369,7 +390,7 @@ export function MirrorStrips({
                   {rows.map((row) => (
                     <p key={row.id} className="flex gap-3 text-muted-foreground">
                       <span className="flex-1 font-mono">{row.label}</span>
-                      <span className="font-mono text-foreground tabular-nums">
+                      <span dir="ltr" className="font-mono text-foreground tabular-nums">
                         ↑{row.up[active] ?? 0} ↓{row.down[active] ?? 0}
                       </span>
                     </p>
@@ -380,7 +401,9 @@ export function MirrorStrips({
           </div>
 
           {per > 1 && (
-            <p className="mt-2 text-right text-xs text-muted-foreground">1 dot = {per}</p>
+            <p className="mt-2 text-end text-xs text-muted-foreground">
+              {labels.perDot(per)}
+            </p>
           )}
           <p role="status" aria-live="polite" className="sr-only">
             {fromKeyboard && active !== null

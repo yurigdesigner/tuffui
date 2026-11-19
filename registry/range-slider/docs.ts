@@ -72,5 +72,11 @@ export const docs: ComponentDocs = {
       default: "false",
       description: "Dims and locks it.",
     },
+    {
+      name: "labels",
+      type: "Partial<SliderLabels>",
+      description:
+        'Your own UI strings (names of the two range thumbs), for translating. Right-to-left works under `dir="rtl"`: the track fills from the right and the arrow keys swap.',
+    },
   ],
 };

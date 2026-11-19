@@ -107,10 +107,14 @@ export function TabList({
     ];
     const at = tabs.indexOf(document.activeElement as HTMLButtonElement);
     if (at < 0) return;
+    // Under dir="rtl" the tabs run right to left, so the arrows swap.
+    const rtl = getComputedStyle(e.currentTarget).direction === "rtl";
+    const forward = rtl ? "ArrowLeft" : "ArrowRight";
+    const back = rtl ? "ArrowRight" : "ArrowLeft";
     const nextIndex =
-      e.key === "ArrowRight"
+      e.key === forward
         ? (at + 1) % tabs.length
-        : e.key === "ArrowLeft"
+        : e.key === back
           ? (at - 1 + tabs.length) % tabs.length
           : e.key === "Home"
             ? 0

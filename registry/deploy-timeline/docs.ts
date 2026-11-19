@@ -122,6 +122,18 @@ export function AgentDeploys({ agent }: { agent: Agent }) {
       description: "Formats the day axis and dates in the callout.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for the default date format.",
+    },
+    {
+      name: "labels",
+      type: "Partial<DeployTimelineLabels>",
+      description:
+        'Your own UI strings (buttons, statuses, stat chips, screen reader text), for translating. Right-to-left works under `dir="rtl"`; the plot itself stays left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

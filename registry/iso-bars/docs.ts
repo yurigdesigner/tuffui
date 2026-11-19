@@ -61,6 +61,12 @@ export function DailyTokens({ usage }: { usage: DailyUsage }) {
         "Called when a prism is hovered, clicked or reached with the arrow keys.",
     },
     {
+      name: "strings",
+      type: "Partial<IsoBarsLabels>",
+      description:
+        'Your own UI strings (tooltip total, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the floor still runs left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

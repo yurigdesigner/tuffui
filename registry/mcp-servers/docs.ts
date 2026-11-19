@@ -57,6 +57,12 @@ export function Connectors({ servers }: { servers: McpServer[] }) {
       description: "Id of the server that starts expanded.",
     },
     {
+      name: "labels",
+      type: "Partial<McpServersLabels>",
+      description:
+        'Your own UI strings: status names, counts, buttons, search and screen-reader text, for translating. Right-to-left works under `dir="rtl"`; connection errors stay left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

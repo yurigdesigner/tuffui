@@ -76,6 +76,17 @@ export function RetrievalAnswer({ chunks }: { chunks: Chunk[] }) {
       description: "Called when a bin is hovered or reached with the arrow keys.",
     },
     {
+      name: "labels",
+      type: "Partial<HexDensityLabels>",
+      description:
+        'Your own UI strings (point count, legend, callout, screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the plot keeps its axes.',
+    },
+    {
+      name: "locale",
+      type: "string",
+      description: "BCP 47 locale for counts. Defaults to en-US.",
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

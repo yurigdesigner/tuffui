@@ -45,6 +45,12 @@ export const docs: ComponentDocs = {
       description:
         "Overlapping avatars with names in tooltips; the rest collapse into +N.",
     },
+    {
+      name: "labels",
+      type: "Partial<AvatarLabels>",
+      description:
+        'Your own UI strings (status names, participants, and N more…), for translating; AvatarGroup passes them on. Right-to-left works under `dir="rtl"`.',
+    },
   ],
   types: `/* CSS variable: --avatar-gap — the colour of the gap around badges and
    overlapping avatars. Defaults to var(--background). */`,

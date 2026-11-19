@@ -1,7 +1,96 @@
 "use client";
 
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, type MockStep } from "@/registry/use-mock-run/use-mock-run";
-import { ToolCallGraph, type ToolCallNode } from "./tool-call-graph";
+import {
+  ToolCallGraph,
+  type ToolCallGraphLabels,
+  type ToolCallNode,
+} from "./tool-call-graph";
+
+/** Keeps a Latin name or number in reading order inside RTL text. */
+const ltr = (text: string) => `\u2066${text}\u2069`;
+
+const AGENT = "triage-l · v14";
+
+/** Tool names are code and stay as they are; Hebrew and Arabic show the RTL layout. */
+const copy: Record<
+  DemoLocale,
+  {
+    locale: string;
+    subtitle: (calls: string) => string;
+    meta: string;
+    perRun: string;
+    latencyShare: string;
+    retries: string;
+    hotPath: string;
+    labels?: Partial<ToolCallGraphLabels>;
+  }
+> = {
+  en: {
+    locale: "en-US",
+    subtitle: (calls) => `${AGENT} · last 24 h · ${calls} calls`,
+    meta: "agent · 3.1k runs",
+    perRun: "Calls / run",
+    latencyShare: "Tool share of latency",
+    retries: "Retries",
+    hotPath: "Hot path",
+  },
+  he: {
+    locale: "he-IL",
+    subtitle: (calls) => `${ltr(AGENT)} · 24 השעות האחרונות · ${calls} קריאות`,
+    meta: `סוכן · ${ltr("3.1k")} הרצות`,
+    perRun: "קריאות להרצה",
+    latencyShare: "חלק הכלים בזמן התגובה",
+    retries: "ניסיונות חוזרים",
+    hotPath: "הנתיב החם",
+    labels: {
+      title: "גרף קריאות לכלים",
+      metrics: { calls: "קריאות", latency: "זמן תגובה", errors: "שגיאות" },
+      nouns: {
+        calls: "נפח קריאות",
+        latency: `זמן תגובה ${ltr("p50")}`,
+        errors: "שיעור שגיאות",
+      },
+      edgeMetric: "מדד הקשתות",
+      calls: "קריאות",
+      errorRate: "שיעור שגיאות",
+      retries: "ניסיונות חוזרים",
+      node: (label, calls, latency, errors, highest) =>
+        `${ltr(label)}: ${calls} קריאות, ${ltr(`p50 ${latency}`)}, ${errors} שגיאות${highest ? `, הכי גבוה ב${highest}` : ""}`,
+      callCount: (calls) => `${calls} קריאות`,
+      err: "שגיאות",
+      highest: (noun, label) => `הכי גבוה ב${noun}: ${ltr(label)}`,
+    },
+  },
+  ar: {
+    locale: "ar",
+    subtitle: (calls) => `${ltr(AGENT)} · آخر 24 ساعة · ${calls} استدعاء`,
+    meta: `وكيل · ${ltr("3.1k")} تشغيل`,
+    perRun: "استدعاءات لكل تشغيل",
+    latencyShare: "حصة الأدوات من زمن الاستجابة",
+    retries: "إعادات المحاولة",
+    hotPath: "المسار الأكثر نشاطًا",
+    labels: {
+      title: "مخطط استدعاءات الأدوات",
+      metrics: { calls: "الاستدعاءات", latency: "زمن الاستجابة", errors: "الأخطاء" },
+      nouns: {
+        calls: "حجم الاستدعاءات",
+        latency: `زمن الاستجابة ${ltr("p50")}`,
+        errors: "معدل الأخطاء",
+      },
+      edgeMetric: "مقياس الروابط",
+      calls: "الاستدعاءات",
+      errorRate: "معدل الأخطاء",
+      retries: "إعادات المحاولة",
+      node: (label, calls, latency, errors, highest) =>
+        `${ltr(label)}: ${calls} استدعاء، ${ltr(`p50 ${latency}`)}، ${errors} أخطاء${highest ? `، الأعلى في ${highest}` : ""}`,
+      callCount: (calls) => `${calls} استدعاء`,
+      err: "أخطاء",
+      highest: (noun, label) => `الأعلى في ${noun}: ${ltr(label)}`,
+    },
+  },
+};
 
 // Seeded noise so the server and the client draw the same feed.
 function rng(seed: number) {
@@ -98,10 +187,13 @@ type State = { frame: number };
 
 export default function ToolCallGraphDemo({
   autoplay = true,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
+  const text = copy[locale];
   const steps: MockStep<State>[] = autoplay
     ? FRAMES.slice(1).map(() => ({
         delay: TICK,
@@ -117,17 +209,27 @@ export default function ToolCallGraphDemo({
 
   return (
     <ToolCallGraph
-      subtitle={`triage-l · v14 · last 24 h · ${total.toLocaleString("en-US")} calls`}
-      agent={{ label: "triage-l · v14", meta: "agent · 3.1k runs" }}
+      subtitle={text.subtitle(total.toLocaleString(text.locale))}
+      agent={{ label: AGENT, meta: text.meta }}
       tools={tools}
+      locale={text.locale}
+      labels={text.labels}
       stats={[
-        { label: "Calls / run", value: (total / 3120).toFixed(1) },
-        { label: "Tool share of latency", value: "63%" },
+        { label: text.perRun, value: (total / 3120).toFixed(1) },
+        { label: text.latencyShare, value: "63%" },
         {
-          label: "Retries",
-          value: `${retries.toLocaleString("en-US")} · ${((retries / total) * 100).toFixed(1)}%`,
+          label: text.retries,
+          value: (
+            <bdi dir="ltr">
+              {`${retries.toLocaleString(text.locale)} · ${((retries / total) * 100).toFixed(1)}%`}
+            </bdi>
+          ),
         },
-        { label: "Hot path", value: "refund.create → email.send", accent: true },
+        {
+          label: text.hotPath,
+          value: <bdi dir="ltr">refund.create → email.send</bdi>,
+          accent: true,
+        },
       ]}
     />
   );

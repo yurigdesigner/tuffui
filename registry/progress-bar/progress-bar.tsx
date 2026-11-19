@@ -33,11 +33,14 @@ export type ProgressBarProps = Omit<React.ComponentProps<"div">, "role"> & {
   label: string;
   /** Spoken value, e.g. "3,280 of 4,000 requests left". Defaults to a percentage. */
   valueText?: string;
+  /** BCP 47 locale for the default spoken percentage. */
+  locale?: string;
 };
 
 /**
  * Horizontal bar. The fill is revealed with clip-path instead of scaled, so
- * the stripe pattern never stretches while it animates.
+ * the stripe pattern never stretches while it animates. It fills from the
+ * start edge, so from the right under `dir="rtl"`.
  */
 export function ProgressBar({
   value,
@@ -49,6 +52,7 @@ export function ProgressBar({
   kind = "progress",
   label,
   valueText,
+  locale = "en-US",
   className,
   ...props
 }: ProgressBarProps) {
@@ -60,7 +64,12 @@ export function ProgressBar({
       aria-valuemin={0}
       aria-valuemax={max}
       aria-valuenow={value}
-      aria-valuetext={valueText ?? `${Math.round(ratio * 100)}%`}
+      aria-valuetext={
+        valueText ??
+        new Intl.NumberFormat(locale, { style: "percent" }).format(
+          Math.round(ratio * 100) / 100,
+        )
+      }
       className={cn(
         "relative w-full overflow-hidden rounded-full bg-foreground/[0.07]",
         heights[size],
@@ -71,11 +80,13 @@ export function ProgressBar({
       <div
         className={cn(
           "absolute inset-0 rounded-full transition-[clip-path,background-color] duration-500 motion-reduce:transition-none",
+          // The unfilled rest is clipped off the end edge.
+          "[clip-path:inset(0_var(--progress-rest)_0_0_round_9999px)] rtl:[clip-path:inset(0_0_0_var(--progress-rest)_round_9999px)]",
           !color && fills[tone],
         )}
         style={{
           backgroundColor: color,
-          clipPath: `inset(0 ${(1 - ratio) * 100}% 0 0 round 9999px)`,
+          ["--progress-rest" as string]: `${(1 - ratio) * 100}%`,
           transitionTimingFunction: EASE,
           backgroundImage: striped ? STRIPES : undefined,
         }}
@@ -99,6 +110,8 @@ export type SegmentedBarProps = Omit<React.ComponentProps<"div">, "role"> & {
   striped?: boolean;
   label: string;
   valueText?: string;
+  /** BCP 47 locale for the spoken and hover values. */
+  locale?: string;
 };
 
 /** Stacked segments with small gaps, e.g. context or budget split by source. */
@@ -109,6 +122,7 @@ export function SegmentedBar({
   striped = false,
   label,
   valueText,
+  locale = "en-US",
   className,
   ...props
 }: SegmentedBarProps) {
@@ -122,7 +136,7 @@ export function SegmentedBar({
       aria-valuenow={total}
       aria-valuetext={
         valueText ??
-        segments.map((s) => `${s.label} ${s.value.toLocaleString("en-US")}`).join(", ")
+        segments.map((s) => `${s.label} ${s.value.toLocaleString(locale)}`).join(", ")
       }
       className={cn("flex w-full gap-1", heights[size], className)}
       {...props}
@@ -130,7 +144,7 @@ export function SegmentedBar({
       {segments.map((s) => (
         <span
           key={s.id}
-          title={`${s.label} · ${s.value.toLocaleString("en-US")}`}
+          title={`${s.label} · ${s.value.toLocaleString(locale)}`}
           className="h-full min-w-1.5 shrink-0 rounded-full transition-[width] duration-500 motion-reduce:transition-none"
           style={{
             width: `${(s.value / max) * 100}%`,

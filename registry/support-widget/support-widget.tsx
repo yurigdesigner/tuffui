@@ -7,13 +7,21 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { IconButton } from "@/components/ui/action-button";
 import { Avatar } from "@/components/ui/agent-avatar";
-import { ChatThread, type ThreadMessage } from "@/components/ui/chat-thread";
+import {
+  ChatThread,
+  type ChatThreadLabels,
+  type ThreadMessage,
+} from "@/components/ui/chat-thread";
 import { Spinner, Thinking } from "@/components/ui/loader";
 import {
   PromptSuggestions,
   type PromptSuggestion,
+  type PromptSuggestionsLabels,
 } from "@/components/ui/prompt-suggestions";
-import { ResponseFeedback } from "@/components/ui/response-feedback";
+import {
+  ResponseFeedback,
+  type ResponseFeedbackLabels,
+} from "@/components/ui/response-feedback";
 import { TextField } from "@/components/ui/text-field";
 import { EASE_OUT } from "@/lib/motion-tokens";
 import { cn } from "@/lib/utils";
@@ -44,6 +52,57 @@ export type SupportWidgetData = {
   unread?: number;
 };
 
+export type SupportWidgetLabels = {
+  /** Dialog name. */
+  chatWith: (name: string) => string;
+  /** Under the bot's name in the header. */
+  repliesInstantly: string;
+  /** Under the person's name when they have no `role`. */
+  supportTeam: string;
+  minimise: string;
+  endChat: string;
+  /** Screen-reader text while the bot composes. */
+  typing: (name: string) => string;
+  thinking: string;
+  loading: string;
+  /** Queue line; `wait` is the hint from data, e.g. "~2 min". */
+  waiting: (wait?: string) => string;
+  message: string;
+  placeholder: string;
+  /** Placeholder while waiting for a person. */
+  waitingPlaceholder: string;
+  send: string;
+  openChat: string;
+  hideChat: string;
+  /** Screen-reader text after the launcher count. */
+  unread: string;
+  /** Passed through to the components the widget is built from. */
+  chatThread?: Partial<ChatThreadLabels>;
+  suggestions?: Partial<PromptSuggestionsLabels>;
+  feedback?: Partial<ResponseFeedbackLabels>;
+  /** Reasons offered with the rating; the rating component's own list by default. */
+  ratingReasons?: string[];
+};
+
+const defaultLabels: SupportWidgetLabels = {
+  chatWith: (name) => `Chat with ${name}`,
+  repliesInstantly: "Typically replies instantly",
+  supportTeam: "Support team",
+  minimise: "Minimise chat",
+  endChat: "End chat",
+  typing: (name) => `${name} is typing`,
+  thinking: "Thinking",
+  loading: "Loading",
+  waiting: (wait) => `Waiting for a person${wait ? ` · ${wait}` : ""}`,
+  message: "Message",
+  placeholder: "Write a message…",
+  waitingPlaceholder: "Add details while you wait…",
+  send: "Send",
+  openChat: "Open support chat",
+  hideChat: "Hide support chat",
+  unread: " unread",
+};
+
 export type SupportWidgetProps = {
   data: SupportWidgetData;
   /** The host page the widget sits on. */
@@ -59,6 +118,10 @@ export type SupportWidgetProps = {
     reasons: string[];
     note: string;
   }) => void;
+  /** Your own UI strings, plus labels for the inner components, for translating. */
+  labels?: Partial<SupportWidgetLabels>;
+  /** Intl locale for message times. */
+  locale?: string;
   className?: string;
 };
 
@@ -79,8 +142,11 @@ export function SupportWidget({
   onClose,
   onSend,
   onRate,
+  labels: labelOverrides,
+  locale,
   className,
 }: SupportWidgetProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const { bot, human, visitor, messages, quickReplies, mode = "bot" } = data;
   const [own, setOwn] = useState(defaultOpen);
   const open = openProp ?? own;
@@ -90,6 +156,12 @@ export function SupportWidget({
   const focusOnOpen = useRef(false);
   const dock = useRef<HTMLFormElement>(null);
   const [inset, setInset] = useState(72);
+  const root = useRef<HTMLDivElement>(null);
+  // The panel grows out of the launcher, which sits bottom left in RTL.
+  const [rtl, setRtl] = useState(false);
+  useEffect(() => {
+    if (root.current) setRtl(getComputedStyle(root.current).direction === "rtl");
+  }, []);
 
   const setOpen = (next: boolean) => {
     setOwn(next);
@@ -123,9 +195,9 @@ export function SupportWidget({
   const footer = (
     <div className="flex flex-col gap-3 pt-1">
       {mode === "typing" && (
-        <div className="flex items-center gap-2 pl-9 text-muted-foreground">
-          <Thinking size="sm" />
-          <span className="sr-only">{bot.name} is typing</span>
+        <div className="flex items-center gap-2 ps-9 text-muted-foreground">
+          <Thinking size="sm" label={labels.thinking} />
+          <span className="sr-only">{labels.typing(bot.name)}</span>
         </div>
       )}
       {mode === "waiting" && (
@@ -133,20 +205,27 @@ export function SupportWidget({
           role="status"
           className="mx-auto flex items-center gap-2 rounded-full bg-foreground/[0.05] px-3 py-1.5 text-[0.8125rem] text-muted-foreground"
         >
-          <Spinner size="sm" />
-          Waiting for a person{data.wait ? ` · ${data.wait}` : ""}
+          <Spinner size="sm" label={labels.loading} />
+          {labels.waiting(data.wait)}
         </div>
       )}
       {mode === "bot" && quickReplies && quickReplies.length > 0 && (
         <PromptSuggestions
           data={quickReplies}
           variant="chips"
+          labels={labels.suggestions}
           onSelect={(_, prompt) => send(prompt)}
-          className="max-w-none pl-9"
+          className="max-w-none ps-9"
         />
       )}
       {data.askRating && (
-        <ResponseFeedback variant="detailed" onSubmit={onRate} className="max-w-none" />
+        <ResponseFeedback
+          variant="detailed"
+          onSubmit={onRate}
+          labels={labels.feedback}
+          reasons={labels.ratingReasons}
+          className="max-w-none"
+        />
       )}
     </div>
   );
@@ -154,6 +233,7 @@ export function SupportWidget({
   return (
     <MotionConfig reducedMotion="user">
       <div
+        ref={root}
         className={cn(
           "@container relative h-full w-full overflow-hidden bg-background text-foreground",
           className,
@@ -167,7 +247,7 @@ export function SupportWidget({
               key="panel"
               id={panelId}
               role="dialog"
-              aria-label={`Chat with ${speaker.name}`}
+              aria-label={labels.chatWith(speaker.name)}
               onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1, transition: pop }}
@@ -176,10 +256,10 @@ export function SupportWidget({
                 scale: 0.94,
                 transition: { duration: 0.15, ease: EASE_OUT },
               }}
-              style={{ transformOrigin: "bottom right" }}
+              style={{ transformOrigin: rtl ? "bottom left" : "bottom right" }}
               className={cn(
                 "absolute inset-2 z-20 flex flex-col rounded-[1.375rem] bg-surface p-1.5",
-                "@md:inset-auto @md:right-5 @md:bottom-24 @md:h-[min(40rem,calc(100%-7.5rem))] @md:w-[23.5rem]",
+                "@md:inset-auto @md:end-5 @md:bottom-24 @md:h-[min(40rem,calc(100%-7.5rem))] @md:w-[23.5rem]",
                 "shadow-[0_24px_60px_-24px_rgba(0,0,0,0.45)]",
               )}
             >
@@ -196,20 +276,20 @@ export function SupportWidget({
                   </h2>
                   <p className="truncate text-[0.8125rem] text-muted-foreground">
                     {speaker === bot
-                      ? "Typically replies instantly"
-                      : (speaker.role ?? "Support team")}
+                      ? labels.repliesInstantly
+                      : (speaker.role ?? labels.supportTeam)}
                   </p>
                 </div>
                 <IconButton
                   icon={CaretDown}
                   iconWeight="bold"
-                  label="Minimise chat"
+                  label={labels.minimise}
                   onClick={() => setOpen(false)}
                 />
                 <IconButton
                   icon={X}
                   iconWeight="bold"
-                  label="End chat"
+                  label={labels.endChat}
                   onClick={() => {
                     setOpen(false);
                     onClose?.();
@@ -224,6 +304,8 @@ export function SupportWidget({
                   data={{ messages }}
                   agentName={bot.name}
                   userName={visitor.name}
+                  locale={locale}
+                  labels={labels.chatThread}
                   bottomInset={inset}
                   contentClassName="px-3"
                   renderAvatar={(message) =>
@@ -251,23 +333,23 @@ export function SupportWidget({
                 >
                   <TextField
                     ref={input}
-                    aria-label="Message"
+                    aria-label={labels.message}
+                    dir="auto"
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     placeholder={
-                      mode === "waiting"
-                        ? "Add details while you wait…"
-                        : "Write a message…"
+                      mode === "waiting" ? labels.waitingPlaceholder : labels.placeholder
                     }
                     className="flex-1"
                   />
                   <IconButton
                     type="submit"
                     icon={PaperPlaneRight}
-                    label="Send"
+                    label={labels.send}
                     variant="primary"
                     size="md"
                     disabled={!draft.trim()}
+                    className="rtl:[&_svg]:-scale-x-100"
                   />
                 </form>
               </div>
@@ -279,13 +361,13 @@ export function SupportWidget({
           type="button"
           aria-expanded={open}
           aria-controls={panelId}
-          aria-label={open ? "Hide support chat" : "Open support chat"}
+          aria-label={open ? labels.hideChat : labels.openChat}
           onClick={() => {
             focusOnOpen.current = !open;
             setOpen(!open);
           }}
           className={cn(
-            "absolute right-5 bottom-5 z-30 flex size-14 items-center justify-center rounded-full bg-foreground text-background",
+            "absolute end-5 bottom-5 z-30 flex size-14 items-center justify-center rounded-full bg-foreground text-background",
             "shadow-[0_12px_30px_-12px_rgba(0,0,0,0.5)] transition-[scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.95]",
             open && "@max-md:hidden",
           )}
@@ -311,9 +393,9 @@ export function SupportWidget({
             </motion.span>
           </AnimatePresence>
           {!open && !!data.unread && (
-            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-negative px-1.5 text-[0.6875rem] font-semibold text-white tabular-nums">
+            <span className="absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-negative px-1.5 text-[0.6875rem] font-semibold text-white tabular-nums">
               {data.unread}
-              <span className="sr-only"> unread</span>
+              <span className="sr-only">{labels.unread}</span>
             </span>
           )}
         </motion.button>

@@ -4,7 +4,7 @@
 
 import { ArrowDownRight, ArrowUpRight, ChartBar, Warning } from "@phosphor-icons/react";
 import { MotionConfig, motion } from "motion/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -40,7 +40,53 @@ export type UsageSummaryProps = {
   warnAt?: number;
   title?: string;
   onSelectDay?: (day: UsageDay) => void;
+  /** BCP 47 locale for dates, costs and percentages, e.g. `he-IL`. */
+  locale?: string;
+  /** UI strings, for translating the card. */
+  labels?: Partial<UsageSummaryLabels>;
   className?: string;
+};
+
+export type UsageSummaryLabels = {
+  /** Used when `title` is left out. */
+  title: string;
+  /** `tokens` is the animated number. */
+  subtitle: (days: number, tokens: ReactNode) => ReactNode;
+  up: string;
+  down: string;
+  /** `percent` is the animated number. */
+  vsPrevious: (percent: ReactNode) => ReactNode;
+  chart: string;
+  /** Token count in a bar's accessible name. */
+  tokens: (tokens: string) => string;
+  overBudget: string;
+  closeToBudget: string;
+  /** Used when the budget has no `label`. */
+  budget: string;
+  budgetUsed: string;
+  budgetValue: (spent: string, limit: string, percent: string) => string;
+  /** Announced past `warnAt`. */
+  budgetWarning: (percent: string) => string;
+};
+
+const defaultLabels: UsageSummaryLabels = {
+  title: "Usage",
+  subtitle: (days, tokens) => (
+    <>
+      Last {days} days · {tokens} tokens
+    </>
+  ),
+  up: "Up",
+  down: "Down",
+  vsPrevious: (percent) => <>{percent} vs previous</>,
+  chart: "Daily cost by model. Use arrow keys to move between days.",
+  tokens: (tokens) => `${tokens} tokens`,
+  overBudget: "Over budget",
+  closeToBudget: "Close to the budget",
+  budget: "Monthly budget",
+  budgetUsed: "Budget used",
+  budgetValue: (spent, limit, percent) => `${spent} of ${limit} (${percent})`,
+  budgetWarning: (percent) => `${percent} of the budget used`,
 };
 
 const stripes =
@@ -57,10 +103,10 @@ const formatTokens = (n: number) =>
       ? `${(n / 1000).toFixed(n < 100_000 ? 1 : 0)}k`
       : `${(n / 1_000_000).toFixed(1)}M`;
 
-const dayLabel = (date: string, long = false) =>
-  new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
+const dayLabel = (date: string, locale: string, format: Intl.DateTimeFormatOptions) =>
+  new Date(`${date}T12:00:00Z`).toLocaleDateString(locale, {
     timeZone: "UTC",
-    ...(long ? { weekday: "short", month: "short", day: "numeric" } : { day: "numeric" }),
+    ...format,
   });
 
 const sum = (day: UsageDay, key: "tokens" | "cost") =>
@@ -70,13 +116,28 @@ export function UsageSummary({
   data,
   currency = "USD",
   warnAt = 0.8,
-  title = "Usage",
+  title: titleProp,
   onSelectDay,
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: UsageSummaryProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const title = titleProp ?? labels.title;
   const { days, budget, previousCost } = data;
   const money = (n: number) =>
-    n.toLocaleString("en-US", { style: "currency", currency, maximumFractionDigits: 2 });
+    n.toLocaleString(locale, { style: "currency", currency, maximumFractionDigits: 2 });
+  const percent = (n: number) =>
+    new Intl.NumberFormat(locale, { style: "percent" }).format(n / 100);
+  const longDay = (date: string) =>
+    dayLabel(date, locale, { weekday: "short", month: "short", day: "numeric" });
+  // The plot runs left to right in every direction; only the tooltip text follows the page.
+  const plot = useRef<HTMLDivElement>(null);
+  const [rtl, setRtl] = useState(false);
+  useEffect(() => {
+    const outer = plot.current?.parentElement;
+    setRtl(!!outer && getComputedStyle(outer).direction === "rtl");
+  }, []);
   const models = data.models.map((m, i) => ({
     ...m,
     color: m.color ?? palette[i % palette.length],
@@ -113,7 +174,7 @@ export function UsageSummary({
   };
 
   const describe = (day: UsageDay) =>
-    `${dayLabel(day.date, true)}: ${money(sum(day, "cost"))}, ${formatTokens(sum(day, "tokens"))} tokens. ` +
+    `${longDay(day.date)}: ${money(sum(day, "cost"))}, ${labels.tokens(formatTokens(sum(day, "tokens")))}. ` +
     models
       .filter((m) => day.byModel[m.id])
       .map((m) => `${m.name} ${money(day.byModel[m.id].cost)}`)
@@ -125,14 +186,12 @@ export function UsageSummary({
         <ShellHeader
           icon={ChartBar}
           title={title}
-          subtitle={
-            <>
-              Last {days.length} days ·{" "}
-              <RollingNumber value={formatTokens(totalTokens)} /> tokens
-            </>
-          }
+          subtitle={labels.subtitle(
+            days.length,
+            <RollingNumber value={formatTokens(totalTokens)} />,
+          )}
           aside={
-            <div className="text-right">
+            <div className="text-end">
               <p className="text-2xl font-medium tracking-tight tabular-nums">
                 <RollingNumber value={money(totalCost)} />
               </p>
@@ -144,9 +203,10 @@ export function UsageSummary({
                   iconWeight="bold"
                   className="mt-0.5 h-auto gap-0.5 px-1.5 text-xs tabular-nums"
                 >
-                  <span className="sr-only">{delta > 0 ? "Up" : "Down"}</span>
-                  <RollingNumber value={`${Math.abs(Math.round(delta * 100))}%`} /> vs
-                  previous
+                  <span className="sr-only">{delta > 0 ? labels.up : labels.down}</span>
+                  {labels.vsPrevious(
+                    <RollingNumber value={percent(Math.abs(Math.round(delta * 100)))} />,
+                  )}
                 </StatusPill>
               )}
             </div>
@@ -155,8 +215,10 @@ export function UsageSummary({
 
         <Panel>
           <div
+            ref={plot}
             role="group"
-            aria-label="Daily cost by model. Use arrow keys to move between days."
+            aria-label={labels.chart}
+            dir="ltr"
             className={cn(
               "relative flex h-44 items-end px-4 pt-14 pb-2",
               dense ? "gap-[3px]" : "gap-2",
@@ -252,14 +314,17 @@ export function UsageSummary({
                               : "bottom",
                       }}
                       aria-hidden="true"
+                      dir={rtl ? "rtl" : undefined}
                       className={cn(
                         "pointer-events-none absolute bottom-full z-10 mb-2 w-max min-w-36 rounded-xl bg-surface-raised px-3 py-2 text-xs",
                         align,
                       )}
                     >
                       <p className="mb-1 flex justify-between gap-4 font-medium">
-                        {dayLabel(day.date, true)}
-                        <span className="tabular-nums">{money(cost)}</span>
+                        {longDay(day.date)}
+                        <bdi dir="ltr" className="tabular-nums">
+                          {money(cost)}
+                        </bdi>
                       </p>
                       {models
                         .filter((m) => day.byModel[m.id])
@@ -274,7 +339,7 @@ export function UsageSummary({
                             />
                             <span className="flex-1">{m.name}</span>
                             <span className="tabular-nums">
-                              {money(day.byModel[m.id].cost)}
+                              <bdi dir="ltr">{money(day.byModel[m.id].cost)}</bdi>
                             </span>
                           </p>
                         ))}
@@ -286,15 +351,21 @@ export function UsageSummary({
           </div>
           <div
             aria-hidden="true"
+            dir="ltr"
             className="flex justify-between px-4 pb-3 font-mono text-[0.6875rem] text-muted-foreground"
           >
             {days
               .filter((_, i) => !dense || i % 5 === 0 || i === days.length - 1)
               .map((d) => (
-                <span key={d.date} className={cn(!dense && "flex-1 text-center")}>
+                <span
+                  key={d.date}
+                  // Labels sit on an LTR axis but read in their own script's direction.
+                  dir="auto"
+                  className={cn(!dense && "flex-1 text-center")}
+                >
                   {dense
-                    ? dayLabel(d.date, true).split(", ")[1]
-                    : dayLabel(d.date, true).split(",")[0]}
+                    ? dayLabel(d.date, locale, { month: "short", day: "numeric" })
+                    : dayLabel(d.date, locale, { weekday: "short" })}
                 </span>
               ))}
           </div>
@@ -314,8 +385,8 @@ export function UsageSummary({
                 <span className="font-mono text-[0.8125rem] text-muted-foreground tabular-nums">
                   {formatTokens(m.tokens)}
                 </span>
-                <span className="w-20 text-right font-mono text-[0.8125rem] tabular-nums">
-                  {money(m.cost)}
+                <span className="w-20 text-end font-mono text-[0.8125rem] tabular-nums">
+                  <bdi dir="ltr">{money(m.cost)}</bdi>
                 </span>
               </li>
             ))}
@@ -339,12 +410,12 @@ export function UsageSummary({
                   <Warning weight="fill" className="size-3.5" aria-hidden="true" />
                 )}
                 {over
-                  ? "Over budget"
+                  ? labels.overBudget
                   : overWarn
-                    ? "Close to the budget"
-                    : (budget.label ?? "Monthly budget")}
+                    ? labels.closeToBudget
+                    : (budget.label ?? labels.budget)}
               </p>
-              <p className="font-mono text-muted-foreground tabular-nums">
+              <p dir="ltr" className="font-mono text-muted-foreground tabular-nums">
                 <RollingNumber className="text-foreground" value={money(totalCost)} /> /{" "}
                 {money(budget.limit)}
               </p>
@@ -356,16 +427,20 @@ export function UsageSummary({
               tone={over ? "negative" : overWarn ? "warning" : "positive"}
               value={Math.min(Math.round(totalCost * 100) / 100, budget.limit)}
               max={budget.limit}
-              label="Budget used"
-              valueText={`${money(totalCost)} of ${money(budget.limit)} (${Math.round(spent * 100)}%)`}
+              label={labels.budgetUsed}
+              valueText={labels.budgetValue(
+                money(totalCost),
+                money(budget.limit),
+                percent(Math.round(spent * 100)),
+              )}
             />
           </footer>
         )}
         <p role="status" aria-live="polite" className="sr-only">
           {over
-            ? "Over budget"
+            ? labels.overBudget
             : overWarn
-              ? `${Math.round(spent * 100)}% of the budget used`
+              ? labels.budgetWarning(percent(Math.round(spent * 100)))
               : ""}
         </p>
       </Shell>

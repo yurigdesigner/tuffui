@@ -102,6 +102,17 @@ export function ChatScreen({ chat, run }: { chat: Chat; run: AgentRun }) {
       type: "(open: boolean) => void",
       description: "Called when the sidebar is shown or hidden.",
     },
+    {
+      name: "locale",
+      type: "string",
+      description: "BCP 47 locale for message times and token counts.",
+    },
+    {
+      name: "labels",
+      type: "Partial<AIChatLabels>",
+      description:
+        'Your own UI strings (sidebar, header, placeholders…) plus labels for the inner components (`conversationList`, `chatThread`, `composer`, `contextMeter`, `suggestions`, `keyHint`), for translating. Right-to-left works under `dir="rtl"`: the history sits on the right.',
+    },
     { name: "className", type: "string", description: "Extra classes for the root." },
   ],
   types: `type AIChatData = {

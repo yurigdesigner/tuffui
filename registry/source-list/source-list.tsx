@@ -4,7 +4,7 @@
 
 import { ArrowUpRight, BookOpenText } from "@phosphor-icons/react";
 import { MotionConfig, motion } from "motion/react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, createContext, useContext, useEffect, useRef, useState } from "react";
 import { Tag } from "@/components/ui/status-pill";
 import { Panel, Shell, ShellHeader } from "@/components/ui/surface";
 import { Tooltip } from "@/components/ui/tooltip-hint";
@@ -35,8 +35,35 @@ export type SourceListProps = {
   data: SourceListData;
   variant?: "footnotes" | "panel";
   onOpen?: (source: Source) => void;
+  /** UI strings, for translating. */
+  labels?: Partial<SourceListLabels>;
   className?: string;
 };
+
+export type SourceListLabels = {
+  sources: string;
+  /** Screen-reader name of a citation marker. */
+  source: (n: number, title: string) => string;
+  /** Panel title. */
+  count: (sources: number) => string;
+  /** Panel subtitle. */
+  summary: (sites: number, claims: number) => string;
+  /** Read before the claims a source backs. */
+  supports: string;
+  opensInNewTab: string;
+};
+
+const defaultLabels: SourceListLabels = {
+  sources: "Sources",
+  source: (n, title) => `Source ${n}: ${title}`,
+  count: (sources) => `${sources} sources`,
+  summary: (sites, claims) =>
+    `${sites} site${sites === 1 ? "" : "s"} · ${claims} claim${claims === 1 ? "" : "s"} cited`,
+  supports: "Supports:",
+  opensInNewTab: "Opens in a new tab",
+};
+
+const Labels = createContext(defaultLabels);
 
 export const domainOf = (url: string) => {
   try {
@@ -66,11 +93,11 @@ function Favicon({ url, className }: { url: string; className?: string }) {
 
 function Preview({ source, index }: { source: Source; index: number }) {
   return (
-    <span className="flex w-60 flex-col gap-1 py-0.5 text-left">
+    <span className="flex w-60 flex-col gap-1 py-0.5 text-start">
       <span className="flex items-center gap-2 text-muted-foreground">
         <Favicon url={source.url} className="size-4 text-[0.5625rem]" />
         <span className="truncate">{domainOf(source.url)}</span>
-        {source.date && <span className="ml-auto shrink-0">{source.date}</span>}
+        {source.date && <span className="ms-auto shrink-0">{source.date}</span>}
       </span>
       <span className="font-medium text-foreground">
         {index + 1}. {source.title}
@@ -90,6 +117,7 @@ function Footnotes({
   onOpen?: (s: Source) => void;
 }) {
   const { sources, text = "" } = data;
+  const labels = useContext(Labels);
   const [flash, setFlash] = useState<number | null>(null);
   const refs = useRef<(HTMLAnchorElement | null)[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -123,7 +151,7 @@ function Footnotes({
                     <button
                       type="button"
                       onClick={() => jump(n)}
-                      aria-label={`Source ${n + 1}: ${sources[n].title}`}
+                      aria-label={labels.source(n + 1, sources[n].title)}
                       className="h-[1.15rem] min-w-[1.15rem] rounded-md bg-brand/15 px-1 font-mono text-[0.6875rem] leading-[1.15rem] font-medium text-brand transition-[background-color,scale] duration-150 ease-out hover:bg-brand/25 active:scale-[0.95]"
                     >
                       {n + 1}
@@ -135,7 +163,7 @@ function Footnotes({
           );
         })}
       </p>
-      <ol aria-label="Sources" className="flex flex-col gap-0.5">
+      <ol aria-label={labels.sources} className="flex flex-col gap-0.5">
         {sources.map((s, n) => (
           <li key={s.id}>
             <a
@@ -151,7 +179,7 @@ function Footnotes({
                 flash === n && "bg-brand/10",
               )}
             >
-              <span className="w-4 text-right font-mono text-xs text-muted-foreground">
+              <span className="w-4 text-end font-mono text-xs text-muted-foreground">
                 {n + 1}
               </span>
               <Favicon url={s.url} />
@@ -182,13 +210,14 @@ function SourcePanel({
     }, {}),
   ).sort((a, b) => b[1].length - a[1].length);
   const domains = groups.length;
+  const labels = useContext(Labels);
 
   return (
-    <Shell aria-label="Sources">
+    <Shell aria-label={labels.sources}>
       <ShellHeader
         icon={BookOpenText}
-        title={`${sources.length} sources`}
-        subtitle={`${domains} site${domains === 1 ? "" : "s"} · ${claims.length} claim${claims.length === 1 ? "" : "s"} cited`}
+        title={labels.count(sources.length)}
+        subtitle={labels.summary(domains, claims.length)}
       />
       <Panel className="flex flex-col gap-3 p-1.5">
         {groups.map(([domain, items], g) => (
@@ -216,7 +245,7 @@ function SourcePanel({
                       onClick={() => onOpen?.(s)}
                       className="group flex gap-3 rounded-xl px-2.5 py-2.5 transition-colors hover:bg-foreground/[0.03]"
                     >
-                      <span className="w-4 pt-0.5 text-right font-mono text-xs text-muted-foreground">
+                      <span className="w-4 pt-0.5 text-end font-mono text-xs text-muted-foreground">
                         {n + 1}
                       </span>
                       <span className="min-w-0 flex-1">
@@ -237,7 +266,7 @@ function SourcePanel({
                         )}
                         {cited.length > 0 && (
                           <span className="mt-2 flex flex-wrap gap-1">
-                            <span className="sr-only">Supports:</span>
+                            <span className="sr-only">{labels.supports}</span>
                             {cited.map((c) => (
                               <Tag key={c.id} className="max-w-full truncate font-sans">
                                 {c.text}
@@ -248,8 +277,8 @@ function SourcePanel({
                       </span>
                       <ArrowUpRight
                         weight="bold"
-                        className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-[translate,color] duration-150 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
-                        aria-label="Opens in a new tab"
+                        className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-[translate,color] duration-150 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground rtl:-scale-x-100 rtl:group-hover:-translate-x-0.5"
+                        aria-label={labels.opensInNewTab}
                       />
                     </a>
                   </li>
@@ -267,17 +296,20 @@ export function SourceList({
   data,
   variant = "footnotes",
   onOpen,
+  labels,
   className,
 }: SourceListProps) {
   return (
-    <MotionConfig reducedMotion="user">
-      <div className={cn("w-full max-w-xl", className)}>
-        {variant === "panel" ? (
-          <SourcePanel data={data} onOpen={onOpen} />
-        ) : (
-          <Footnotes data={data} onOpen={onOpen} />
-        )}
-      </div>
-    </MotionConfig>
+    <Labels.Provider value={{ ...defaultLabels, ...labels }}>
+      <MotionConfig reducedMotion="user">
+        <div className={cn("w-full max-w-xl", className)}>
+          {variant === "panel" ? (
+            <SourcePanel data={data} onOpen={onOpen} />
+          ) : (
+            <Footnotes data={data} onOpen={onOpen} />
+          )}
+        </div>
+      </MotionConfig>
+    </Labels.Provider>
   );
 }

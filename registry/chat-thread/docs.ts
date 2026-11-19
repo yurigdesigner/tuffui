@@ -86,6 +86,18 @@ export function Conversation({ messages, lastReadId }: Props) {
       type: "string",
       description: "Classes for the message column, e.g. `mx-auto max-w-3xl`.",
     },
+    {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for message times and day dividers.",
+    },
+    {
+      name: "labels",
+      type: "Partial<ChatThreadLabels>",
+      description:
+        'Your own UI strings (Unread, Today, Jump to latest…), for translating the thread. Right-to-left works under `dir="rtl"`.',
+    },
     { name: "className", type: "string", description: "Extra classes for the shell." },
   ],
   types: `type ThreadMessage = {

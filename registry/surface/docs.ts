@@ -54,7 +54,8 @@ export function MemoryCard() {
     {
       name: "ShellHeader.aside",
       type: "ReactNode",
-      description: "Right side — a stat, pill or actions, vertically centered.",
+      description:
+        'End side (right in LTR) — a stat, pill or actions, vertically centered. Right-to-left works under `dir="rtl"`.',
     },
     {
       name: "ShellHeader.as",

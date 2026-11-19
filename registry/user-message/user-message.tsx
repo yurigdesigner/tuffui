@@ -47,7 +47,47 @@ export type UserMessageProps = {
   onEdit?: (text: string) => void;
   onRetry?: () => void;
   onCopy?: (text: string) => void;
+  /** UI strings, for translating. */
+  labels?: Partial<UserMessageLabels>;
   className?: string;
+};
+
+export type UserMessageLabels = {
+  attachments: string;
+  image: string;
+  file: string;
+  /** File size shown under an attachment name. */
+  bytes: (n: number) => string;
+  edit: string;
+  copy: string;
+  copied: string;
+  cancel: string;
+  saveAndResend: string;
+  sending: string;
+  notSent: string;
+  /** Screen-reader announcement when sending fails. */
+  failed: string;
+  retry: string;
+  sent: string;
+  edited: string;
+};
+
+const defaultLabels: UserMessageLabels = {
+  attachments: "Attachments",
+  image: "Image",
+  file: "File",
+  bytes: (n) => formatBytes(n),
+  edit: "Edit message",
+  copy: "Copy message",
+  copied: "Copied",
+  cancel: "Cancel",
+  saveAndResend: "Save & resend",
+  sending: "Sending",
+  notSent: "Not sent",
+  failed: "Message not sent",
+  retry: "Retry",
+  sent: "Sent",
+  edited: "Edited",
 };
 
 export const formatBytes = (n: number) =>
@@ -62,8 +102,10 @@ export function UserMessage({
   onEdit,
   onRetry,
   onCopy,
+  labels: labelOverrides,
   className,
 }: UserMessageProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const { content, attachments = [], sentAt, status = "sent", edited } = data;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(content);
@@ -102,13 +144,13 @@ export function UserMessage({
       <div className={cn("group flex w-full flex-col items-end gap-1.5", className)}>
         {attachments.length > 0 && (
           <ul
-            aria-label="Attachments"
+            aria-label={labels.attachments}
             className="flex max-w-[85%] flex-wrap justify-end gap-1.5"
           >
             {attachments.map((file) => (
               <li
                 key={file.id}
-                className="flex items-center gap-2 rounded-xl bg-foreground/[0.05] py-1.5 pr-3 pl-1.5"
+                className="flex items-center gap-2 rounded-xl bg-foreground/[0.05] py-1.5 ps-1.5 pe-3"
               >
                 <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-foreground/[0.06] text-muted-foreground">
                   {file.previewUrl ? (
@@ -130,8 +172,8 @@ export function UserMessage({
                   </span>
                   {file.size !== undefined && (
                     <span className="block text-[0.6875rem] text-muted-foreground">
-                      {file.kind === "image" ? "Image" : "File"} ·{" "}
-                      {formatBytes(file.size)}
+                      {file.kind === "image" ? labels.image : labels.file} ·{" "}
+                      <span dir="ltr">{labels.bytes(file.size)}</span>
                     </span>
                   )}
                 </span>
@@ -151,10 +193,11 @@ export function UserMessage({
                 e.preventDefault();
                 save();
               }}
-              className="flex w-full max-w-[85%] origin-top-right flex-col gap-2 rounded-2xl bg-surface p-1.5"
+              className="flex w-full max-w-[85%] flex-col gap-2 rounded-2xl bg-surface p-1.5 ltr:origin-top-right rtl:origin-top-left"
             >
               <TextArea
-                aria-label="Edit message"
+                aria-label={labels.edit}
+                dir="auto"
                 autoFocus
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -170,21 +213,22 @@ export function UserMessage({
               />
               <div className="flex justify-end gap-1.5">
                 <Button type="button" variant="quiet" size="sm" onClick={cancel}>
-                  Cancel
+                  {labels.cancel}
                 </Button>
                 <Button type="submit" size="sm" disabled={!draft.trim()}>
-                  Save & resend
+                  {labels.saveAndResend}
                 </Button>
               </div>
             </motion.form>
           ) : (
             <motion.div
               key="bubble"
+              dir="auto"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, transition: enter }}
               exit={{ opacity: 0, transition: exit }}
               className={cn(
-                "max-w-[85%] rounded-2xl rounded-br-md bg-surface-raised px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap",
+                "max-w-[85%] rounded-2xl rounded-ee-md bg-surface-raised px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap",
                 status === "sending" && "opacity-70",
               )}
             >
@@ -204,7 +248,7 @@ export function UserMessage({
                 <IconButton
                   ref={editButton}
                   icon={PencilSimple}
-                  label="Edit message"
+                  label={labels.edit}
                   variant="quiet"
                   size="sm"
                   onClick={startEdit}
@@ -213,17 +257,23 @@ export function UserMessage({
               <IconButton
                 icon={copied ? Check : Copy}
                 iconWeight={copied ? "bold" : "fill"}
-                label={copied ? "Copied" : "Copy message"}
+                label={copied ? labels.copied : labels.copy}
                 variant="quiet"
                 size="sm"
                 onClick={copy}
               />
             </span>
-            <Delivery status={status} sentAt={sentAt} edited={edited} onRetry={onRetry} />
+            <Delivery
+              status={status}
+              sentAt={sentAt}
+              edited={edited}
+              onRetry={onRetry}
+              labels={labels}
+            />
           </div>
         )}
         <p role="status" aria-live="polite" className="sr-only">
-          {status === "failed" ? "Message not sent" : copied ? "Copied" : ""}
+          {status === "failed" ? labels.failed : copied ? labels.copied : ""}
         </p>
       </div>
     </MotionConfig>
@@ -235,24 +285,26 @@ function Delivery({
   sentAt,
   edited,
   onRetry,
+  labels,
 }: {
   status: UserMessageStatus;
   sentAt?: string;
   edited?: boolean;
   onRetry?: () => void;
+  labels: UserMessageLabels;
 }) {
   if (status === "sending")
     return (
       <span className="flex items-center gap-1 px-1">
-        <Spinner size="sm" label="Sending" className="text-current" />
-        <span aria-hidden="true">Sending</span>
+        <Spinner size="sm" label={labels.sending} className="text-current" />
+        <span aria-hidden="true">{labels.sending}</span>
       </span>
     );
   if (status === "failed")
     return (
-      <span className="flex items-center gap-1.5 pl-1 text-negative">
+      <span className="flex items-center gap-1.5 ps-1 text-negative">
         <WarningCircle weight="fill" className="size-3.5" aria-hidden="true" />
-        Not sent
+        {labels.notSent}
         {onRetry && (
           <Button
             variant="danger"
@@ -261,14 +313,14 @@ function Delivery({
             iconWeight="bold"
             onClick={onRetry}
           >
-            Retry
+            {labels.retry}
           </Button>
         )}
       </span>
     );
   return (
     <span className="px-1 tabular-nums">
-      {edited ? "Edited" : "Sent"}
+      {edited ? labels.edited : labels.sent}
       {sentAt && ` · ${sentAt}`}
     </span>
   );

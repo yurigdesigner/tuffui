@@ -2,6 +2,7 @@
 // Free to use. If it helps you, you can support it: https://ko-fi.com/yurigokoryan
 "use client";
 
+import { createContext, useContext } from "react";
 import { Tooltip } from "@/components/ui/tooltip-hint";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +17,33 @@ export type AvatarProps = {
   /** `agent` is a rounded square, `person` a circle. */
   kind?: "agent" | "person";
   status?: AvatarStatus;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<AvatarLabels>;
   className?: string;
 };
+
+export type AvatarLabels = {
+  status: Record<AvatarStatus, string>;
+  /** Accessible name with a status badge. */
+  withStatus: (name: string, status: string) => string;
+  /** AvatarGroup's accessible name. */
+  participants: (count: number) => string;
+  /** The "+N" chip's accessible name. */
+  more: (count: number, names: string) => string;
+  /** Joins the hidden names for the "+N" tooltip. */
+  list: (names: string[]) => string;
+};
+
+const defaultLabels: AvatarLabels = {
+  status: { online: "online", away: "away", busy: "busy", working: "working" },
+  withStatus: (name, status) => `${name}, ${status}`,
+  participants: (count) => `${count} participants`,
+  more: (count, names) => `and ${count} more: ${names}`,
+  list: (names) => names.join(", "),
+};
+
+// AvatarGroup hands its labels to the avatars inside it.
+const LabelsContext = createContext<Partial<AvatarLabels> | undefined>(undefined);
 
 // Tints picked deterministically from the name.
 const tints = [
@@ -35,13 +61,6 @@ const sizes: Record<AvatarSize, { box: string; text: string; badge: string }> = 
   sm: { box: "size-7", text: "text-[0.6875rem]", badge: "size-2.5" },
   md: { box: "size-9", text: "text-[0.8125rem]", badge: "size-3" },
   lg: { box: "size-12", text: "text-base", badge: "size-3.5" },
-};
-
-const statusLabels: Record<AvatarStatus, string> = {
-  online: "online",
-  away: "away",
-  busy: "busy",
-  working: "working",
 };
 
 const statusColors: Record<Exclude<AvatarStatus, "working">, string> = {
@@ -70,8 +89,10 @@ export function Avatar({
   size = "md",
   kind = "person",
   status,
+  labels: labelOverrides,
   className,
 }: AvatarProps) {
+  const labels = { ...defaultLabels, ...useContext(LabelsContext), ...labelOverrides };
   const s = sizes[size];
   const shape = kind === "agent" ? "rounded-[30%]" : "rounded-full";
   const tint = tintFor(name);
@@ -79,7 +100,7 @@ export function Avatar({
   return (
     <span
       role="img"
-      aria-label={status ? `${name}, ${statusLabels[status]}` : name}
+      aria-label={status ? labels.withStatus(name, labels.status[status]) : name}
       className={cn("relative inline-flex shrink-0", s.box, className)}
     >
       {src ? (
@@ -106,7 +127,7 @@ export function Avatar({
         <span
           aria-hidden="true"
           className={cn(
-            "absolute -right-0.5 -bottom-0.5 flex items-center justify-center rounded-full bg-[var(--avatar-gap,var(--background))] p-[2px]",
+            "absolute -end-0.5 -bottom-0.5 flex items-center justify-center rounded-full bg-[var(--avatar-gap,var(--background))] p-[2px]",
           )}
         >
           {status === "working" ? (
@@ -134,14 +155,16 @@ export type AvatarGroupProps = {
   size?: AvatarSize;
   /** Avatars shown before collapsing the rest into "+N". */
   max?: number;
+  /** Your own UI strings, for translating; passed on to each avatar. */
+  labels?: Partial<AvatarLabels>;
   className?: string;
 };
 
 const overlap: Record<AvatarSize, string> = {
-  xs: "-ml-1",
-  sm: "-ml-1.5",
-  md: "-ml-2",
-  lg: "-ml-3",
+  xs: "-ms-1",
+  sm: "-ms-1.5",
+  md: "-ms-2",
+  lg: "-ms-3",
 };
 
 /**
@@ -152,54 +175,59 @@ export function AvatarGroup({
   people,
   size = "sm",
   max = 4,
+  labels: labelOverrides,
   className,
 }: AvatarGroupProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const shown = people.slice(0, max);
   const rest = people.slice(max);
   const s = sizes[size];
 
   return (
-    <div
-      role="group"
-      aria-label={`${people.length} participants`}
-      className={cn("flex", className)}
-    >
-      {shown.map((person, i) => (
-        <Tooltip key={person.name} content={person.name} side="bottom">
-          <span
-            tabIndex={0}
-            className={cn(
-              "relative rounded-full bg-[var(--avatar-gap,var(--background))] p-[2px] outline-offset-0",
-              person.kind === "agent" && "rounded-[30%]",
-              i > 0 && overlap[size],
-            )}
-          >
-            <Avatar {...person} size={size} />
-          </span>
-        </Tooltip>
-      ))}
-      {rest.length > 0 && (
-        <Tooltip content={rest.map((p) => p.name).join(", ")} side="bottom">
-          <span
-            tabIndex={0}
-            aria-label={`and ${rest.length} more: ${rest.map((p) => p.name).join(", ")}`}
-            className={cn(
-              "relative rounded-full bg-[var(--avatar-gap,var(--background))] p-[2px]",
-              overlap[size],
-            )}
-          >
+    <LabelsContext.Provider value={labelOverrides}>
+      <div
+        role="group"
+        aria-label={labels.participants(people.length)}
+        className={cn("flex", className)}
+      >
+        {shown.map((person, i) => (
+          <Tooltip key={person.name} content={person.name} side="bottom">
             <span
+              tabIndex={0}
               className={cn(
-                "flex items-center justify-center rounded-full bg-foreground/[0.08] font-medium text-muted-foreground tabular-nums",
-                s.box,
-                s.text,
+                "relative rounded-full bg-[var(--avatar-gap,var(--background))] p-[2px] outline-offset-0",
+                person.kind === "agent" && "rounded-[30%]",
+                i > 0 && overlap[size],
               )}
             >
-              +{rest.length}
+              <Avatar {...person} size={size} />
             </span>
-          </span>
-        </Tooltip>
-      )}
-    </div>
+          </Tooltip>
+        ))}
+        {rest.length > 0 && (
+          <Tooltip content={labels.list(rest.map((p) => p.name))} side="bottom">
+            <span
+              tabIndex={0}
+              aria-label={labels.more(rest.length, labels.list(rest.map((p) => p.name)))}
+              className={cn(
+                "relative rounded-full bg-[var(--avatar-gap,var(--background))] p-[2px]",
+                overlap[size],
+              )}
+            >
+              <span
+                dir="ltr"
+                className={cn(
+                  "flex items-center justify-center rounded-full bg-foreground/[0.08] font-medium text-muted-foreground tabular-nums",
+                  s.box,
+                  s.text,
+                )}
+              >
+                +{rest.length}
+              </span>
+            </span>
+          </Tooltip>
+        )}
+      </div>
+    </LabelsContext.Provider>
   );
 }

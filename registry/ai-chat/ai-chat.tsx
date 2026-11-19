@@ -8,16 +8,27 @@ import { useEffect, useId, useRef, useState } from "react";
 import { IconButton } from "@/components/ui/action-button";
 import { AgentComposer } from "@/components/ui/agent-composer";
 import { Avatar } from "@/components/ui/agent-avatar";
-import { KeyCombo } from "@/components/ui/key-hint";
-import { ChatThread, type ThreadMessage } from "@/components/ui/chat-thread";
+import { KeyCombo, type KeyHintLabels } from "@/components/ui/key-hint";
+import type { AgentComposerLabels } from "@/components/ui/agent-composer";
+import {
+  ChatThread,
+  type ChatThreadLabels,
+  type ThreadMessage,
+} from "@/components/ui/chat-thread";
 import {
   ContextWindowMeter,
   type ContextSegment,
+  type ContextWindowMeterLabels,
 } from "@/components/ui/context-window-meter";
-import { ConversationList, type Conversation } from "@/components/ui/conversation-list";
+import {
+  ConversationList,
+  type Conversation,
+  type ConversationListLabels,
+} from "@/components/ui/conversation-list";
 import {
   PromptSuggestions,
   type PromptSuggestion,
+  type PromptSuggestionsLabels,
 } from "@/components/ui/prompt-suggestions";
 import { Tag } from "@/components/ui/status-pill";
 import { Tooltip } from "@/components/ui/tooltip-hint";
@@ -40,6 +51,45 @@ export type AIChatData = {
   user: { name: string; avatar?: string };
 };
 
+export type AIChatLabels = {
+  chatHistory: string;
+  openHistory: string;
+  closeHistory: string;
+  close: string;
+  showSidebar: string;
+  hideSidebar: string;
+  /** Header title of an empty chat. */
+  newChat: string;
+  share: string;
+  /** Heading over the starter cards. */
+  startersHeading: string;
+  /** Composer placeholder in an empty chat. */
+  placeholder: string;
+  /** Composer placeholder once the chat has messages. */
+  replyPlaceholder: string;
+  /** Passed through to the components the screen is built from. */
+  conversationList?: Partial<ConversationListLabels>;
+  chatThread?: Partial<ChatThreadLabels>;
+  composer?: Partial<AgentComposerLabels>;
+  contextMeter?: Partial<ContextWindowMeterLabels>;
+  suggestions?: Partial<PromptSuggestionsLabels>;
+  keyHint?: Partial<KeyHintLabels>;
+};
+
+const defaultLabels: AIChatLabels = {
+  chatHistory: "Chat history",
+  openHistory: "Open chat history",
+  closeHistory: "Close chat history",
+  close: "Close",
+  showSidebar: "Show sidebar",
+  hideSidebar: "Hide sidebar",
+  newChat: "New chat",
+  share: "Share chat",
+  startersHeading: "What should we work on?",
+  placeholder: "Ask anything",
+  replyPlaceholder: "Reply…",
+};
+
 export type AIChatProps = {
   data: AIChatData;
   status?: "idle" | "streaming";
@@ -52,6 +102,10 @@ export type AIChatProps = {
   sidebarOpen?: boolean;
   defaultSidebarOpen?: boolean;
   onSidebarOpenChange?: (open: boolean) => void;
+  /** Your own UI strings, plus labels for the inner components, for translating. */
+  labels?: Partial<AIChatLabels>;
+  /** Intl locale for times and token counts. */
+  locale?: string;
   className?: string;
 };
 
@@ -72,8 +126,11 @@ export function AIChat({
   sidebarOpen: sidebarOpenProp,
   defaultSidebarOpen = true,
   onSidebarOpenChange,
+  labels: labelOverrides,
+  locale,
   className,
 }: AIChatProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const { conversations, activeId, title, model, messages, followUps, starters } = data;
   const [draft, setDraft] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -90,6 +147,12 @@ export function AIChat({
     onSidebarOpenChange?.(next);
   };
   const empty = messages.length === 0;
+  const root = useRef<HTMLDivElement>(null);
+  // The closed sidebar slides toward the start edge, which is the right in RTL.
+  const [rtl, setRtl] = useState(false);
+  useEffect(() => {
+    if (root.current) setRtl(getComputedStyle(root.current).direction === "rtl");
+  }, []);
   const dock = useRef<HTMLDivElement>(null);
   const [inset, setInset] = useState(140);
 
@@ -114,19 +177,19 @@ export function AIChat({
       align={align}
       content={
         <span className="flex items-center gap-2">
-          {sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-          <KeyCombo keys={"mod+\\"} />
+          {sidebarOpen ? labels.hideSidebar : labels.showSidebar}
+          <KeyCombo keys={"mod+\\"} labels={labels.keyHint} />
         </span>
       }
     >
       <IconButton
         icon={SidebarSimple}
-        label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+        label={sidebarOpen ? labels.hideSidebar : labels.showSidebar}
         aria-expanded={sidebarOpen}
         aria-controls={historyId}
         aria-keyshortcuts={"Meta+\\ Control+\\"}
         onClick={(event) => toggleSidebar(event.detail === 0)}
-        className="hidden @4xl:inline-flex"
+        className="hidden @4xl:inline-flex rtl:[&_svg]:-scale-x-100"
       />
     </Tooltip>
   );
@@ -136,6 +199,7 @@ export function AIChat({
     <ConversationList
       headerAction={withToggle ? sidebarToggle("end") : undefined}
       data={conversations}
+      labels={labels.conversationList}
       activeId={activeId}
       onNew={() => {
         setHistoryOpen(false);
@@ -152,6 +216,7 @@ export function AIChat({
   return (
     <MotionConfig reducedMotion="user">
       <div
+        ref={root}
         onKeyDown={(event) => {
           if ((event.metaKey || event.ctrlKey) && event.key === "\\") {
             event.preventDefault();
@@ -165,7 +230,7 @@ export function AIChat({
       >
         <motion.aside
           id={historyId}
-          aria-label="Chat history"
+          aria-label={labels.chatHistory}
           aria-hidden={!sidebarOpen || undefined}
           inert={!sidebarOpen}
           initial={false}
@@ -175,9 +240,12 @@ export function AIChat({
         >
           <motion.div
             initial={false}
-            animate={{ x: sidebarOpen ? 0 : -24, opacity: sidebarOpen ? 1 : 0 }}
+            animate={{
+              x: sidebarOpen ? 0 : rtl ? 24 : -24,
+              opacity: sidebarOpen ? 1 : 0,
+            }}
             transition={sidebarInstant ? instantTransition : spring}
-            className="h-full w-72 overflow-y-auto p-3 pr-0"
+            className="h-full w-72 overflow-y-auto p-3 pe-0"
           >
             {history(true)}
           </motion.div>
@@ -188,18 +256,18 @@ export function AIChat({
             <IconButton
               icon={List}
               iconWeight="bold"
-              label="Open chat history"
+              label={labels.openHistory}
               onClick={() => setHistoryOpen(true)}
               className="@4xl:hidden"
             />
             {!sidebarOpen && sidebarToggle("start")}
             <h2 className="min-w-0 truncate text-[0.9375rem] font-medium">
-              {empty ? "New chat" : title}
+              {empty ? labels.newChat : title}
             </h2>
             <Tag className="hidden shrink-0 @md:inline-flex">{model}</Tag>
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="ms-auto flex items-center gap-1.5">
               {!empty && (
-                <IconButton icon={Export} label="Share chat" onClick={onShare} />
+                <IconButton icon={Export} label={labels.share} onClick={onShare} />
               )}
               <Avatar name={data.user.name} src={data.user.avatar} size="sm" />
             </div>
@@ -216,7 +284,8 @@ export function AIChat({
                   <PromptSuggestions
                     data={starters}
                     variant="cards"
-                    heading="What should we work on?"
+                    heading={labels.startersHeading}
+                    labels={labels.suggestions}
                     onSelect={(_, prompt) => send(prompt)}
                     className="mx-auto max-w-2xl"
                   />
@@ -228,6 +297,8 @@ export function AIChat({
                 data={{ messages }}
                 agentName={model}
                 userName={data.user.name}
+                locale={locale}
+                labels={labels.chatThread}
                 bottomInset={inset}
                 contentClassName="mx-auto w-full max-w-3xl @md:px-5"
                 footer={
@@ -237,8 +308,9 @@ export function AIChat({
                     <PromptSuggestions
                       data={followUps}
                       variant="chips"
+                      labels={labels.suggestions}
                       onSelect={(_, prompt) => send(prompt)}
-                      className="mt-3 max-w-none pl-9"
+                      className="mt-3 max-w-none ps-9"
                     />
                   )
                 }
@@ -257,7 +329,8 @@ export function AIChat({
                   status={status}
                   onSubmit={(message) => send(message.text)}
                   onStop={onStop}
-                  placeholder={empty ? "Ask anything" : "Reply…"}
+                  placeholder={empty ? labels.placeholder : labels.replyPlaceholder}
+                  labels={labels.composer}
                   className="max-w-none"
                 />
                 <div className="flex justify-end px-1">
@@ -265,6 +338,8 @@ export function AIChat({
                     variant="inline"
                     data={{ ...data.context, model }}
                     warnAt={0.8}
+                    locale={locale}
+                    labels={labels.contextMeter}
                   />
                 </div>
               </div>
@@ -272,7 +347,12 @@ export function AIChat({
           </div>
         </div>
 
-        <HistoryDrawer open={historyOpen} onClose={() => setHistoryOpen(false)}>
+        <HistoryDrawer
+          open={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          rtl={rtl}
+          labels={labels}
+        >
           {history(false)}
         </HistoryDrawer>
       </div>
@@ -287,12 +367,18 @@ export function AIChat({
 function HistoryDrawer({
   open,
   onClose,
+  rtl,
+  labels,
   children,
 }: {
   open: boolean;
   onClose: () => void;
+  rtl: boolean;
+  labels: AIChatLabels;
   children: React.ReactNode;
 }) {
+  // Slides in from the start edge.
+  const offscreen = rtl ? "105%" : "-105%";
   const panel = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
 
@@ -310,7 +396,7 @@ function HistoryDrawer({
         <div className="absolute inset-0 z-20 @4xl:hidden">
           <motion.button
             type="button"
-            aria-label="Close chat history"
+            aria-label={labels.closeHistory}
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { duration: 0.2, ease: EASE_OUT } }}
@@ -321,9 +407,9 @@ function HistoryDrawer({
             ref={panel}
             role="dialog"
             aria-modal="true"
-            aria-label="Chat history"
+            aria-label={labels.chatHistory}
             tabIndex={-1}
-            initial={reduce ? { opacity: 0 } : { x: "-105%" }}
+            initial={reduce ? { opacity: 0 } : { x: offscreen }}
             animate={{
               x: 0,
               opacity: 1,
@@ -332,12 +418,20 @@ function HistoryDrawer({
             exit={
               reduce
                 ? { opacity: 0, transition: { duration: 0.15 } }
-                : { x: "-105%", transition: { duration: 0.22, ease: [0.32, 0.72, 0, 1] } }
+                : {
+                    x: offscreen,
+                    transition: { duration: 0.22, ease: [0.32, 0.72, 0, 1] },
+                  }
             }
-            className="absolute inset-y-2 left-2 flex w-[min(20rem,calc(100%-3rem))] flex-col overflow-y-auto rounded-[1.5rem] bg-background p-1.5 outline-none"
+            className="absolute inset-y-2 start-2 flex w-[min(20rem,calc(100%-3rem))] flex-col overflow-y-auto rounded-[1.5rem] bg-background p-1.5 outline-none"
           >
             <div className="flex justify-end px-1.5 pt-1.5">
-              <IconButton icon={X} iconWeight="bold" label="Close" onClick={onClose} />
+              <IconButton
+                icon={X}
+                iconWeight="bold"
+                label={labels.close}
+                onClick={onClose}
+              />
             </div>
             {children}
           </motion.div>

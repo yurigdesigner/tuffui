@@ -25,6 +25,12 @@ export const docs: ComponentDocs = {
       type: "ReactNode",
       description: "Kbd: the key label.",
     },
+    {
+      name: "labels",
+      type: "Partial<KeyHintLabels>",
+      description:
+        'KeyCombo: spoken key names (Command, Shift, Up…), for translating. The chips stay left to right under `dir="rtl"`.',
+    },
   ],
   types: `function formatKeys(combo: string, onMac: boolean): string[];
 function useIsMac(): boolean; // false during prerender, real value after mount`,

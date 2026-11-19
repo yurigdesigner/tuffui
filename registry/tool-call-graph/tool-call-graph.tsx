@@ -34,7 +34,7 @@ export type ToolCallStat = {
 };
 
 export type ToolCallGraphProps = {
-  /** The caller on the left. `meta` is a short second line, e.g. "agent · 3.1k runs". */
+  /** The caller on the left (the graph reads left to right in every direction). `meta` is a short second line, e.g. "agent · 3.1k runs". */
   agent: { label: string; meta?: string };
   /** Tools in the order they are drawn, top to bottom. */
   tools: ToolCallNode[];
@@ -53,20 +53,62 @@ export type ToolCallGraphProps = {
   formatLatency?: (ms: number) => string;
   /** Called when a tool node is clicked or pressed. */
   onSelect?: (id: string) => void;
+  /** BCP 47 locale for counts and percentages, e.g. `he-IL`. */
+  locale?: string;
+  /** UI strings, for translating the graph. */
+  labels?: Partial<ToolCallGraphLabels>;
   className?: string;
 };
 
-const METRICS: { value: ToolCallMetric; label: string; noun: string }[] = [
-  { value: "calls", label: "Calls", noun: "call volume" },
-  { value: "latency", label: "Latency", noun: "p50 latency" },
-  { value: "errors", label: "Errors", noun: "error rate" },
-];
+export type ToolCallGraphLabels = {
+  /** Used when `title` is left out. */
+  title: string;
+  metrics: Record<ToolCallMetric, string>;
+  /** What the highest value is called, e.g. "call volume". */
+  nouns: Record<ToolCallMetric, string>;
+  edgeMetric: string;
+  /** Used when `subtitle` is left out. */
+  subtitle: (agent: string, calls: string) => string;
+  calls: string;
+  errorRate: string;
+  retries: string;
+  /** Accessible name of a tool; `highest` is the metric noun when it is the hot tool. */
+  node: (
+    label: string,
+    calls: string,
+    latency: string,
+    errors: string,
+    highest: string | null,
+  ) => string;
+  callCount: (calls: string) => string;
+  p50: string;
+  err: string;
+  /** Announced when the hot tool changes. */
+  highest: (noun: string, label: string) => string;
+};
+
+const defaultLabels: ToolCallGraphLabels = {
+  title: "Tool call graph",
+  metrics: { calls: "Calls", latency: "Latency", errors: "Errors" },
+  nouns: { calls: "call volume", latency: "p50 latency", errors: "error rate" },
+  edgeMetric: "Edge metric",
+  subtitle: (agent, calls) => `${agent} · ${calls} calls`,
+  calls: "Calls",
+  errorRate: "Error rate",
+  retries: "Retries",
+  node: (label, calls, latency, errors, highest) =>
+    `${label}: ${calls} calls, p50 ${latency}, ${errors} errors${highest ? `, highest ${highest}` : ""}`,
+  callCount: (calls) => `${calls} calls`,
+  p50: "p50",
+  err: "err",
+  highest: (noun, label) => `Highest ${noun}: ${label}`,
+};
+
+const METRICS: ToolCallMetric[] = ["calls", "latency", "errors"];
 
 const ROW = 58;
 const GAP = 8;
 const round = (n: number) => Math.round(n * 100) / 100;
-const count = (n: number) => Math.round(n).toLocaleString("en-US");
-const percent = (r: number) => `${(r * 100).toFixed(1)}%`;
 const seconds = (ms: number) =>
   ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
 
@@ -77,15 +119,19 @@ function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
   // null until measured, so the edges draw once at their real size.
   const [width, setWidth] = useState<number | null>(null);
+  const [rtl, setRtl] = useState(false);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     setWidth(el.getBoundingClientRect().width);
+    // The graph itself is forced LTR, so read the direction from outside it.
+    const outer = el.parentElement?.parentElement;
+    setRtl(!!outer && getComputedStyle(outer).direction === "rtl");
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return [ref, width ?? 80, width !== null] as const;
+  return [ref, width ?? 80, width !== null, rtl] as const;
 }
 
 /**
@@ -101,19 +147,31 @@ export function ToolCallGraph({
   onMetricChange,
   highlight,
   errorThreshold = 0.02,
-  title = "Tool call graph",
+  title,
   subtitle,
   stats,
   formatLatency = seconds,
   onSelect,
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: ToolCallGraphProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const count = (n: number) => Math.round(n).toLocaleString(locale);
+  const percent = (r: number) =>
+    new Intl.NumberFormat(locale, {
+      style: "percent",
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(r);
+  // Text inside the graph follows the page direction; the graph's layout doesn't.
+  const textDir = (rtl: boolean) => (rtl ? "rtl" : undefined);
   const uid = useId();
   const reduce = useReducedMotion();
   const [inner, setInner] = useState<ToolCallMetric>(defaultMetric);
   const metric = metricProp ?? inner;
   const [active, setActive] = useState<string | null>(null);
-  const [ref, width, measured] = useWidth();
+  const [ref, width, measured, rtl] = useWidth();
 
   const setMetric = (next: ToolCallMetric) => {
     if (metricProp === undefined) setInner(next);
@@ -131,7 +189,7 @@ export function ToolCallGraph({
   const failing = (t: ToolCallNode) => t.errorRate >= errorThreshold;
   // Errors view paints a failing hot tool red; every other pick uses the accent.
   const hotTone = hot && metric === "errors" && failing(hot) ? "negative" : "brand";
-  const noun = METRICS.find((m) => m.value === metric)!.noun;
+  const noun = labels.nouns[metric];
 
   const total = tools.reduce((a, t) => a + t.calls, 0);
   const errors = tools.reduce((a, t) => a + t.calls * t.errorRate, 0);
@@ -139,9 +197,9 @@ export function ToolCallGraph({
     ? tools.reduce((a, t) => a + (t.retries ?? 0), 0)
     : null;
   const footer: ToolCallStat[] = stats ?? [
-    { label: "Calls", value: count(total) },
-    { label: "Error rate", value: total ? percent(errors / total) : "–" },
-    ...(retries === null ? [] : [{ label: "Retries", value: count(retries) }]),
+    { label: labels.calls, value: count(total) },
+    { label: labels.errorRate, value: total ? percent(errors / total) : "–" },
+    ...(retries === null ? [] : [{ label: labels.retries, value: count(retries) }]),
   ];
 
   const n = tools.length;
@@ -161,8 +219,8 @@ export function ToolCallGraph({
   const hotEdge = edges.find((e) => e.t.id === hotId);
   const segmented = (
     <Segmented
-      label="Edge metric"
-      options={METRICS}
+      label={labels.edgeMetric}
+      options={METRICS.map((value) => ({ value, label: labels.metrics[value] }))}
       value={metric}
       onValueChange={setMetric}
     />
@@ -173,14 +231,16 @@ export function ToolCallGraph({
       <Shell className={cn("max-w-2xl", className)}>
         <ShellHeader
           icon={TreeStructure}
-          title={title}
-          subtitle={subtitle ?? `${agent.label} · ${count(total)} calls`}
+          title={title ?? labels.title}
+          subtitle={subtitle ?? labels.subtitle(agent.label, count(total))}
           aside={<div className="hidden @lg:block">{segmented}</div>}
         />
         <Panel className="p-4 @max-sm:p-3 @lg:p-5">
           <div className="mb-4 @lg:hidden">{segmented}</div>
           <div
-            className="-mx-2 grid grid-cols-[2.25rem_minmax(1.25rem,1fr)_minmax(0,7fr)] items-center rounded-xl px-2 py-4 @md:grid-cols-[8.5rem_minmax(2.5rem,1fr)_minmax(0,2.2fr)] @xl:grid-cols-[9.5rem_minmax(4rem,1fr)_minmax(0,20rem)] @lg:py-7"
+            // Calls flow from the agent on the left to the tools on the right in every direction.
+            dir="ltr"
+            className="-mx-2 grid grid-cols-[2.25rem_minmax(1.25rem,1fr)_minmax(0,7fr)] items-center rounded-xl px-2 py-4 @md:grid-cols-[8.5rem_minmax(2.5rem,1fr)_minmax(0,2.2fr)] @lg:py-7 @xl:grid-cols-[9.5rem_minmax(4rem,1fr)_minmax(0,20rem)]"
             style={{
               backgroundImage:
                 "radial-gradient(color-mix(in oklab, var(--foreground) 11%, transparent) 0.8px, transparent 1.2px)",
@@ -192,7 +252,7 @@ export function ToolCallGraph({
               <span className="flex size-9 items-center justify-center rounded-lg text-brand @md:size-7 @md:bg-brand/15">
                 <Robot weight="fill" aria-hidden="true" className="size-4" />
               </span>
-              <div className="sr-only @md:not-sr-only @md:mt-2.5">
+              <div dir={textDir(rtl)} className="sr-only @md:not-sr-only @md:mt-2.5">
                 <p className="font-mono text-[0.8125rem] leading-5 text-pretty break-words text-foreground">
                   {agent.label}
                 </p>
@@ -286,13 +346,20 @@ export function ToolCallGraph({
                   <li key={t.id}>
                     <button
                       type="button"
-                      aria-label={`${t.label}: ${count(t.calls)} calls, p50 ${formatLatency(t.p50Ms)}, ${percent(t.errorRate)} errors${isHot ? `, highest ${noun}` : ""}`}
+                      dir={textDir(rtl)}
+                      aria-label={labels.node(
+                        t.label,
+                        count(t.calls),
+                        formatLatency(t.p50Ms),
+                        percent(t.errorRate),
+                        isHot ? noun : null,
+                      )}
                       onPointerEnter={() => setActive(t.id)}
                       onPointerLeave={() => setActive(null)}
                       onFocus={() => setActive(t.id)}
                       onBlur={() => setActive(null)}
                       onClick={() => onSelect?.(t.id)}
-                      className="relative flex w-full items-center gap-2.5 rounded-xl bg-[color-mix(in_oklab,var(--foreground)_4%,var(--surface-inset))] pr-2.5 pl-3 text-left transition-[background-color,scale] duration-150 ease-ui-out outline-none hover:bg-[color-mix(in_oklab,var(--foreground)_7%,var(--surface-inset))] focus-visible:bg-[color-mix(in_oklab,var(--foreground)_8%,var(--surface-inset))] active:scale-[0.98] @max-md:pl-2.5"
+                      className="relative flex w-full items-center gap-2.5 rounded-xl bg-[color-mix(in_oklab,var(--foreground)_4%,var(--surface-inset))] ps-3 pe-2.5 text-start transition-[background-color,scale] duration-150 ease-ui-out outline-none hover:bg-[color-mix(in_oklab,var(--foreground)_7%,var(--surface-inset))] focus-visible:bg-[color-mix(in_oklab,var(--foreground)_8%,var(--surface-inset))] active:scale-[0.98] @max-md:ps-2.5"
                       style={{ height: ROW }}
                     >
                       {isHot && (
@@ -317,7 +384,10 @@ export function ToolCallGraph({
                         <span className="block truncate font-mono text-[0.8125rem] text-foreground">
                           {t.label}
                         </span>
-                        <span className="mt-0.5 block truncate font-mono text-xs tabular-nums @max-sm:hidden">
+                        <span
+                          dir="ltr"
+                          className="mt-0.5 block truncate font-mono text-xs tabular-nums @max-sm:hidden rtl:text-right"
+                        >
                           <span
                             className={cn("transition-colors duration-200", em("calls"))}
                           >
@@ -330,7 +400,7 @@ export function ToolCallGraph({
                               em("latency"),
                             )}
                           >
-                            <span className="@max-md:hidden">p50 </span>
+                            <span className="@max-md:hidden">{labels.p50} </span>
                             {formatLatency(t.p50Ms)}
                           </span>
                         </span>
@@ -346,10 +416,10 @@ export function ToolCallGraph({
                           )}
                         >
                           {metric === "calls"
-                            ? `${count(t.calls)} calls`
+                            ? labels.callCount(count(t.calls))
                             : metric === "latency"
-                              ? `p50 ${formatLatency(t.p50Ms)}`
-                              : `${percent(t.errorRate)} err`}
+                              ? `${labels.p50} ${formatLatency(t.p50Ms)}`
+                              : `${percent(t.errorRate)} ${labels.err}`}
                         </span>
                       </span>
                       <span
@@ -366,8 +436,8 @@ export function ToolCallGraph({
                               : "bg-foreground/[0.05] text-muted-foreground",
                         )}
                       >
-                        {percent(t.errorRate)}
-                        <span className="@max-md:hidden">&nbsp;err</span>
+                        <bdi dir="ltr">{percent(t.errorRate)}</bdi>
+                        <span className="@max-md:hidden">&nbsp;{labels.err}</span>
                       </span>
                     </button>
                   </li>
@@ -395,7 +465,7 @@ export function ToolCallGraph({
           )}
 
           <p role="status" aria-live="polite" className="sr-only">
-            {hot ? `Highest ${noun}: ${hot.label}` : ""}
+            {hot ? labels.highest(noun, hot.label) : ""}
           </p>
         </Panel>
       </Shell>

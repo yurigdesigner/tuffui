@@ -99,19 +99,38 @@ const tones: Record<ToastTone, { icon: typeof Info; className: string }> = {
 
 const GAP = 8;
 
+export type ToasterLabels = {
+  /** Name of the notifications region. */
+  region: string;
+  /** Announced for a toast whose title isn't plain text. */
+  fallback: string;
+  dismiss: string;
+};
+
+const defaultLabels: ToasterLabels = {
+  region: "Notifications",
+  fallback: "Notification",
+  dismiss: "Dismiss",
+};
+
 export type ToasterProps = {
   /** Toasts visible in the collapsed stack; older ones wait behind. */
   visible?: number;
-  position?: "bottom-right" | "bottom-center";
+  /** `bottom-end` is the bottom right, or the bottom left under dir="rtl". */
+  position?: "bottom-end" | "bottom-right" | "bottom-center";
+  /** UI strings, for translating. */
+  labels?: Partial<ToasterLabels>;
   className?: string;
 };
 
 /** Mount once near the root. Toasts stack, fan out on hover and pause while you read. */
 export function Toaster({
   visible = 3,
-  position = "bottom-right",
+  position = "bottom-end",
+  labels: labelOverrides,
   className,
 }: ToasterProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const items = useSyncExternalStore(
     (listener) => {
       listeners.add(listener);
@@ -136,10 +155,14 @@ export function Toaster({
 
   return (
     <section
-      aria-label="Notifications"
+      aria-label={labels.region}
       className={cn(
         "pointer-events-none fixed bottom-4 z-[60] w-[min(22rem,calc(100vw-2rem))]",
-        position === "bottom-right" ? "right-4" : "left-1/2 -translate-x-1/2",
+        position === "bottom-center"
+          ? "left-1/2 -translate-x-1/2"
+          : position === "bottom-right"
+            ? "right-4"
+            : "end-4",
         className,
       )}
     >
@@ -168,6 +191,7 @@ export function Toaster({
               offset={offset}
               hiddenBehind={index >= visible}
               paused={expanded || hidden}
+              dismissLabel={labels.dismiss}
               onHeight={(h) =>
                 setHeights((current) =>
                   current[item.id] === h ? current : { ...current, [item.id]: h },
@@ -179,7 +203,7 @@ export function Toaster({
       </ol>
       <p role="status" aria-live="polite" className="sr-only">
         {live[0]
-          ? `${typeof live[0].title === "string" ? live[0].title : "Notification"}`
+          ? `${typeof live[0].title === "string" ? live[0].title : labels.fallback}`
           : ""}
       </p>
     </section>
@@ -193,6 +217,7 @@ function ToastItem({
   offset,
   hiddenBehind,
   paused,
+  dismissLabel,
   onHeight,
 }: {
   item: ToastData;
@@ -201,6 +226,7 @@ function ToastItem({
   offset: number;
   hiddenBehind: boolean;
   paused: boolean;
+  dismissLabel: string;
   onHeight: (height: number) => void;
 }) {
   const reduce = useReducedMotion();
@@ -322,8 +348,8 @@ function ToastItem({
         <IconButton
           icon={X}
           iconWeight="bold"
-          label="Dismiss"
-          className="-my-1.5 -mr-1.5 size-7 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+          label={dismissLabel}
+          className="-my-1.5 -me-1.5 size-7 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
           onClick={() => dismiss(item.id)}
         />
       </div>

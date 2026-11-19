@@ -19,7 +19,7 @@ type Base = { id: string; label: React.ReactNode; icon?: Icon; disabled?: boolea
 export type MenuItem =
   | (Base & {
       type?: "item";
-      /** Shortcut text shown on the right, e.g. "⌘C". */
+      /** Shortcut text shown at the end of the row, e.g. "⌘C". */
       shortcut?: string;
       description?: React.ReactNode;
       destructive?: boolean;
@@ -138,7 +138,10 @@ function Entry({
         <P.SubTrigger className={cn(row, "data-[state=open]:bg-foreground/[0.07]")}>
           <Glyph icon={item.icon} reserve={reserve} />
           <span className="flex-1">{item.label}</span>
-          <CaretRight weight="bold" className="size-3 text-muted-foreground" />
+          <CaretRight
+            weight="bold"
+            className="size-3 text-muted-foreground rtl:-scale-x-100"
+          />
         </P.SubTrigger>
         <P.Portal>
           <P.SubContent sideOffset={6} alignOffset={-4} {...slot}>
@@ -186,7 +189,9 @@ function Entry({
         )}
       </span>
       {item.shortcut && (
-        <kbd className="font-sans text-xs text-muted-foreground">{item.shortcut}</kbd>
+        <kbd dir="ltr" className="font-sans text-xs text-muted-foreground">
+          {item.shortcut}
+        </kbd>
       )}
     </P.Item>
   );

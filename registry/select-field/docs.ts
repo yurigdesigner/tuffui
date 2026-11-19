@@ -56,6 +56,12 @@ export const docs: ComponentDocs = {
       type: "string / boolean / boolean",
       description: "Select. Form integration.",
     },
+    {
+      name: "labels",
+      type: "Partial<ComboboxLabels>",
+      description:
+        'Combobox. Your own loading strings, for translating; placeholder and emptyText are props. Right-to-left works under `dir="rtl"` for both.',
+    },
   ],
   types: `type SelectOption = { value: string; label: string; icon?: Icon; description?: string; disabled?: boolean };
 type SelectGroup = { label?: string; options: SelectOption[] };`,

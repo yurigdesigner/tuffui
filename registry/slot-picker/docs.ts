@@ -49,6 +49,18 @@ export function ProposeTimes({ proposal }: { proposal: Proposal }) {
       description:
         "Controls the confirmed state. onChange fires from “Pick another time”.",
     },
+    {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for day names and dates.",
+    },
+    {
+      name: "labels",
+      type: "Partial<SlotPickerLabels>",
+      description:
+        'Your own UI strings (Their time, Suggested, Confirm…), for translating. Right-to-left works under `dir="rtl"`.',
+    },
     { name: "className", type: "string", description: "Extra classes for the shell." },
   ],
   types: `type Slot = {

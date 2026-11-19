@@ -79,6 +79,12 @@ export function CustomersAnswer({ rows }: { rows: Customer[] }) {
       description: "Makes rows clickable.",
     },
     {
+      name: "labels",
+      type: "Partial<DataTableLabels>",
+      description:
+        'Your own UI strings (Filter rows, selected, Previous page…), for translating. Right-to-left works under `dir="rtl"`.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",
@@ -89,7 +95,7 @@ export function CustomersAnswer({ rows }: { rows: Customer[] }) {
 type DataColumn<R> = {
   key: keyof R & string;
   label: string;
-  align?: "left" | "right"; // right-aligned columns use tabular mono figures
+  align?: "left" | "right"; // right-aligned columns use tabular mono figures (end side in RTL)
   format?: (value, row: R) => ReactNode; // sort, filter and CSV use the raw value
   sortable?: boolean; // click cycles descending → ascending → off
   width?: string;

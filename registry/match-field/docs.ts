@@ -67,6 +67,18 @@ export function Shortlist({ role, matches }: { role: Role; matches: Match[] }) {
         "Called when an item is hovered, clicked or reached with the arrow keys.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for scores shown as percentages.",
+    },
+    {
+      name: "labels",
+      type: "Partial<MatchFieldLabels>",
+      description:
+        'Your own UI strings (the "above 85%" badge and screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the plot itself keeps its clockwise layout.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

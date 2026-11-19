@@ -50,6 +50,133 @@ export type DeployStat = {
   tone?: "neutral" | "brand" | "negative";
 };
 
+export type DeployTimelineLabels = {
+  /** Header buttons. */
+  compare: string;
+  rollback: string;
+  compareAria: (target: string, live: string) => string;
+  rollbackAria: (target: string) => string;
+  kinds: Record<DeployKind, string>;
+  /** Short status words on the rail and in the callout. */
+  live: string;
+  canary: (share: string) => string;
+  rolledBack: string;
+  belowMin: string;
+  /** Callout status for a rollback, full and on narrow widths. */
+  rolledBackIn: (duration: string) => string;
+  backIn: (duration: string) => string;
+  /** Label on the dashed minimum line. */
+  min: (score: string) => string;
+  /** Score change in points; `delta` comes signed, e.g. "−4.4" or "±0". */
+  points: (delta: string) => string;
+  duration: (minutes: number) => string;
+  /** Default stat chips. */
+  statLive: string;
+  statEval: string;
+  statDeploys: string;
+  regressions: (count: number) => string;
+  /** Screen reader text for a marker, joined with `separator`. */
+  separator: string;
+  marker: (version: string, kind: string, label?: string) => string;
+  evalScore: (score: string) => string;
+  rolledBackAfter: (duration: string) => string;
+  belowMinimum: string;
+  canaryAt: (share: string) => string;
+  /** Screen reader summary, joined with "; ". */
+  deploysCount: (count: number) => string;
+  summaryLive: (version: string, score: string) => string;
+  summaryRegression: (version: string, change: string, after?: string) => string;
+  summaryCanary: (version: string, share: string) => string;
+  /** Screen reader table. */
+  columns: {
+    version: string;
+    kind: string;
+    deployed: string;
+    score: string;
+    change: string;
+    status: string;
+  };
+  first: string;
+  statuses: {
+    rolledBack: (duration: string) => string;
+    below: string;
+    canary: (share: string) => string;
+    live: string;
+    replaced: string;
+  };
+  selected: (version: string) => string;
+};
+
+const defaultLabels: DeployTimelineLabels = {
+  compare: "Compare",
+  rollback: "Roll back",
+  compareAria: (target, live) => `Compare ${target} with ${live}`,
+  rollbackAria: (target) => `Roll back to ${target}`,
+  kinds: { prompt: "prompt", model: "model" },
+  live: "live",
+  canary: (share) => `canary ${share}`,
+  rolledBack: "rolled back",
+  belowMin: "below min",
+  rolledBackIn: (duration) => `rolled back in ${duration}`,
+  backIn: (duration) => `back in ${duration}`,
+  min: (score) => `min ${score}`,
+  points: (delta) => `${delta} pts`,
+  duration: (minutes) => {
+    if (minutes < 60) return `${Math.round(minutes)} min`;
+    const h = Math.floor(minutes / 60);
+    const m = Math.round(minutes % 60);
+    return m ? `${h} h ${m} min` : `${h} h`;
+  },
+  statLive: "live",
+  statEval: "eval",
+  statDeploys: "deploys",
+  regressions: (count) => `${count} regr`,
+  separator: ", ",
+  marker: (version, kind, label) =>
+    `${version}, ${kind} deploy${label ? `: ${label}` : ""}`,
+  evalScore: (score) => `eval ${score}`,
+  rolledBackAfter: (duration) => `rolled back after ${duration}`,
+  belowMinimum: "below the minimum",
+  canaryAt: (share) => `canary at ${share} of traffic`,
+  deploysCount: (count) => `${count} deploys`,
+  summaryLive: (version, score) => `live ${version} at ${score}`,
+  summaryRegression: (version, change, after) =>
+    `${version} regressed ${change}${after ? ` and was rolled back after ${after}` : ""}`,
+  summaryCanary: (version, share) => `${version} in canary at ${share}`,
+  columns: {
+    version: "Version",
+    kind: "Kind",
+    deployed: "Deployed",
+    score: "Eval score",
+    change: "Change",
+    status: "Status",
+  },
+  first: "First",
+  statuses: {
+    rolledBack: (duration) => `Rolled back after ${duration}`,
+    below: "Below minimum",
+    canary: (share) => `Canary, ${share} of traffic`,
+    live: "Live",
+    replaced: "Replaced",
+  },
+  selected: (version) => `Selected ${version}`,
+};
+
+/** Hebrew or Arabic text: RollingNumber reads left to right, so only its digits may roll. */
+const RTL_SCRIPT = /[\u0590-\u08ff]/;
+
+function RollingText({ value, className }: { value: string; className?: string }) {
+  if (!RTL_SCRIPT.test(value))
+    return <RollingNumber value={value} className={className} />;
+  return (
+    <span className={className}>
+      {value
+        .split(/(\d[\d.,%]*)/)
+        .map((part, i) => (i % 2 ? <RollingNumber key={i} value={part} /> : part))}
+    </span>
+  );
+}
+
 export type DeployTimelineProps = {
   /** Deploys in any order; they are sorted by `at`. */
   deploys: Deploy[];
@@ -80,6 +207,10 @@ export type DeployTimelineProps = {
   formatScore?: (score: number) => string;
   /** Formats dates on the axis and in the callout. Defaults to "Nov 2" in UTC. */
   formatDate?: (date: Date) => string;
+  /** BCP 47 locale for the default date format. */
+  locale?: string;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<DeployTimelineLabels>;
   className?: string;
 };
 
@@ -112,26 +243,13 @@ const round = (n: number) => Math.round(n * 100) / 100;
 const ms = (v: Date | string | number) =>
   typeof v === "number" ? v : v instanceof Date ? v.getTime() : new Date(v).getTime();
 
-const utcDay = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-});
-const defaultDate = (date: Date) => utcDay.format(date);
 const defaultScore = (score: number) => score.toFixed(3);
 
-/** Delta in points with a real minus sign: "−4.4 pts". */
-function points(delta: number) {
+/** Delta in points with a real minus sign: "−4.4". */
+function signed(delta: number) {
   const p = Math.round(delta * 1000) / 10;
-  if (p === 0) return "±0 pts";
-  return `${p < 0 ? "−" : "+"}${Math.abs(p).toFixed(1)} pts`;
-}
-
-function duration(minutes: number) {
-  if (minutes < 60) return `${Math.round(minutes)} min`;
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
-  return m ? `${h} h ${m} min` : `${h} h`;
+  if (p === 0) return "±0";
+  return `${p < 0 ? "−" : "+"}${Math.abs(p).toFixed(1)}`;
 }
 
 const percent = (share: number) => `${Math.round(share * 100)}%`;
@@ -249,9 +367,22 @@ export function DeployTimeline({
   aside,
   intro = true,
   formatScore = defaultScore,
-  formatDate = defaultDate,
+  formatDate: formatDateProp,
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: DeployTimelineProps) {
+  const t = { ...defaultLabels, ...labelOverrides };
+  const points = (delta: number) => t.points(signed(delta));
+  const duration = t.duration;
+  const formatDate =
+    formatDateProp ??
+    ((date: Date) =>
+      new Intl.DateTimeFormat(locale, {
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      }).format(date));
   const uid = useId().replace(/:/g, "");
   const reduce = useReducedMotion();
   const [ref, width, measured] = useWidth();
@@ -291,16 +422,16 @@ export function DeployTimeline({
   const charW = 6.6;
   const second = (it: Item) =>
     it.status === "live"
-      ? "live"
+      ? t.live
       : it.status === "canary"
-        ? `canary ${percent(it.d.canary ?? 0)}`
+        ? t.canary(percent(it.d.canary ?? 0))
         : it.status === "rolled-back"
-          ? "rolled back"
+          ? t.rolledBack
           : it.status === "below"
-            ? "below min"
-            : it.d.kind;
+            ? t.belowMin
+            : t.kinds[it.d.kind];
   const rowEnds: number[] = [];
-  const labels = items.map((it) => {
+  const railLabels = items.map((it) => {
     const w = Math.ceil(
       Math.max(
         it.d.version.length + (it.d.kind === "model" ? 1 : 0),
@@ -372,6 +503,15 @@ export function DeployTimeline({
   const callout = items.find((it) => it.d.id === calloutId);
   const target = items.find((it) => it.d.id === selected)?.d ?? previous;
 
+  // The plot is forced left to right; the callout's text follows the page.
+  const [rtl, setRtl] = useState(false);
+  // Runs every render (direction can change without a remount); same value bails out.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const parent = ref.current?.parentElement;
+    if (parent) setRtl(getComputedStyle(parent).direction === "rtl");
+  });
+
   const calloutRef = useRef<HTMLDivElement>(null);
   const [calloutW, setCalloutW] = useState(220);
   useLayoutEffect(() => {
@@ -431,7 +571,7 @@ export function DeployTimeline({
     ...(live
       ? [
           {
-            label: "live",
+            label: t.statLive,
             value:
               model && model.d.id !== live.id
                 ? `${live.version} · ${model.d.version}`
@@ -441,42 +581,50 @@ export function DeployTimeline({
         ]
       : []),
     ...(canary
-      ? [{ label: `canary ${percent(canary.canary ?? 0)}`, value: canary.version }]
+      ? [{ label: t.canary(percent(canary.canary ?? 0)), value: canary.version }]
       : []),
-    ...(live ? [{ label: "eval", value: formatScore(live.score) }] : []),
+    ...(live ? [{ label: t.statEval, value: formatScore(live.score) }] : []),
     {
-      label: "deploys",
-      value: `${items.length}${rolled ? ` · ${rolled} regr` : ""}`,
+      label: t.statDeploys,
+      value: `${items.length}${rolled ? ` · ${t.regressions(rolled)}` : ""}`,
       tone: rolled ? ("negative" as const) : undefined,
     },
   ];
 
   const describe = (it: Item) =>
     [
-      `${it.d.version}, ${it.d.kind} deploy${it.d.label ? `: ${it.d.label}` : ""}`,
+      t.marker(it.d.version, t.kinds[it.d.kind], it.d.label),
       formatDate(new Date(it.at)),
-      `eval ${formatScore(it.d.score)}`,
+      t.evalScore(formatScore(it.d.score)),
       it.before !== null ? points(it.d.score - it.before) : null,
       it.status === "rolled-back"
-        ? `rolled back after ${duration(it.d.rolledBackAfter ?? 0)}`
+        ? t.rolledBackAfter(duration(it.d.rolledBackAfter ?? 0))
         : it.status === "below"
-          ? "below the minimum"
+          ? t.belowMinimum
           : it.status === "canary"
-            ? `canary at ${percent(it.d.canary ?? 0)} of traffic`
+            ? t.canaryAt(percent(it.d.canary ?? 0))
             : it.status === "live"
-              ? "live"
+              ? t.live
               : null,
     ]
       .filter(Boolean)
-      .join(", ");
+      .join(t.separator);
 
   const summary = [
-    `${items.length} deploys`,
-    live ? `live ${live.version} at ${formatScore(live.score)}` : null,
+    t.deploysCount(items.length),
+    live ? t.summaryLive(live.version, formatScore(live.score)) : null,
     regression
-      ? `${regression.d.version} regressed ${regression.before !== null ? points(regression.d.score - regression.before) : ""}${regression.d.rolledBackAfter !== undefined ? ` and was rolled back after ${duration(regression.d.rolledBackAfter)}` : ""}`
+      ? t.summaryRegression(
+          regression.d.version,
+          regression.before !== null
+            ? points(regression.d.score - regression.before)
+            : "",
+          regression.d.rolledBackAfter !== undefined
+            ? duration(regression.d.rolledBackAfter)
+            : undefined,
+        )
       : null,
-    canary ? `${canary.version} in canary at ${percent(canary.canary ?? 0)}` : null,
+    canary ? t.summaryCanary(canary.version, percent(canary.canary ?? 0)) : null,
   ]
     .filter(Boolean)
     .join("; ");
@@ -496,12 +644,12 @@ export function DeployTimeline({
                   <Button
                     icon={ArrowsLeftRight}
                     iconWeight="bold"
-                    aria-label={`Compare ${target.version} with ${live.version}`}
+                    aria-label={t.compareAria(target.version, live.version)}
                     disabled={target.id === live.id}
                     onClick={() => onCompare(target, live)}
                     className="@max-sm:w-8 @max-sm:px-0"
                   >
-                    <span className="@max-sm:sr-only">Compare</span>
+                    <span className="@max-sm:sr-only">{t.compare}</span>
                   </Button>
                 )}
                 {onRollback && target && (
@@ -509,7 +657,7 @@ export function DeployTimeline({
                     variant="primary"
                     icon={ArrowCounterClockwise}
                     iconWeight="bold"
-                    aria-label={`Roll back to ${target.version}`}
+                    aria-label={t.rollbackAria(target.version)}
                     disabled={
                       target.id === live?.id ||
                       target.canary !== undefined ||
@@ -518,7 +666,7 @@ export function DeployTimeline({
                     onClick={() => onRollback(target)}
                     className="@max-sm:w-8 @max-sm:px-0"
                   >
-                    <span className="@max-sm:sr-only">Roll back</span>
+                    <span className="@max-sm:sr-only">{t.rollback}</span>
                   </Button>
                 )}
               </>
@@ -526,8 +674,10 @@ export function DeployTimeline({
           }
         />
         <Panel className="p-4 @max-sm:p-3">
+          {/* The plot reads left to right in every language: time runs that way. */}
           <div
             ref={ref}
+            dir="ltr"
             className="relative"
             style={{ height: H }}
             onPointerMove={pick}
@@ -730,7 +880,7 @@ export function DeployTimeline({
                     fontSize={10}
                     className="fill-muted-foreground font-mono"
                   >
-                    min {formatScore(threshold).replace(/0+$/, "").replace(/\.$/, "")}
+                    {t.min(formatScore(threshold).replace(/0+$/, "").replace(/\.$/, ""))}
                   </text>
                 </g>
               )}
@@ -758,7 +908,7 @@ export function DeployTimeline({
               <div className="pointer-events-none absolute inset-0">
                 {/* Rail labels */}
                 {items.map((it, i) => {
-                  const l = labels[i];
+                  const l = railLabels[i];
                   const tone =
                     it.status === "live" || it.status === "canary"
                       ? "text-brand"
@@ -791,7 +941,12 @@ export function DeployTimeline({
                         {it.d.version}
                       </span>
                       {!narrow && (
-                        <span className={cn("text-[0.625rem]", tone)}>{second(it)}</span>
+                        <span
+                          dir={rtl ? "rtl" : undefined}
+                          className={cn("text-[0.625rem]", tone)}
+                        >
+                          {second(it)}
+                        </span>
                       )}
                     </motion.div>
                   );
@@ -857,6 +1012,7 @@ export function DeployTimeline({
                         transition: { ...enter, delay: introDone ? 0 : 0.15 },
                       }}
                       exit={{ opacity: 0, transition: exit }}
+                      dir={rtl ? "rtl" : undefined}
                       className="absolute rounded-lg bg-surface-raised px-2.5 py-1.5 text-[0.75rem] leading-4 whitespace-nowrap"
                       style={{
                         top: calloutTop,
@@ -872,6 +1028,8 @@ export function DeployTimeline({
                         formatScore={formatScore}
                         formatDate={formatDate}
                         compact={narrow}
+                        t={t}
+                        points={points}
                       />
                     </motion.div>
                   )}
@@ -894,13 +1052,13 @@ export function DeployTimeline({
                         : "bg-foreground/[0.05] text-foreground",
                   )}
                 >
-                  <RollingNumber
+                  <RollingText
                     value={s.label}
                     className={
                       s.tone === "brand" ? "opacity-70" : "text-muted-foreground"
                     }
                   />
-                  <RollingNumber value={s.value} />
+                  <RollingText value={s.value} />
                 </span>
               ))}
             </div>
@@ -910,12 +1068,12 @@ export function DeployTimeline({
             <caption>{`${title}: ${summary}.`}</caption>
             <thead>
               <tr>
-                <th scope="col">Version</th>
-                <th scope="col">Kind</th>
-                <th scope="col">Deployed</th>
-                <th scope="col">Eval score</th>
-                <th scope="col">Change</th>
-                <th scope="col">Status</th>
+                <th scope="col">{t.columns.version}</th>
+                <th scope="col">{t.columns.kind}</th>
+                <th scope="col">{t.columns.deployed}</th>
+                <th scope="col">{t.columns.score}</th>
+                <th scope="col">{t.columns.change}</th>
+                <th scope="col">{t.columns.status}</th>
               </tr>
             </thead>
             <tbody>
@@ -924,20 +1082,20 @@ export function DeployTimeline({
                   <th scope="row">
                     {it.d.label ? `${it.d.version}: ${it.d.label}` : it.d.version}
                   </th>
-                  <td>{it.d.kind}</td>
+                  <td>{t.kinds[it.d.kind]}</td>
                   <td>{formatDate(new Date(it.at))}</td>
                   <td>{formatScore(it.d.score)}</td>
-                  <td>{it.before !== null ? points(it.d.score - it.before) : "First"}</td>
+                  <td>{it.before !== null ? points(it.d.score - it.before) : t.first}</td>
                   <td>
                     {it.status === "rolled-back"
-                      ? `Rolled back after ${duration(it.d.rolledBackAfter ?? 0)}`
+                      ? t.statuses.rolledBack(duration(it.d.rolledBackAfter ?? 0))
                       : it.status === "below"
-                        ? "Below minimum"
+                        ? t.statuses.below
                         : it.status === "canary"
-                          ? `Canary, ${percent(it.d.canary ?? 0)} of traffic`
+                          ? t.statuses.canary(percent(it.d.canary ?? 0))
                           : it.status === "live"
-                            ? "Live"
-                            : "Replaced"}
+                            ? t.statuses.live
+                            : t.statuses.replaced}
                   </td>
                 </tr>
               ))}
@@ -945,7 +1103,7 @@ export function DeployTimeline({
           </table>
           <p role="status" aria-live="polite" className="sr-only">
             {selected
-              ? `Selected ${items.find((it) => it.d.id === selected)?.d.version ?? ""}`
+              ? t.selected(items.find((it) => it.d.id === selected)?.d.version ?? "")
               : ""}
           </p>
         </Panel>
@@ -960,12 +1118,16 @@ function Callout({
   formatScore,
   formatDate,
   compact,
+  t,
+  points,
 }: {
   item: Item;
   threshold?: number;
   formatScore: (score: number) => string;
   formatDate: (date: Date) => string;
   compact: boolean;
+  t: DeployTimelineLabels;
+  points: (delta: number) => string;
 }) {
   const { d, before, status } = item;
   const delta = before !== null ? d.score - before : null;
@@ -974,7 +1136,7 @@ function Callout({
       <p className="flex items-center gap-1.5">
         <span className="font-mono font-medium">{d.version}</span>
         <span className="max-w-56 truncate text-muted-foreground">
-          {(!compact && d.label) || d.kind} · {formatDate(new Date(item.at))}
+          {(!compact && d.label) || t.kinds[d.kind]} · {formatDate(new Date(item.at))}
         </span>
       </p>
       <p className="mt-0.5 flex items-center gap-1.5">
@@ -1003,12 +1165,12 @@ function Callout({
           >
             ·{" "}
             {status === "rolled-back"
-              ? `${compact ? "back in" : "rolled back in"} ${duration(d.rolledBackAfter ?? 0)}`
+              ? (compact ? t.backIn : t.rolledBackIn)(t.duration(d.rolledBackAfter ?? 0))
               : status === "below"
-                ? "below min"
+                ? t.belowMin
                 : status === "canary"
-                  ? `canary ${percent(d.canary ?? 0)}`
-                  : "live"}
+                  ? t.canary(percent(d.canary ?? 0))
+                  : t.live}
           </span>
         )}
       </p>

@@ -11,7 +11,7 @@ import {
   Copy,
 } from "@phosphor-icons/react";
 import { MotionConfig } from "motion/react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { IconButton } from "@/components/ui/action-button";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Panel, Shell, ShellHeader } from "@/components/ui/surface";
@@ -28,7 +28,46 @@ export type JsonViewerProps = {
   /** Levels expanded on first render. */
   defaultDepth?: number;
   onCopy?: (kind: "path" | "value", text: string) => void;
+  /** UI strings, for translating the viewer. JSON itself always reads left to right. */
+  labels?: Partial<JsonViewerLabels>;
   className?: string;
+};
+
+export type JsonViewerLabels = {
+  summary: (values: number, branches: number) => string;
+  copyJson: string;
+  copied: string;
+  expandAll: string;
+  collapseAll: string;
+  search: string;
+  clearSearch: string;
+  copyPath: (path: string) => string;
+  copyValue: (path: string) => string;
+  pathCopied: string;
+  noMatch: (query: string) => string;
+  matches: (count: number) => string;
+  hint: string;
+  /** Screen-reader status after copying. */
+  copiedPathStatus: (path: string) => string;
+  valueCopied: string;
+};
+
+const defaultLabels: JsonViewerLabels = {
+  summary: (values, branches) => `${values} values · ${branches} objects and arrays`,
+  copyJson: "Copy JSON",
+  copied: "Copied",
+  expandAll: "Expand all",
+  collapseAll: "Collapse all",
+  search: "Search keys and values",
+  clearSearch: "Clear search",
+  copyPath: (path) => `Copy path ${path}`,
+  copyValue: (path) => `Copy value of ${path}`,
+  pathCopied: "Path copied",
+  noMatch: (query) => `Nothing matches “${query}”.`,
+  matches: (count) => `${count} match${count === 1 ? "" : "es"}`,
+  hint: "Click a key to copy its path · ↑↓ to move, → ← to open and close",
+  copiedPathStatus: (path) => `Copied ${path}`,
+  valueCopied: "Value copied",
 };
 
 type Node = {
@@ -97,8 +136,10 @@ export function JsonViewer({
   view = "tree",
   defaultDepth = 1,
   onCopy,
+  labels: labelOverrides,
   className,
 }: JsonViewerProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const nodes = useMemo(() => walk(data), [data]);
   const byPath = useMemo(() => new Map(nodes.map((n) => [n.path, n])), [nodes]);
   const [expanded, setExpanded] = useState<Set<string>>(
@@ -211,13 +252,13 @@ export function JsonViewer({
         <ShellHeader
           icon={BracketsCurly}
           title={title}
-          subtitle={`${leaves} values · ${branches.length} objects and arrays`}
+          subtitle={labels.summary(leaves, branches.length)}
           aside={
             view === "raw" ? (
               <IconButton
                 icon={copied === "$raw" ? Check : Copy}
                 iconWeight={copied === "$raw" ? "bold" : "fill"}
-                label={copied === "$raw" ? "Copied" : "Copy JSON"}
+                label={copied === "$raw" ? labels.copied : labels.copyJson}
                 onClick={() => copy("value", JSON.stringify(data, null, 2), "$raw")}
               />
             ) : (
@@ -225,13 +266,13 @@ export function JsonViewer({
                 <IconButton
                   icon={ArrowsOutSimple}
                   iconWeight="bold"
-                  label="Expand all"
+                  label={labels.expandAll}
                   onClick={() => setExpanded(new Set(branches.map((n) => n.path)))}
                 />
                 <IconButton
                   icon={ArrowsInSimple}
                   iconWeight="bold"
-                  label="Collapse all"
+                  label={labels.collapseAll}
                   onClick={() => setExpanded(new Set(["$"]))}
                 />
               </>
@@ -248,8 +289,9 @@ export function JsonViewer({
           <>
             <div className="px-1.5 pb-2">
               <SearchField
-                aria-label="Search keys and values"
-                placeholder="Search keys and values"
+                aria-label={labels.search}
+                placeholder={labels.search}
+                labels={{ clear: labels.clearSearch }}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onClear={() => setQuery("")}
@@ -282,6 +324,8 @@ export function JsonViewer({
                       else rows.current.delete(n.path);
                     }}
                     role="treeitem"
+                    // JSON paths, keys and values read left to right in any language.
+                    dir="ltr"
                     aria-level={n.depth + 1}
                     aria-expanded={branch ? isOpen : undefined}
                     aria-selected={focused === n.path}
@@ -307,7 +351,7 @@ export function JsonViewer({
                     <button
                       type="button"
                       tabIndex={-1}
-                      title={`Copy path ${n.path}`}
+                      title={labels.copyPath(n.path)}
                       onClick={(e) => {
                         e.stopPropagation();
                         copy("path", n.path, `p:${n.path}`);
@@ -326,16 +370,16 @@ export function JsonViewer({
                       {branch ? valueText : <Highlight text={valueText} query={query} />}
                     </span>
                     {(copied === n.path || copied === `p:${n.path}`) && (
-                      <span className="ml-1 inline-flex items-center gap-1 font-sans text-xs text-positive">
+                      <span className="ms-1 inline-flex items-center gap-1 font-sans text-xs text-positive">
                         <Check weight="bold" className="size-3" aria-hidden="true" />
-                        {copied.startsWith("p:") ? "Path copied" : "Copied"}
+                        {copied.startsWith("p:") ? labels.pathCopied : labels.copied}
                       </span>
                     )}
                     <span className="flex-1" />
                     {!branch && (
                       <IconButton
                         icon={Copy}
-                        label={`Copy value of ${n.path}`}
+                        label={labels.copyValue(n.path)}
                         tabIndex={-1}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -349,26 +393,20 @@ export function JsonViewer({
               })}
               {query && matches.size === 0 && (
                 <p className="px-4 py-2 font-sans text-muted-foreground">
-                  Nothing matches “{query}”.
+                  {labels.noMatch(query)}
                 </p>
               )}
             </Panel>
             <p className="px-3 pt-2 pb-1 text-xs text-muted-foreground">
-              {query ? (
-                <Fragment>
-                  {matches.size} match{matches.size === 1 ? "" : "es"}
-                </Fragment>
-              ) : (
-                "Click a key to copy its path · ↑↓ to move, → ← to open and close"
-              )}
+              {query ? labels.matches(matches.size) : labels.hint}
             </p>
           </>
         )}
         <p role="status" aria-live="polite" className="sr-only">
           {copied
             ? copied.startsWith("p:")
-              ? `Copied ${copied.slice(2)}`
-              : "Value copied"
+              ? labels.copiedPathStatus(copied.slice(2))
+              : labels.valueCopied
             : ""}
         </p>
       </Shell>

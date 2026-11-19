@@ -24,7 +24,8 @@ export const docs: ComponentDocs = {
       name: "align",
       type: '"start" | "center" | "end"',
       default: '"center"',
-      description: "Alignment; the tooltip scales from that corner.",
+      description:
+        'Alignment; the tooltip scales from that corner. start and end follow the reading direction, so they swap under `dir="rtl"`.',
     },
     {
       name: "delay",

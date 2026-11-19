@@ -28,6 +28,110 @@ export type EvalRacer = {
   laps?: number[];
 };
 
+export type EvalRaceLabels = {
+  /** Default subtitle. */
+  subtitle: (models: number, cases: number) => string;
+  /** Headline: the leader's name is bolded wherever it appears. */
+  leaderLine: (
+    name: string,
+    state: "wins" | "finished" | "leads",
+    margin: string,
+  ) => string;
+  byLaps: (laps: number) => string;
+  byCases: (cases: number) => string;
+  byTime: (time: string) => string;
+  noRacers: string;
+  /** Under the big count; `perLap` comes formatted. */
+  casesScored: (perLap: string) => string;
+  final: string;
+  live: string;
+  lapOf: (lap: number, laps: number) => string;
+  /** Inside the track, before " / laps". */
+  lap: (lap: number) => string;
+  fastestLap: (name: string) => string;
+  firstLap: (perLap: number) => string;
+  /** Standings column heads. */
+  columns: {
+    pos: string;
+    model: string;
+    laps: string;
+    gap: string;
+    last: string;
+    best: string;
+  };
+  position: (rank: number) => string;
+  leader: string;
+  lapsBehind: (laps: number) => string;
+  /** Screen reader text. */
+  standingsAria: (title: string) => string;
+  table: {
+    position: string;
+    model: string;
+    scored: string;
+    lap: string;
+    gap: string;
+    last: string;
+    best: string;
+  };
+  of: (value: number, total: number) => string;
+  finished: string;
+  none: string;
+  focused: (
+    rank: number,
+    name: string,
+    scored: number,
+    total: number,
+    gap: string,
+  ) => string;
+  status: (name: string, final: boolean) => string;
+};
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+const defaultLabels: EvalRaceLabels = {
+  subtitle: (models, cases) => `${plural(models, "model")} · ${cases} cases`,
+  leaderLine: (name, state, margin) =>
+    `${name} ${state === "wins" ? "wins" : state === "finished" ? "finished first" : "leads"}${margin ? ` ${margin}` : ""}`,
+  byLaps: (laps) => `by ${plural(laps, "lap")}`,
+  byCases: (cases) => `by ${plural(cases, "case")}`,
+  byTime: (time) => `by ${time}`,
+  noRacers: "No racers yet",
+  casesScored: (perLap) => `Cases scored · 1 lap = ${perLap}`,
+  final: "Final",
+  live: "Live",
+  lapOf: (lap, laps) => `Lap ${lap} of ${laps}`,
+  lap: (lap) => `Lap ${lap}`,
+  fastestLap: (name) => `Fastest lap · ${name}`,
+  firstLap: (perLap) => `First lap · ${perLap} cases`,
+  columns: {
+    pos: "Pos",
+    model: "Model",
+    laps: "Laps",
+    gap: "Gap",
+    last: "Last",
+    best: "Best",
+  },
+  position: (rank) => `P${rank}`,
+  leader: "Leader",
+  lapsBehind: (laps) => `+${plural(laps, "lap")}`,
+  standingsAria: (title) => `${title} standings. Use arrow keys to read each model.`,
+  table: {
+    position: "Position",
+    model: "Model",
+    scored: "Cases scored",
+    lap: "Lap",
+    gap: "Gap",
+    last: "Last lap",
+    best: "Best lap",
+  },
+  of: (value, total) => `${value} of ${total}`,
+  finished: "Finished",
+  none: "None",
+  focused: (rank, name, scored, total, gap) =>
+    `Position ${rank}, ${name}, ${scored} of ${total} cases, ${gap}`,
+  status: (name, final) => `${name} ${final ? "wins" : "leads"}`,
+};
+
 export type EvalRaceProps = {
   racers: EvalRacer[];
   /** Cases in the eval set; the finish. */
@@ -41,6 +145,10 @@ export type EvalRaceProps = {
   /** Defaults to final once every racer has scored `total`. */
   status?: "live" | "final";
   formatTime?: (seconds: number) => string;
+  /** BCP 47 locale for counts. */
+  locale?: string;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<EvalRaceLabels>;
   /** Called when a racer is hovered or reached with the arrow keys. */
   onSelect?: (id: string | null) => void;
   className?: string;
@@ -60,8 +168,6 @@ type Standing = EvalRacer & {
 const ROW = 40;
 const round = (n: number) => Math.round(n * 100) / 100;
 const sum = (xs: number[] = []) => xs.reduce((a, b) => a + b, 0);
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
   // null until measured, so the track draws once at its real size.
@@ -123,6 +229,7 @@ function rankRacers(
   total: number,
   perLap: number,
   formatTime: (s: number) => string,
+  t: EvalRaceLabels,
 ): Standing[] {
   const laps = Math.ceil(total / perLap);
   const sorted = racers
@@ -136,9 +243,9 @@ function rankRacers(
     const lapped = Math.floor(behind / perLap);
     const gap =
       rank === 0
-        ? "Leader"
+        ? t.leader
         : lapped > 0
-          ? `+${plural(lapped, "lap")}`
+          ? t.lapsBehind(lapped)
           : behind > 0
             ? `+${behind}`
             : time > 0
@@ -171,14 +278,17 @@ export function EvalRace({
   layout = "race",
   status,
   formatTime = (s) => `${s.toFixed(1)}s`,
+  locale = "en-US",
+  labels: labelOverrides,
   onSelect,
   className,
 }: EvalRaceProps) {
+  const t = { ...defaultLabels, ...labelOverrides };
   const [active, setActive] = useState<string | null>(null);
   const [fromKeyboard, setFromKeyboard] = useState(false);
 
   const laps = Math.max(Math.ceil(total / perLap), 1);
-  const standings = rankRacers(racers, total, perLap, formatTime);
+  const standings = rankRacers(racers, total, perLap, formatTime, t);
   const leader = standings[0];
   const second = standings[1];
   const final = status ? status === "final" : standings.every((s) => s.done);
@@ -190,15 +300,20 @@ export function EvalRace({
   const margin = !second
     ? ""
     : second.behind >= perLap
-      ? `by ${plural(Math.floor(second.behind / perLap), "lap")}`
+      ? t.byLaps(Math.floor(second.behind / perLap))
       : second.behind > 0
-        ? `by ${plural(second.behind, "case")}`
+        ? t.byCases(second.behind)
         : second.gap.startsWith("+") && second.gap !== "+0"
-          ? `by ${second.gap.slice(1)}`
+          ? t.byTime(second.gap.slice(1))
           : "";
   const leaderLine = leader
-    ? `${leader.label} ${leader.done ? (final ? "wins" : "finished first") : "leads"}${margin ? ` ${margin}` : ""}`
-    : "No racers yet";
+    ? t.leaderLine(
+        leader.label,
+        leader.done ? (final ? "wins" : "finished") : "leads",
+        margin,
+      )
+    : t.noRacers;
+  const nameAt = leader ? leaderLine.indexOf(leader.label) : -1;
 
   const select = (id: string | null, keyboard: boolean) => {
     setFromKeyboard(keyboard);
@@ -210,11 +325,13 @@ export function EvalRace({
     const n = standings.length;
     if (!n) return;
     const index = standings.findIndex((s) => s.id === active);
+    // Left and right swap meaning in right-to-left layouts.
+    const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
     const keys: Record<string, number> = {
       ArrowDown: index + 1,
-      ArrowRight: index + 1,
+      [rtl ? "ArrowLeft" : "ArrowRight"]: index + 1,
       ArrowUp: (index < 0 ? n : index) - 1,
-      ArrowLeft: (index < 0 ? n : index) - 1,
+      [rtl ? "ArrowRight" : "ArrowLeft"]: (index < 0 ? n : index) - 1,
       Home: 0,
       End: n - 1,
     };
@@ -230,18 +347,27 @@ export function EvalRace({
   const headline = (
     <div className="min-w-0">
       <p className="text-[0.8125rem] text-pretty text-muted-foreground">
-        {leader && <span className="font-medium text-foreground">{leader.label}</span>}
-        {leader ? leaderLine.slice(leader.label.length) : leaderLine}
+        {leader && nameAt >= 0 ? (
+          <>
+            {leaderLine.slice(0, nameAt)}
+            <span className="font-medium text-foreground">{leader.label}</span>
+            {leaderLine.slice(nameAt + leader.label.length)}
+          </>
+        ) : (
+          leaderLine
+        )}
       </p>
       <p className="mt-0.5 text-[1.75rem] leading-9 font-medium tracking-tight tabular-nums">
-        {(leader?.scored ?? 0).toLocaleString("en-US")}
-        <span className="text-lg text-muted-foreground">
-          {" "}
-          / {total.toLocaleString("en-US")}
-        </span>
+        <bdi dir="ltr">
+          {(leader?.scored ?? 0).toLocaleString(locale)}
+          <span className="text-lg text-muted-foreground">
+            {" "}
+            / {total.toLocaleString(locale)}
+          </span>
+        </bdi>
       </p>
       <p className="text-xs text-muted-foreground">
-        Cases scored · 1 lap = {perLap.toLocaleString("en-US")}
+        {t.casesScored(perLap.toLocaleString(locale))}
       </p>
     </div>
   );
@@ -252,7 +378,7 @@ export function EvalRace({
         <ShellHeader
           icon={FlagCheckered}
           title={title}
-          subtitle={subtitle ?? `${plural(racers.length, "model")} · ${total} cases`}
+          subtitle={subtitle ?? t.subtitle(racers.length, total)}
           aside={
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               {final ? (
@@ -263,7 +389,7 @@ export function EvalRace({
                   className="size-1.5 rounded-full bg-brand motion-safe:animate-pulse"
                 />
               )}
-              {final ? "Final" : compact ? `Lap ${leader?.lap ?? 1} of ${laps}` : "Live"}
+              {final ? t.final : compact ? t.lapOf(leader?.lap ?? 1, laps) : t.live}
             </span>
           }
         />
@@ -290,12 +416,12 @@ export function EvalRace({
                 className="mt-4"
                 label={
                   <>
-                    <p className="text-2xl font-medium tracking-tight tabular-nums @max-sm:text-xl">
+                    <p className="text-2xl font-medium tracking-tight tabular-nums @max-sm:text-xl rtl:tracking-normal">
                       {final ? (
-                        "Final"
+                        t.final
                       ) : (
                         <>
-                          Lap {leader?.lap ?? 1}
+                          {t.lap(leader?.lap ?? 1)}
                           <span className="text-muted-foreground"> / {laps}</span>
                         </>
                       )}
@@ -303,13 +429,13 @@ export function EvalRace({
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {fastest ? (
                         <>
-                          Fastest lap · {fastest.label}{" "}
-                          <span className="font-mono text-brand tabular-nums">
+                          {t.fastestLap(fastest.label)}{" "}
+                          <bdi className="font-mono text-brand tabular-nums">
                             {formatTime(fastest.best ?? 0)}
-                          </span>
+                          </bdi>
                         </>
                       ) : (
-                        `First lap · ${perLap} cases`
+                        t.firstLap(perLap)
                       )}
                     </p>
                   </>
@@ -321,7 +447,7 @@ export function EvalRace({
           <div
             tabIndex={0}
             role="group"
-            aria-label={`${title} standings. Use arrow keys to read each model.`}
+            aria-label={t.standingsAria(title)}
             onKeyDown={onKeyDown}
             onBlur={() => fromKeyboard && select(null, true)}
             onPointerLeave={() => select(null, false)}
@@ -334,12 +460,14 @@ export function EvalRace({
                 compact ? COLS.standings : COLS.race,
               )}
             >
-              <span>Pos</span>
-              <span>Model</span>
-              <span className={WIDE[layout]}>Laps</span>
-              <span className="text-right">Gap</span>
-              {compact && <span className="hidden text-right @md:block">Last</span>}
-              <span className="text-right">Best</span>
+              <span>{t.columns.pos}</span>
+              <span>{t.columns.model}</span>
+              <span className={WIDE[layout]}>{t.columns.laps}</span>
+              <span className="text-end">{t.columns.gap}</span>
+              {compact && (
+                <span className="hidden text-end @md:block">{t.columns.last}</span>
+              )}
+              <span className="text-end">{t.columns.best}</span>
             </div>
             <div
               aria-hidden="true"
@@ -363,6 +491,7 @@ export function EvalRace({
                     style={{ height: ROW }}
                   >
                     <Row
+                      t={t}
                       s={s}
                       laps={laps}
                       total={total}
@@ -381,13 +510,13 @@ export function EvalRace({
             <caption>{`${title}: ${leaderLine}`}</caption>
             <thead>
               <tr>
-                <th scope="col">Position</th>
-                <th scope="col">Model</th>
-                <th scope="col">Cases scored</th>
-                <th scope="col">Lap</th>
-                <th scope="col">Gap</th>
-                <th scope="col">Last lap</th>
-                <th scope="col">Best lap</th>
+                <th scope="col">{t.table.position}</th>
+                <th scope="col">{t.table.model}</th>
+                <th scope="col">{t.table.scored}</th>
+                <th scope="col">{t.table.lap}</th>
+                <th scope="col">{t.table.gap}</th>
+                <th scope="col">{t.table.last}</th>
+                <th scope="col">{t.table.best}</th>
               </tr>
             </thead>
             <tbody>
@@ -395,20 +524,26 @@ export function EvalRace({
                 <tr key={s.id}>
                   <td>{s.rank + 1}</td>
                   <th scope="row">{s.name ?? s.label}</th>
-                  <td>{`${s.scored} of ${total}`}</td>
-                  <td>{s.done ? "Finished" : `${s.lap} of ${laps}`}</td>
+                  <td>{t.of(s.scored, total)}</td>
+                  <td>{s.done ? t.finished : t.of(s.lap, laps)}</td>
                   <td>{s.gap}</td>
-                  <td>{s.last === null ? "None" : formatTime(s.last)}</td>
-                  <td>{s.best === null ? "None" : formatTime(s.best)}</td>
+                  <td>{s.last === null ? t.none : formatTime(s.last)}</td>
+                  <td>{s.best === null ? t.none : formatTime(s.best)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <p role="status" aria-live="polite" className="sr-only">
             {fromKeyboard && focused
-              ? `Position ${focused.rank + 1}, ${focused.name ?? focused.label}, ${focused.scored} of ${total} cases, ${focused.gap}`
+              ? t.focused(
+                  focused.rank + 1,
+                  focused.name ?? focused.label,
+                  focused.scored,
+                  total,
+                  focused.gap,
+                )
               : leader
-                ? `${leader.name ?? leader.label} ${final ? "wins" : "leads"}`
+                ? t.status(leader.name ?? leader.label, final)
                 : ""}
           </p>
         </Panel>
@@ -427,6 +562,7 @@ const WIDE = { race: "hidden @sm:flex", standings: "hidden @md:flex" };
 const NARROW = { race: "@sm:hidden", standings: "@md:hidden" };
 
 function Row({
+  t,
   s,
   laps,
   total,
@@ -435,6 +571,7 @@ function Row({
   fastest,
   formatTime,
 }: {
+  t: EvalRaceLabels;
   s: Standing;
   laps: number;
   total: number;
@@ -448,12 +585,12 @@ function Row({
   const time = (v: number | null, best = false, className?: string) => (
     <span
       className={cn(
-        "text-right font-mono text-xs tabular-nums",
+        "text-end font-mono text-xs whitespace-nowrap tabular-nums",
         best && fastest ? "text-brand" : "text-muted-foreground",
         className,
       )}
     >
-      {v === null ? "–" : formatTime(v)}
+      <bdi>{v === null ? "–" : formatTime(v)}</bdi>
     </span>
   );
   const bars = Array.from({ length: laps }, (_, k) => {
@@ -467,7 +604,7 @@ function Row({
       >
         <span
           className={cn(
-            "block h-full origin-left transition-transform duration-300 ease-ui-out",
+            "block h-full transition-transform duration-300 ease-ui-out ltr:origin-left rtl:origin-right",
             lead
               ? current
                 ? "bg-brand"
@@ -489,7 +626,7 @@ function Row({
           lead ? "text-brand" : "text-muted-foreground",
         )}
       >
-        P{s.rank + 1}
+        {t.position(s.rank + 1)}
       </span>
       <span className="min-w-0">
         <span
@@ -505,11 +642,11 @@ function Row({
       <span className={cn("gap-1", WIDE[layout])}>{bars}</span>
       <span
         className={cn(
-          "truncate text-right font-mono text-xs tabular-nums",
+          "truncate text-end font-mono text-xs tabular-nums",
           lead ? "text-brand" : "text-foreground",
         )}
       >
-        {s.gap}
+        <bdi>{s.gap}</bdi>
       </span>
       {layout === "standings" && time(s.last, false, "hidden @md:block")}
       {time(s.best, true)}

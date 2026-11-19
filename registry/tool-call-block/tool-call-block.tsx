@@ -41,18 +41,41 @@ export type ToolCallBlockProps = {
   data: ToolCall;
   defaultOpen?: boolean;
   onRetry?: (call: ToolCall) => void;
+  /** UI strings, for translating the block. */
+  labels?: Partial<ToolCallBlockLabels>;
   className?: string;
+};
+
+export type ToolCallBlockLabels = {
+  status: Record<ToolCallStatus, string>;
+  arguments: string;
+  result: string;
+  /** Shown when an error call has no message of its own. */
+  failed: string;
+  retry: string;
+  /** Screen-reader names of the copy buttons; `section` is "Arguments" or "Result". */
+  copy: (section: string) => string;
+  copied: (section: string) => string;
+};
+
+const defaultLabels: ToolCallBlockLabels = {
+  status: { pending: "Queued", running: "Running", success: "Done", error: "Failed" },
+  arguments: "Arguments",
+  result: "Result",
+  failed: "Tool call failed.",
+  retry: "Retry",
+  copy: (section) => `Copy ${section.toLowerCase()}`,
+  copied: (section) => `${section} copied`,
 };
 
 const statuses = {
   pending: {
-    label: "Queued",
     icon: Clock,
     className: "bg-foreground/[0.06] text-muted-foreground",
   },
-  running: { label: "Running", icon: CircleNotch, className: "bg-brand/15 text-brand" },
-  success: { label: "Done", icon: Check, className: "bg-positive/15 text-positive" },
-  error: { label: "Failed", icon: X, className: "bg-negative/15 text-negative" },
+  running: { icon: CircleNotch, className: "bg-brand/15 text-brand" },
+  success: { icon: Check, className: "bg-positive/15 text-positive" },
+  error: { icon: X, className: "bg-negative/15 text-negative" },
 } as const;
 
 // Height morphs on a damped spring; opacity leads on enter and exits faster.
@@ -62,15 +85,17 @@ export function ToolCallBlock({
   data,
   defaultOpen = false,
   onRetry,
+  labels: labelOverrides,
   className,
 }: ToolCallBlockProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const [open, setOpen] = useState(defaultOpen);
   // Toggling from the keyboard (detail === 0) or with reduced motion is instant.
   const [viaKeys, setViaKeys] = useState(false);
   const reduce = useReducedMotion();
   const still = viaKeys || !!reduce;
   const panelId = useId();
-  const status = statuses[data.status];
+  const status = { ...statuses[data.status], label: labels.status[data.status] };
   const Icon = status.icon;
   const running = data.status === "running";
 
@@ -85,7 +110,7 @@ export function ToolCallBlock({
             setViaKeys(e.detail === 0);
             setOpen((o) => !o);
           }}
-          className="flex w-full items-center gap-2.5 rounded-[0.875rem] py-1.5 pr-2.5 pl-1.5 text-left text-sm transition-[background-color,scale] duration-150 ease-out hover:bg-foreground/[0.03] active:scale-[0.99]"
+          className="flex w-full items-center gap-2.5 rounded-[0.875rem] py-1.5 ps-1.5 pe-2.5 text-start text-sm transition-[background-color,scale] duration-150 ease-out hover:bg-foreground/[0.03] active:scale-[0.99]"
         >
           <span className="relative flex size-6 shrink-0 items-center justify-center">
             <AnimatePresence mode="popLayout" initial={false}>
@@ -111,10 +136,14 @@ export function ToolCallBlock({
               </motion.span>
             </AnimatePresence>
           </span>
-          <span className="shrink-0 font-mono text-[0.8125rem] font-medium">
+          <span dir="ltr" className="shrink-0 font-mono text-[0.8125rem] font-medium">
             {data.name}
           </span>
-          <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
+          {/* Args read left to right and truncate at their end; in RTL they hug the name. */}
+          <span
+            dir="ltr"
+            className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground rtl:text-right"
+          >
             {summarize(data.args)}
           </span>
           <span className="sr-only">{status.label}</span>
@@ -125,17 +154,20 @@ export function ToolCallBlock({
               formatMs(data.durationMs)
             ) : null}
           </span>
-          <motion.span
-            animate={{ rotate: open ? 90 : 0 }}
-            transition={still ? instant : morph}
-            className="flex"
-          >
-            <CaretRight
-              weight="bold"
-              className="size-4 text-muted-foreground"
-              aria-hidden="true"
-            />
-          </motion.span>
+          {/* Mirrored in RTL: points to the start side closed, down when open. */}
+          <span className="flex rtl:-scale-x-100">
+            <motion.span
+              animate={{ rotate: open ? 90 : 0 }}
+              transition={still ? instant : morph}
+              className="flex"
+            >
+              <CaretRight
+                weight="bold"
+                className="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </motion.span>
+          </span>
         </button>
         <AnimatePresence initial={false}>
           {open && (
@@ -148,18 +180,22 @@ export function ToolCallBlock({
               className="overflow-hidden"
             >
               <Panel className="mt-1 flex flex-col gap-3 rounded-[0.875rem] p-3">
-                <Section title="Arguments" copy={JSON.stringify(data.args, null, 2)}>
+                <Section
+                  title={labels.arguments}
+                  copy={JSON.stringify(data.args, null, 2)}
+                  labels={labels}
+                >
                   <Json value={data.args} />
                 </Section>
                 {data.status === "error" ? (
-                  <div className="flex items-start gap-2 rounded-xl bg-negative/10 py-2 pr-2 pl-3 text-[0.8125rem] text-negative">
+                  <div className="flex items-start gap-2 rounded-xl bg-negative/10 py-2 ps-3 pe-2 text-[0.8125rem] text-negative">
                     <X
                       weight="bold"
                       className="mt-0.5 size-3.5 shrink-0"
                       aria-hidden="true"
                     />
                     <p className="min-w-0 flex-1 font-mono text-xs leading-5 break-words">
-                      {data.error ?? "Tool call failed."}
+                      <bdi>{data.error ?? labels.failed}</bdi>
                     </p>
                     {onRetry && (
                       <Button
@@ -169,13 +205,14 @@ export function ToolCallBlock({
                         onClick={() => onRetry(data)}
                         className="h-7 gap-1 px-3 text-xs"
                       >
-                        Retry
+                        {labels.retry}
                       </Button>
                     )}
                   </div>
                 ) : data.status === "success" && data.result !== undefined ? (
                   <Section
-                    title="Result"
+                    title={labels.result}
+                    labels={labels}
                     copy={
                       typeof data.result === "string"
                         ? data.result
@@ -184,7 +221,10 @@ export function ToolCallBlock({
                   >
                     <div className="max-h-40 overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]">
                       {typeof data.result === "string" ? (
-                        <p className="font-mono text-xs leading-5 whitespace-pre-wrap">
+                        <p
+                          dir="ltr"
+                          className="text-start font-mono text-xs leading-5 whitespace-pre-wrap"
+                        >
                           {data.result}
                         </p>
                       ) : (
@@ -208,10 +248,12 @@ export function ToolCallBlock({
 function Section({
   title,
   copy,
+  labels,
   children,
 }: {
   title: string;
   copy: string;
+  labels: ToolCallBlockLabels;
   children: React.ReactNode;
 }) {
   const [copied, setCopied] = useState(false);
@@ -224,11 +266,11 @@ function Section({
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="pl-1 text-[0.8125rem] text-muted-foreground">{title}</span>
+        <span className="ps-1 text-[0.8125rem] text-muted-foreground">{title}</span>
         <IconButton
           icon={copied ? Check : Copy}
           iconWeight={copied ? "bold" : "fill"}
-          label={copied ? `${title} copied` : `Copy ${title.toLowerCase()}`}
+          label={copied ? labels.copied(title) : labels.copy(title)}
           onClick={async () => {
             await navigator.clipboard.writeText(copy);
             setCopied(true);
@@ -269,7 +311,10 @@ function Json({ value }: { value: unknown }) {
   }
   parts.push(text.slice(last));
   return (
-    <pre className="font-mono text-xs leading-5 break-words whitespace-pre-wrap text-foreground">
+    <pre
+      dir="ltr"
+      className="font-mono text-xs leading-5 break-words whitespace-pre-wrap text-foreground"
+    >
       {parts}
     </pre>
   );

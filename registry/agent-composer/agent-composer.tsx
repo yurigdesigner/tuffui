@@ -50,14 +50,79 @@ export type AgentComposerProps = {
   onStop?: () => void;
   allowAttachments?: boolean;
   placeholder?: string;
+  /** UI strings, for translating. */
+  labels?: Partial<AgentComposerLabels>;
   className?: string;
 };
 
-const modes: { id: ComposerMode; label: string; hint: string }[] = [
-  { id: "ask", label: "Ask", hint: "Answers questions, changes nothing" },
-  { id: "plan", label: "Plan", hint: "Drafts a plan for you to approve" },
-  { id: "act", label: "Act", hint: "Can edit files and run commands" },
-];
+export type AgentComposerLabels = {
+  modes: Record<ComposerMode, { label: string; hint: string }>;
+  /** Screen-reader name of the mode switch. */
+  mode: string;
+  /** Default placeholder; the `placeholder` prop overrides it. */
+  placeholder: string;
+  /** Placeholder while the agent works. */
+  followUp: string;
+  /** Screen-reader name of the text field. */
+  message: string;
+  commands: string;
+  files: string;
+  /** Screen-reader name of the model button. */
+  switchModel: (model: string) => string;
+  /** Token count after a file in the @ menu; the number comes formatted. */
+  tokens: (count: string) => string;
+  /** Total in the context tray. */
+  totalTokens: (count: string) => string;
+  queued: (count: number) => string;
+  queuedMessages: string;
+  removeQueued: (text: string) => string;
+  context: string;
+  remove: (name: string) => string;
+  add: string;
+  addContext: string;
+  agentWorking: string;
+  working: string;
+  /** Text after the @ icon. */
+  shortcuts: string;
+  stop: string;
+  queue: string;
+  send: string;
+  /** Announced to screen readers while the agent works. */
+  workingStatus: (queued: number) => string;
+};
+
+const defaultLabels: AgentComposerLabels = {
+  modes: {
+    ask: { label: "Ask", hint: "Answers questions, changes nothing" },
+    plan: { label: "Plan", hint: "Drafts a plan for you to approve" },
+    act: { label: "Act", hint: "Can edit files and run commands" },
+  },
+  mode: "Mode",
+  placeholder: "Describe the change, @ to add files, / for commands",
+  followUp: "Add a follow-up — it runs when the agent is done",
+  message: "Message",
+  commands: "Commands",
+  files: "Files",
+  switchModel: (model) => `Model: ${model}. Switch model`,
+  tokens: (count) => `${count} tokens`,
+  totalTokens: (count) => `+ ${count} tokens`,
+  queued: (count) => `Queued · ${count}`,
+  queuedMessages: "Queued messages",
+  removeQueued: (text) => `Remove queued message: ${text}`,
+  context: "Context",
+  remove: (name) => `Remove ${name}`,
+  add: "Add",
+  addContext: "Add context",
+  agentWorking: "Agent working",
+  working: "Working · new messages queue",
+  shortcuts: "files · / commands",
+  stop: "Stop",
+  queue: "Queue",
+  send: "Send",
+  workingStatus: (queued) => `Agent is working${queued ? `, ${queued} queued` : ""}`,
+};
+
+const MODES: ComposerMode[] = ["ask", "plan", "act"];
 
 // Strong ease-out for things entering; exits are quicker than entrances.
 const pop = {
@@ -111,9 +176,13 @@ export function AgentComposer({
   onSubmit,
   onStop,
   allowAttachments = true,
-  placeholder = "Describe the change, @ to add files, / for commands",
+  placeholder: placeholderProp,
+  labels: labelOverrides,
   className,
 }: AgentComposerProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const placeholder = placeholderProp ?? labels.placeholder;
+  const modes = MODES.map((m) => ({ id: m, ...labels.modes[m] }));
   const id = useId();
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -155,7 +224,7 @@ export function AgentComposer({
             .map((f) => ({
               key: f.id,
               label: f.path,
-              detail: `${formatTokens(f.tokens)} tokens`,
+              detail: labels.tokens(formatTokens(f.tokens)),
               run: () => {
                 setValue(value.replace(/@\S*$/, ""));
                 setContext([...context, { id: f.id, name: f.path, tokens: f.tokens }]);
@@ -227,7 +296,7 @@ export function AgentComposer({
           <ul
             id={`${id}-menu`}
             role="listbox"
-            aria-label={slash !== undefined ? "Commands" : "Files"}
+            aria-label={slash !== undefined ? labels.commands : labels.files}
             className="absolute inset-x-0 bottom-full z-10 mb-2 rounded-[1.375rem] bg-surface-raised p-1.5"
           >
             {items.map((item, i) => (
@@ -241,8 +310,9 @@ export function AgentComposer({
                 onMouseMove={() => setActive(i)}
                 className="flex cursor-pointer items-baseline gap-3 rounded-xl px-3 py-2 text-[0.8125rem] aria-selected:bg-foreground/[0.07]"
               >
-                <span className="truncate font-mono">{item.label}</span>
-                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                {/* A command or path keeps its own order inside RTL text. */}
+                <bdi className="truncate font-mono">{item.label}</bdi>
+                <span className="ms-auto shrink-0 text-xs text-muted-foreground">
                   {item.detail}
                 </span>
               </li>
@@ -253,7 +323,7 @@ export function AgentComposer({
           <div className="flex items-center gap-3 px-1 pt-0.5 pb-2">
             {showModes && (
               <Segmented
-                label="Mode"
+                label={labels.mode}
                 className="h-7 shrink-0"
                 options={modes.map((m) => ({ value: m.id, label: m.label }))}
                 value={mode}
@@ -275,11 +345,11 @@ export function AgentComposer({
               <button
                 type="button"
                 title={`${currentModel.name}${currentModel.description ? ` — ${currentModel.description}` : ""}`}
-                aria-label={`Model: ${currentModel.name}. Switch model`}
+                aria-label={labels.switchModel(currentModel.name)}
                 onClick={() =>
                   setModel(models[(models.indexOf(currentModel) + 1) % models.length].id)
                 }
-                className="ml-auto flex shrink-0 items-center gap-1 rounded-md px-1.5 font-mono text-xs text-muted-foreground transition-[color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground active:scale-[0.97]"
+                className="ms-auto flex shrink-0 items-center gap-1 rounded-md px-1.5 font-mono text-xs text-muted-foreground transition-[color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground active:scale-[0.97]"
               >
                 {currentModel.id}
                 <Repeat weight="fill" className="size-3" aria-hidden="true" />
@@ -291,20 +361,20 @@ export function AgentComposer({
           {queue.length > 0 && (
             <motion.div {...fold} className="overflow-hidden">
               <p className="px-2.5 pb-1 text-xs text-muted-foreground">
-                Queued · {queue.length}
+                {labels.queued(queue.length)}
               </p>
-              <ol aria-label="Queued messages" className="mb-1.5 space-y-1">
+              <ol aria-label={labels.queuedMessages} className="mb-1.5 space-y-1">
                 <AnimatePresence initial={false}>
                   {queue.map((q) => (
                     <motion.li
                       key={q.id}
                       layout
                       {...pop}
-                      className="flex items-center gap-2 rounded-xl bg-foreground/[0.04] py-1.5 pr-1 pl-3 text-[0.8125rem]"
+                      className="flex items-center gap-2 rounded-xl bg-foreground/[0.04] py-1.5 ps-3 pe-1 text-[0.8125rem]"
                     >
                       <span className="min-w-0 flex-1 truncate">{q.text}</span>
                       <RemoveButton
-                        label={`Remove queued message: ${q.text}`}
+                        label={labels.removeQueued(q.text)}
                         onClick={() => setQueue(queue.filter((x) => x.id !== q.id))}
                       />
                     </motion.li>
@@ -317,7 +387,7 @@ export function AgentComposer({
         <Panel className="relative">
           {showTray && (
             <ul
-              aria-label="Context"
+              aria-label={labels.context}
               className="flex flex-wrap items-center gap-1.5 px-3 pt-3"
             >
               <AnimatePresence mode="popLayout" initial={false}>
@@ -326,19 +396,19 @@ export function AgentComposer({
                     key={c.id}
                     layout
                     {...pop}
-                    className="flex h-7 items-center gap-1.5 rounded-lg bg-foreground/[0.05] pr-0.5 pl-2 text-xs"
+                    className="flex h-7 items-center gap-1.5 rounded-lg bg-foreground/[0.05] ps-2 pe-0.5 text-xs"
                   >
                     <FileText
                       weight="fill"
                       className="size-3.5 text-muted-foreground"
                       aria-hidden="true"
                     />
-                    <span className="max-w-44 truncate font-mono">{c.name}</span>
+                    <bdi className="max-w-44 truncate font-mono">{c.name}</bdi>
                     <span className="text-muted-foreground tabular-nums">
                       {formatTokens(c.tokens)}
                     </span>
                     <RemoveButton
-                      label={`Remove ${c.name}`}
+                      label={labels.remove(c.name)}
                       onClick={() => setContext(context.filter((x) => x.id !== c.id))}
                     />
                   </motion.li>
@@ -367,28 +437,28 @@ export function AgentComposer({
                     className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs text-muted-foreground transition-[color,background-color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-foreground/[0.05] hover:text-foreground active:scale-[0.97]"
                   >
                     <Paperclip weight="fill" className="size-3.5" aria-hidden="true" />
-                    {context.length ? "Add" : "Add context"}
+                    {context.length ? labels.add : labels.addContext}
                   </button>
                 </li>
               )}
               {total > 0 && (
-                <li className="ml-auto font-mono text-xs text-muted-foreground tabular-nums">
-                  + {formatTokens(total)} tokens
+                <li className="ms-auto font-mono text-xs text-muted-foreground tabular-nums">
+                  {labels.totalTokens(formatTokens(total))}
                 </li>
               )}
             </ul>
           )}
           <label htmlFor={`${id}-input`} className="sr-only">
-            Message
+            {labels.message}
           </label>
           <textarea
             ref={textarea}
             id={`${id}-input`}
+            // Mixed-language messages pick their own direction.
+            dir="auto"
             rows={1}
             value={value}
-            placeholder={
-              streaming ? "Add a follow-up — it runs when the agent is done" : placeholder
-            }
+            placeholder={streaming ? labels.followUp : placeholder}
             onChange={(event) => {
               setValue(event.target.value);
               setActive(0);
@@ -401,17 +471,17 @@ export function AgentComposer({
             aria-activedescendant={menuOpen ? `${id}-opt-${activeIndex}` : undefined}
             className="block max-h-[180px] min-h-16 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-sm leading-6 outline-none placeholder:text-muted-foreground"
           />
-          <div className="flex items-center gap-2 px-2 pb-2 pl-4">
+          <div className="flex items-center gap-2 ps-4 pe-2 pb-2">
             <p className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-xs text-muted-foreground">
               {streaming ? (
                 <>
-                  <Spinner size="sm" label="Agent working" className="text-brand" />
-                  Working · new messages queue
+                  <Spinner size="sm" label={labels.agentWorking} className="text-brand" />
+                  {labels.working}
                 </>
               ) : (
                 <>
                   <At weight="fill" className="size-3 shrink-0" aria-hidden="true" />{" "}
-                  files · / commands
+                  {labels.shortcuts}
                 </>
               )}
             </p>
@@ -421,7 +491,7 @@ export function AgentComposer({
                 onClick={onStop}
                 className="px-3 text-negative hover:bg-negative/10 hover:text-negative"
               >
-                Stop
+                {labels.stop}
               </Button>
             )}
             <Button
@@ -438,7 +508,7 @@ export function AgentComposer({
                   "bg-foreground text-background hover:bg-foreground/90",
               )}
             >
-              {streaming ? "Queue" : "Send"}
+              {streaming ? labels.queue : labels.send}
               <Kbd aria-hidden="true" className="bg-current/15 text-current opacity-80">
                 ↵
               </Kbd>
@@ -446,9 +516,7 @@ export function AgentComposer({
           </div>
         </Panel>
         <p role="status" aria-live="polite" className="sr-only">
-          {streaming
-            ? `Agent is working${queue.length ? `, ${queue.length} queued` : ""}`
-            : ""}
+          {streaming ? labels.workingStatus(queue.length) : ""}
         </p>
       </Shell>
     </MotionConfig>

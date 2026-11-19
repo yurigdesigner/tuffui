@@ -69,6 +69,12 @@ export function Permissions({ requests }: { requests: ToolApprovalRequest[] }) {
       description: "Id of a request to open on mount.",
     },
     {
+      name: "labels",
+      type: "Partial<ToolApprovalQueueLabels>",
+      description:
+        'Your own UI strings: risk and scope names, buttons, counts and screen-reader text, for translating. Right-to-left works under `dir="rtl"`; commands, diffs and JSON stay left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root section.",

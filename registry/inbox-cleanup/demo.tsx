@@ -2,9 +2,16 @@
 
 import { animate } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import type { DemoLocale } from "@/components/docs/demo";
 import { EASE_IN_OUT } from "@/lib/motion-tokens";
 import { useMockRun, wait, type MockStep } from "@/registry/use-mock-run/use-mock-run";
-import { InboxCleanup, inZone, type InboxSender, type InboxZone } from "./inbox-cleanup";
+import {
+  InboxCleanup,
+  inZone,
+  type InboxCleanupLabels,
+  type InboxSender,
+  type InboxZone,
+} from "./inbox-cleanup";
 
 /** Newsletters over the last 90 days: emails a week and the share opened. */
 const SENDERS: InboxSender[] = [
@@ -56,6 +63,134 @@ const SENDERS: InboxSender[] = [
 
 const ZONE: InboxZone = { minPerWeek: 4, maxOpenRate: 0.1 };
 
+/** Keeps "4+" and similar in reading order inside RTL text. */
+const ltr = (text: string) => `\u2066${text}\u2069`;
+/** Reads an axis label right to left inside the left-to-right chart. */
+const rtl = (text: string) => `\u2067${text}\u2069`;
+const num = (v: number) => {
+  const r = Math.round(v * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+};
+/** Arabic noun after a number: 1, 2, 3–10, 11+. */
+const ar = (n: number, forms: [string, string, string, string]) =>
+  n === 1
+    ? forms[0]
+    : n === 2
+      ? forms[1]
+      : n % 100 >= 3 && n % 100 <= 10
+        ? `${n} ${forms[2]}`
+        : `${n} ${forms[3]}`;
+
+type Copy = {
+  locale?: string;
+  title?: string;
+  chartTitle?: string;
+  period?: string;
+  zoneLabel?: string;
+  formatPerWeek?: (v: number) => string;
+  formatXTick?: (v: number, i: number, ticks: number[]) => string;
+  labels?: Partial<InboxCleanupLabels>;
+};
+
+const heSenders = (n: number) => (n === 1 ? "שולח אחד" : `${n} שולחים`);
+const arSenders = (n: number) => ar(n, ["مرسل واحد", "مرسلان", "مرسلين", "مرسلًا"]);
+
+const copy: Record<DemoLocale, Copy> = {
+  en: {},
+  he: {
+    locale: "he-IL",
+    title: "ניקוי תיבת הדואר",
+    chartTitle: "כמות × פתיחות",
+    period: "90 הימים האחרונים",
+    zoneLabel: "אזור ביטול הרשמה",
+    formatPerWeek: (v) => `${num(v)}/שבוע`,
+    formatXTick: (v, i, ticks) =>
+      i === ticks.length - 1 ? rtl(`${num(v)}/שבוע`) : num(v),
+    labels: {
+      senders: heSenders,
+      inZone: "באזור",
+      open: "נפתחו",
+      summary: (s, rate) =>
+        `${heSenders(s.count)}, ${ltr(`${num(s.zone.minPerWeek)}+`)} מיילים בשבוע מכל אחד, ופחות מ־${rate} מהם נפתחים. זה בערך ${Math.round(s.skippedPerWeek)} מיילים בשבוע שנשארים סגורים.`,
+      empty: "אף שולח לא נמצא באזור. אפשר להרחיב אותו כדי למצוא ניוזלטרים לביטול.",
+      analyzing: (n) => `ממפה ${heSenders(n)} לפי כמות ופתיחות…`,
+      chart: (title, n) =>
+        `${title}: ${heSenders(n)}. החיצים עוברים בין השולחים; Enter או רווח מסמנים שולח באזור.`,
+      sender: ({ name, perWeek, openRate, state }) =>
+        `${name}: ${perWeek}, ${openRate} נפתחו${
+          state === "selected"
+            ? ", באזור, ההרשמה תבוטל"
+            : state === "kept"
+              ? ", באזור, נשאר"
+              : ""
+        }.`,
+      zone: (n, min, rate) =>
+        `${heSenders(n)} באזור: ${min} מיילים בשבוע ומעלה, פחות מ־${rate} נפתחו. `,
+      minPerWeek: "מינימום מיילים בשבוע באזור",
+      minPerWeekValue: (v) => `${v} ומעלה`,
+      maxOpenRate: "שיעור הפתיחה המרבי באזור",
+      maxOpenRateValue: (v) => `פחות מ־${v} נפתחו`,
+      list: (zone) => `${zone}: שולחים`,
+      keepAll: "השארת הכול",
+      digest: "תקציר במקום",
+      unsubscribe: (n, count) => (
+        <>
+          ביטול{count}
+          {n === 1 ? "מינוי" : "מינויים"}
+        </>
+      ),
+      unsubscribeLabel: (n) => `ביטול ההרשמה אצל ${heSenders(n)}`,
+    },
+  },
+  ar: {
+    locale: "ar",
+    title: "تنظيف البريد الوارد",
+    chartTitle: "الحجم × الفتح",
+    period: "آخر 90 يومًا",
+    zoneLabel: "منطقة الإلغاء",
+    formatPerWeek: (v) => `${num(v)}/أسبوع`,
+    formatXTick: (v, i, ticks) =>
+      i === ticks.length - 1 ? rtl(`${num(v)}/أسبوع`) : num(v),
+    labels: {
+      senders: arSenders,
+      inZone: "في المنطقة",
+      open: "مفتوحة",
+      summary: (s, rate) => {
+        const skipped = Math.round(s.skippedPerWeek);
+        return `${arSenders(s.count)} يرسل كلٌّ منهم ${ltr(`${num(s.zone.minPerWeek)}+`)} رسائل أسبوعيًا، وتفتح أقل من ${rate} منها. أي نحو ${ar(skipped, ["رسالة واحدة", "رسالتين", "رسائل", "رسالة"])} أسبوعيًا لا تقرؤها.`;
+      },
+      empty: "لا يوجد أي مرسل في المنطقة. وسّعها لتجد نشرات يمكن إلغاؤها.",
+      analyzing: (n) => `جارٍ توزيع ${arSenders(n)} حسب الحجم ونسبة الفتح…`,
+      chart: (title, n) =>
+        `${title}: ${arSenders(n)}. تنقّل بين المرسلين بالأسهم، واضغط Enter أو المسافة لتحديد مرسل في المنطقة.`,
+      sender: ({ name, perWeek, openRate, state }) =>
+        `${name}: ${perWeek}، نسبة الفتح ${openRate}${
+          state === "selected"
+            ? "، في المنطقة، سيُلغى الاشتراك"
+            : state === "kept"
+              ? "، في المنطقة، مُستبقى"
+              : ""
+        }.`,
+      zone: (n, min, rate) =>
+        `${arSenders(n)} في المنطقة: ${min} رسائل أسبوعيًا أو أكثر، ونسبة فتح أقل من ${rate}. `,
+      minPerWeek: "أقل عدد رسائل أسبوعيًا في المنطقة",
+      minPerWeekValue: (v) => `${v} أو أكثر`,
+      maxOpenRate: "أعلى نسبة فتح في المنطقة",
+      maxOpenRateValue: (v) => `نسبة فتح أقل من ${v}`,
+      list: (zone) => `${zone}: المرسلون`,
+      keepAll: "إبقاء الكل",
+      digest: "ملخّص بدلًا منها",
+      unsubscribe: (n, count) => (
+        <>
+          إلغاء الاشتراك من{count}
+          {n === 1 ? "مرسل" : n === 2 ? "مرسلَين" : n <= 10 ? "مرسلين" : "مرسلًا"}
+        </>
+      ),
+      unsubscribeLabel: (n) => `إلغاء الاشتراك من ${arSenders(n)}`,
+    },
+  },
+};
+
 type State = {
   ready: boolean;
   pointed: string | null;
@@ -74,11 +209,14 @@ const SETTLED: State = {
 export default function InboxCleanupDemo({
   autoplay = true,
   thumbnail = false,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
   thumbnail?: boolean;
+  locale?: DemoLocale;
 }) {
+  const text = copy[locale];
   // Dots land, the zone draws in and its senders turn accent, the agent points
   // at the worst offender, then keeps one sender off the list.
   const steps: MockStep<State>[] = autoplay
@@ -150,6 +288,7 @@ export default function InboxCleanupDemo({
       onUnsubscribe={() => {}}
       onKeep={() => {}}
       onDigest={() => {}}
+      {...text}
     />
   );
 }

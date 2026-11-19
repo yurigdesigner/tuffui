@@ -86,6 +86,18 @@ export function SupportInbox({ inbox, chat }: { inbox: Inbox; chat: Chat }) {
       default: "true",
       description: "The customer details pane from 72rem wide; a drawer below that.",
     },
+    {
+      name: "labels",
+      type: "Partial<HandoffInboxLabels>",
+      description:
+        'Your own UI strings (header lines, queue, filters, summary, Take over…), plus `thread`, `composer`, `suggestions`, `toolCall`, `table`, `memory` and `avatar` labels passed to those components, for translating. Right-to-left works under `dir="rtl"`: the queue moves to the right, details to the left.',
+    },
+    {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "Intl locale for message times, e.g. `he-IL`.",
+    },
     { name: "className", type: "string", description: "Extra classes for the root." },
   ],
   types: `type Escalation = {

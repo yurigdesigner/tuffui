@@ -4,26 +4,44 @@
 
 import { Code, GitBranch, SidebarSimple } from "@phosphor-icons/react";
 import { MotionConfig, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { IconButton } from "@/components/ui/action-button";
 import { Avatar } from "@/components/ui/agent-avatar";
 import {
   AgentComposer,
+  type AgentComposerLabels,
   type ComposerMessage,
   type ComposerMode,
 } from "@/components/ui/agent-composer";
-import { AgentStatus, type AgentStatusData } from "@/components/ui/agent-status";
-import { ChatThread, type ThreadMessage } from "@/components/ui/chat-thread";
-import { CheckpointTimeline, type Checkpoint } from "@/components/ui/checkpoint-timeline";
+import {
+  AgentStatus,
+  type AgentStatusData,
+  type AgentStatusLabels,
+} from "@/components/ui/agent-status";
+import {
+  ChatThread,
+  type ChatThreadLabels,
+  type ThreadMessage,
+} from "@/components/ui/chat-thread";
+import {
+  CheckpointTimeline,
+  type Checkpoint,
+  type CheckpointTimelineLabels,
+} from "@/components/ui/checkpoint-timeline";
 import {
   FileChanges,
   type FileChange,
+  type FileChangesLabels,
   type HunkSelection,
 } from "@/components/ui/file-changes";
 import { Segmented } from "@/components/ui/segmented-control";
 import { Tag } from "@/components/ui/status-pill";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tab-panels";
-import { TerminalOutput, type TerminalRun } from "@/components/ui/terminal-output";
+import {
+  TerminalOutput,
+  type TerminalOutputLabels,
+  type TerminalRun,
+} from "@/components/ui/terminal-output";
 import { Tooltip } from "@/components/ui/tooltip-hint";
 import { EASE_IN_OUT, instant as noMotion } from "@/lib/motion-tokens";
 import { cn } from "@/lib/utils";
@@ -60,8 +78,51 @@ export type CodingAgentProps = {
   onDiscard?: () => void;
   applying?: boolean;
   onRestore?: (checkpoint: Checkpoint) => void;
+  /** Formats message times in the thread. */
+  locale?: string;
+  labels?: Partial<CodingAgentLabels>;
   className?: string;
 };
+
+export type CodingAgentLabels = {
+  showChat: string;
+  hideChat: string;
+  showWork: string;
+  hideWork: string;
+  /** Screen-reader name of the pane switch in the narrow layout. */
+  show: string;
+  panes: Record<"chat" | WorkTab, string>;
+  /** Screen-reader names of the two panes. */
+  conversation: string;
+  work: string;
+  /** Composer placeholders, idle and while the agent works. */
+  askForChange: string;
+  followUp: string;
+  noChanges: string;
+  /** Strings of the components inside the screen. */
+  thread?: Partial<ChatThreadLabels>;
+  activity?: Partial<AgentStatusLabels>;
+  composer?: Partial<AgentComposerLabels>;
+  checkpoints?: Partial<CheckpointTimelineLabels>;
+  files?: Partial<FileChangesLabels>;
+  terminal?: Partial<TerminalOutputLabels>;
+};
+
+const defaultLabels: CodingAgentLabels = {
+  showChat: "Show chat",
+  hideChat: "Hide chat",
+  showWork: "Show work panel",
+  hideWork: "Hide work panel",
+  show: "Show",
+  panes: { chat: "Chat", changes: "Changes", terminal: "Terminal", preview: "Preview" },
+  conversation: "Conversation",
+  work: "Work",
+  askForChange: "Ask for a change…",
+  followUp: "Add a follow-up…",
+  noChanges: "No changes yet. Files the agent edits show up here.",
+};
+
+const LabelsContext = createContext<CodingAgentLabels>(defaultLabels);
 
 type Layout = "split" | "chat" | "work";
 type Pane = "chat" | WorkTab;
@@ -70,8 +131,8 @@ type Pane = "chat" | WorkTab;
 const SPLIT_AT = 960;
 
 /**
- * A coding agent at work: the conversation on the left, what it changed on the
- * right. Wide, both panes can be collapsed; narrow, a switch shows one at a time.
+ * A coding agent at work: the conversation on the start side, what it changed on
+ * the end side. Wide, both panes can be collapsed; narrow, a switch shows one at a time.
  * The thread is the only scroll on its side and the composer stays pinned.
  */
 export function CodingAgent({
@@ -85,8 +146,11 @@ export function CodingAgent({
   onDiscard,
   applying,
   onRestore,
+  locale,
+  labels: labelOverrides,
   className,
 }: CodingAgentProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const root = useRef<HTMLDivElement>(null);
   const [wide, setWide] = useState(true);
   const [layout, setLayout] = useState<Layout>("split");
@@ -126,119 +190,132 @@ export function CodingAgent({
   const workShown = layout !== "chat";
   const changes = data.files.reduce((n, f) => n + f.hunks.length, 0);
 
-  const chat = <ChatColumn data={data} status={status} onSend={onSend} onStop={onStop} />;
+  const chat = (
+    <ChatColumn
+      data={data}
+      status={status}
+      onSend={onSend}
+      onStop={onStop}
+      locale={locale}
+    />
+  );
 
   return (
-    <MotionConfig reducedMotion="user">
-      <div
-        ref={root}
-        className={cn(
-          "@container relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground",
-          className,
-        )}
-      >
-        <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 px-3 py-2.5 @md:px-5">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <h2 className="min-w-0 truncate text-[0.9375rem] font-medium">
-              {data.title}
-            </h2>
-            <Tag className="hidden shrink-0 gap-1 @lg:inline-flex">
-              <GitBranch weight="bold" className="size-3" aria-hidden="true" />
-              {data.branch}
-            </Tag>
-          </div>
-          <div className="flex items-center gap-1">
-            {wide && (
-              <>
-                <PaneToggle
-                  label={chatShown ? "Hide chat" : "Show chat"}
-                  pressed={chatShown}
-                  onClick={(e) => toggle(e, "chat")}
-                />
-                <PaneToggle
-                  label={workShown ? "Hide work panel" : "Show work panel"}
-                  pressed={workShown}
-                  mirrored
-                  onClick={(e) => toggle(e, "work")}
-                />
-              </>
-            )}
-            <Avatar
-              name={data.user.name}
-              src={data.user.avatar}
-              size="sm"
-              className="ml-1"
-            />
-          </div>
-          {!wide && (
-            <Segmented<Pane>
-              label="Show"
-              size="sm"
-              value={pane}
-              onValueChange={setPane}
-              className="w-full [&>*]:flex-1"
-              options={[
-                { value: "chat", label: "Chat" },
-                { value: "changes", label: `Changes${changes ? ` ${changes}` : ""}` },
-                { value: "terminal", label: "Terminal" },
-                { value: "preview", label: "Preview" },
-              ]}
-            />
+    <LabelsContext.Provider value={labels}>
+      <MotionConfig reducedMotion="user">
+        <div
+          ref={root}
+          className={cn(
+            "@container relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground",
+            className,
           )}
-        </header>
+        >
+          <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 px-3 py-2.5 @md:px-5">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <h2 className="min-w-0 truncate text-[0.9375rem] font-medium">
+                {data.title}
+              </h2>
+              <Tag className="hidden shrink-0 gap-1 @lg:inline-flex">
+                <GitBranch weight="bold" className="size-3" aria-hidden="true" />
+                <span dir="ltr">{data.branch}</span>
+              </Tag>
+            </div>
+            <div className="flex items-center gap-1">
+              {wide && (
+                <>
+                  <PaneToggle
+                    label={chatShown ? labels.hideChat : labels.showChat}
+                    pressed={chatShown}
+                    onClick={(e) => toggle(e, "chat")}
+                  />
+                  <PaneToggle
+                    label={workShown ? labels.hideWork : labels.showWork}
+                    pressed={workShown}
+                    mirrored
+                    onClick={(e) => toggle(e, "work")}
+                  />
+                </>
+              )}
+              <Avatar
+                name={data.user.name}
+                src={data.user.avatar}
+                size="sm"
+                className="ms-1"
+              />
+            </div>
+            {!wide && (
+              <Segmented<Pane>
+                label={labels.show}
+                size="sm"
+                value={pane}
+                onValueChange={setPane}
+                className="w-full [&>*]:flex-1"
+                options={[
+                  { value: "chat", label: labels.panes.chat },
+                  {
+                    value: "changes",
+                    label: `${labels.panes.changes}${changes ? ` ${changes}` : ""}`,
+                  },
+                  { value: "terminal", label: labels.panes.terminal },
+                  { value: "preview", label: labels.panes.preview },
+                ]}
+              />
+            )}
+          </header>
 
-        {wide ? (
-          <div className="flex min-h-0 flex-1 gap-1.5 px-1.5 pb-1.5">
-            <motion.div
-              initial={false}
-              animate={{
-                width: layout === "split" ? "44%" : layout === "chat" ? "100%" : "0%",
-              }}
-              transition={instant ? noMotion : { duration: 0.32, ease: EASE_IN_OUT }}
-              inert={!chatShown}
-              aria-hidden={!chatShown || undefined}
-              className="min-w-0 shrink-0 overflow-hidden"
-            >
-              <div className="h-full min-w-[22rem]">{chat}</div>
-            </motion.div>
-            <div
-              inert={!workShown}
-              aria-hidden={!workShown || undefined}
-              className="min-w-0 flex-1 overflow-hidden"
-            >
-              <div className="h-full min-w-[26rem]">
+          {wide ? (
+            <div className="flex min-h-0 flex-1 gap-1.5 px-1.5 pb-1.5">
+              <motion.div
+                initial={false}
+                animate={{
+                  width: layout === "split" ? "44%" : layout === "chat" ? "100%" : "0%",
+                }}
+                transition={instant ? noMotion : { duration: 0.32, ease: EASE_IN_OUT }}
+                inert={!chatShown}
+                aria-hidden={!chatShown || undefined}
+                className="min-w-0 shrink-0 overflow-hidden"
+              >
+                <div className="h-full min-w-[22rem]">{chat}</div>
+              </motion.div>
+              <div
+                inert={!workShown}
+                aria-hidden={!workShown || undefined}
+                className="min-w-0 flex-1 overflow-hidden"
+              >
+                <div className="h-full min-w-[26rem]">
+                  <WorkPanel
+                    data={data}
+                    tab={tab}
+                    onTabChange={setTab}
+                    changes={changes}
+                    onApply={onApply}
+                    onDiscard={onDiscard}
+                    applying={applying}
+                    onRestore={onRestore}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="min-h-0 flex-1 px-1.5 pb-1.5">
+              {pane === "chat" ? (
+                chat
+              ) : (
                 <WorkPanel
                   data={data}
-                  tab={tab}
-                  onTabChange={setTab}
+                  tab={pane}
                   changes={changes}
                   onApply={onApply}
                   onDiscard={onDiscard}
                   applying={applying}
                   onRestore={onRestore}
                 />
-              </div>
+              )}
             </div>
-          </div>
-        ) : (
-          <div className="min-h-0 flex-1 px-1.5 pb-1.5">
-            {pane === "chat" ? (
-              chat
-            ) : (
-              <WorkPanel
-                data={data}
-                tab={pane}
-                changes={changes}
-                onApply={onApply}
-                onDiscard={onDiscard}
-                applying={applying}
-                onRestore={onRestore}
-              />
-            )}
-          </div>
-        )}
-      </div>
-    </MotionConfig>
+          )}
+        </div>
+      </MotionConfig>
+    </LabelsContext.Provider>
   );
 }
 
@@ -261,8 +338,9 @@ function PaneToggle({
         title={undefined}
         aria-pressed={pressed}
         onClick={onClick}
+        // The chat pane sits at the start, so its glyph mirrors under dir="rtl".
         className={cn(
-          mirrored && "[&_svg]:-scale-x-100",
+          mirrored ? "ltr:[&_svg]:-scale-x-100" : "rtl:[&_svg]:-scale-x-100",
           !pressed && "text-muted-foreground",
         )}
       />
@@ -275,10 +353,12 @@ function ChatColumn({
   status,
   onSend,
   onStop,
-}: Pick<CodingAgentProps, "onSend" | "onStop"> & {
+  locale,
+}: Pick<CodingAgentProps, "onSend" | "onStop" | "locale"> & {
   data: CodingAgentData;
   status: "idle" | "streaming";
 }) {
+  const labels = useContext(LabelsContext);
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState<ComposerMode>("act");
   const dock = useRef<HTMLDivElement>(null);
@@ -294,7 +374,7 @@ function ChatColumn({
 
   return (
     <section
-      aria-label="Conversation"
+      aria-label={labels.conversation}
       className="relative h-full overflow-hidden rounded-[1.375rem] bg-surface"
     >
       <ChatThread
@@ -303,6 +383,8 @@ function ChatColumn({
         agentName={data.model}
         userName={data.user.name}
         bottomInset={inset}
+        locale={locale}
+        labels={labels.thread}
         contentClassName="w-full px-3 @md:px-4"
         footer={
           data.activity && (
@@ -310,6 +392,7 @@ function ChatColumn({
               data={data.activity}
               onStop={onStop}
               maxSteps={0}
+              labels={labels.activity}
               className="mt-3 max-w-none"
             />
           )
@@ -331,9 +414,8 @@ function ChatColumn({
               setDraft("");
             }}
             onStop={onStop}
-            placeholder={
-              status === "streaming" ? "Add a follow-up…" : "Ask for a change…"
-            }
+            placeholder={status === "streaming" ? labels.followUp : labels.askForChange}
+            labels={labels.composer}
             className="max-w-none"
           />
         </div>
@@ -358,6 +440,7 @@ function WorkPanel({
   onTabChange?: (tab: WorkTab) => void;
   changes: number;
 }) {
+  const labels = useContext(LabelsContext);
   const body = (current: WorkTab) =>
     current === "changes" ? (
       <ChangesTab
@@ -374,7 +457,7 @@ function WorkPanel({
 
   return (
     <section
-      aria-label="Work"
+      aria-label={labels.work}
       className="flex h-full flex-col overflow-hidden rounded-[1.375rem] bg-surface p-1.5"
     >
       {onTabChange ? (
@@ -385,13 +468,13 @@ function WorkPanel({
           variant="pills"
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="flex flex-wrap items-center gap-2 pt-1 pr-1 pb-2 pl-1.5">
-            <TabList label="Work" className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 ps-1.5 pe-1 pt-1 pb-2">
+            <TabList label={labels.work} className="min-w-0">
               <Tab value="changes" count={changes || undefined}>
-                Changes
+                {labels.panes.changes}
               </Tab>
-              <Tab value="terminal">Terminal</Tab>
-              <Tab value="preview">Preview</Tab>
+              <Tab value="terminal">{labels.panes.terminal}</Tab>
+              <Tab value="preview">{labels.panes.preview}</Tab>
             </TabList>
             <Checkpoints data={data.checkpoints} onRestore={onRestore} />
           </div>
@@ -403,10 +486,12 @@ function WorkPanel({
         </Tabs>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2 pt-1 pr-1 pb-2 pl-1.5">
+          <div className="flex flex-wrap items-center gap-2 ps-1.5 pe-1 pt-1 pb-2">
             <Tag className="gap-1">
               <GitBranch weight="bold" className="size-3" aria-hidden="true" />
-              <span className="truncate">{data.branch}</span>
+              <span dir="ltr" className="truncate">
+                {data.branch}
+              </span>
             </Tag>
             <Checkpoints data={data.checkpoints} onRestore={onRestore} />
           </div>
@@ -424,12 +509,14 @@ function Checkpoints({
   data: Checkpoint[];
   onRestore?: (checkpoint: Checkpoint) => void;
 }) {
+  const labels = useContext(LabelsContext);
   if (data.length === 0) return null;
   return (
     <CheckpointTimeline
       variant="compact"
       data={data}
       onRestore={onRestore}
+      labels={labels.checkpoints}
       className="min-w-0 flex-1 basis-64 bg-foreground/[0.04]"
     />
   );
@@ -443,12 +530,13 @@ function ChangesTab({
 }: Pick<CodingAgentProps, "onApply" | "onDiscard" | "applying"> & {
   data: CodingAgentData;
 }) {
+  const labels = useContext(LabelsContext);
   return (
     // The panel's one scroll. Diff rows clip instead of scrolling sideways.
     <div className="h-full overflow-y-auto overscroll-contain rounded-2xl [&_.overflow-x-auto]:flex-wrap [&_.overflow-x-auto]:overflow-x-hidden">
       {data.files.length === 0 ? (
         <p className="grid h-full place-items-center px-6 text-center text-[0.8125rem] text-muted-foreground">
-          No changes yet. Files the agent edits show up here.
+          {labels.noChanges}
         </p>
       ) : (
         <FileChanges
@@ -457,6 +545,7 @@ function ChangesTab({
           onApply={(selection) => onApply?.(selection)}
           onDiscard={onDiscard}
           applying={applying}
+          labels={labels.files}
           className="max-w-none"
         />
       )}
@@ -465,6 +554,7 @@ function ChangesTab({
 }
 
 function TerminalTab({ run }: { run: TerminalRun }) {
+  const labels = useContext(LabelsContext);
   const box = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(320);
 
@@ -482,6 +572,7 @@ function TerminalTab({ run }: { run: TerminalRun }) {
       <TerminalOutput
         data={run}
         maxHeight={Math.max(height - 108, 120)}
+        labels={labels.terminal}
         className="max-w-none bg-transparent p-0"
       />
     </div>
@@ -497,7 +588,10 @@ function PreviewTab({ preview }: { preview: CodingAgentData["preview"] }) {
           className="size-3.5 text-muted-foreground"
           aria-hidden="true"
         />
-        <span className="min-w-0 truncate rounded-full bg-foreground/[0.05] px-2.5 py-0.5 font-mono text-[0.6875rem] text-muted-foreground">
+        <span
+          dir="ltr"
+          className="min-w-0 truncate rounded-full bg-foreground/[0.05] px-2.5 py-0.5 font-mono text-[0.6875rem] text-muted-foreground"
+        >
           {preview.url}
         </span>
       </div>

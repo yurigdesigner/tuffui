@@ -49,6 +49,12 @@ export const docs: ComponentDocs = {
       description: "Optional control of the open state.",
     },
     {
+      name: "labels",
+      type: "Partial<PopoverLabels>",
+      description:
+        "Your own UI strings (the Close button's name), for translating. Right-to-left follows Radix's `Direction.Provider`, so align start/end swap.",
+    },
+    {
       name: "className",
       type: "string",
       description: "Classes for the panel, e.g. a different width.",

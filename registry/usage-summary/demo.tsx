@@ -1,7 +1,74 @@
 "use client";
 
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, wait, type MockStep } from "@/registry/use-mock-run/use-mock-run";
-import { UsageSummary, type UsageDay, type UsageModel } from "./usage-summary";
+import {
+  UsageSummary,
+  type UsageDay,
+  type UsageModel,
+  type UsageSummaryLabels,
+} from "./usage-summary";
+
+/** Model names stay as they are; Hebrew and Arabic show the RTL layout. */
+const copy: Record<
+  DemoLocale,
+  {
+    locale: string;
+    monthly: string;
+    weekly: string;
+    labels?: Partial<UsageSummaryLabels>;
+  }
+> = {
+  en: { locale: "en-US", monthly: "Monthly budget", weekly: "Weekly budget" },
+  he: {
+    locale: "he-IL",
+    monthly: "תקציב חודשי",
+    weekly: "תקציב שבועי",
+    labels: {
+      title: "שימוש",
+      subtitle: (days, tokens) => (
+        <>
+          {days} הימים האחרונים · {tokens} טוקנים
+        </>
+      ),
+      up: "עלייה",
+      down: "ירידה",
+      vsPrevious: (percent) => <>{percent} לעומת התקופה הקודמת</>,
+      chart: "עלות יומית לפי מודל. מעבר בין ימים עם מקשי החצים.",
+      tokens: (tokens) => `${tokens} טוקנים`,
+      overBudget: "חריגה מהתקציב",
+      closeToBudget: "קרוב לתקציב",
+      budget: "תקציב חודשי",
+      budgetUsed: "ניצול התקציב",
+      budgetValue: (spent, limit, percent) => `${spent} מתוך ${limit} (${percent})`,
+      budgetWarning: (percent) => `נוצלו ${percent} מהתקציב`,
+    },
+  },
+  ar: {
+    locale: "ar",
+    monthly: "الميزانية الشهرية",
+    weekly: "الميزانية الأسبوعية",
+    labels: {
+      title: "الاستخدام",
+      subtitle: (days, tokens) => (
+        <>
+          آخر {days} {days <= 10 ? "أيام" : "يومًا"} · {tokens} رمز
+        </>
+      ),
+      up: "ارتفاع",
+      down: "انخفاض",
+      vsPrevious: (percent) => <>{percent} مقارنة بالفترة السابقة</>,
+      chart: "التكلفة اليومية حسب النموذج. استخدم مفاتيح الأسهم للتنقل بين الأيام.",
+      tokens: (tokens) => `${tokens} رمز`,
+      overBudget: "تجاوز الميزانية",
+      closeToBudget: "قريب من الميزانية",
+      budget: "الميزانية الشهرية",
+      budgetUsed: "المستخدم من الميزانية",
+      budgetValue: (spent, limit, percent) => `${spent} من ${limit} (${percent})`,
+      budgetWarning: (percent) => `استُخدم ${percent} من الميزانية`,
+    },
+  },
+};
 
 const models: UsageModel[] = [
   { id: "opus", name: "Claude Opus 5.5" },
@@ -53,10 +120,13 @@ const script: MockStep<State>[] = [
 export default function UsageSummaryDemo({
   variant,
   autoplay = true,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
+  const text = copy[locale];
   const month = variant === "Month";
   const { state } = useMockRun<State>({ grow: autoplay ? 0 : 1, today: 0 }, script, {
     autoplay,
@@ -84,9 +154,11 @@ export default function UsageSummaryDemo({
         models,
         previousCost: month ? 412 : 118,
         budget: month
-          ? { limit: 600, label: "Monthly budget" }
-          : { limit: 160, label: "Weekly budget" },
+          ? { limit: 600, label: text.monthly }
+          : { limit: 160, label: text.weekly },
       }}
+      locale={text.locale}
+      labels={text.labels}
     />
   );
 }

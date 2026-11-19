@@ -1,7 +1,62 @@
 "use client";
 
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, type MockStep } from "@/registry/use-mock-run/use-mock-run";
-import { RunTrace, type TraceSpan } from "./run-trace";
+import { RunTrace, type RunTraceLabels, type TraceSpan } from "./run-trace";
+
+/** Keeps a Latin name or number in reading order inside RTL text. */
+const ltr = (text: string) => `\u2066${text}\u2069`;
+
+/** Span names are code and stay as they are; the trace's own strings are translated. */
+const labels: Record<DemoLocale, Partial<RunTraceLabels> | undefined> = {
+  en: undefined,
+  he: {
+    region: "מעקב הרצה",
+    kinds: { llm: "מודל", tool: "כלי", agent: "סוכן", retrieval: "אחזור" },
+    zoomPath: "נתיב זום",
+    wholeRun: "כל ההרצה",
+    running: "רץ",
+    failed: "נכשל",
+    block: (name, kind, duration, failed) =>
+      `${ltr(name)}, ${kind}, ${ltr(duration)}${failed ? ", נכשל" : ""}. הגדלה`,
+    tokensShort: (tokens) => `${ltr(tokens)} טוקנים`,
+    tokens: (tokens) => `${ltr(tokens)} טוקנים`,
+    hint: "לחיצה על בלוק מגדילה אותו, Esc חוזר אחורה",
+    excluded: "בלי ספאנים של סוכנים — הם עוטפים את הצאצאים שלהם",
+    metric: "מדד",
+    metrics: { time: "זמן", tokens: "טוקנים", cost: "עלות" },
+    errors: (count) => `${count} נכשלו`,
+    share: (name, metric) => `החלק של ${ltr(name)} ב${metric}`,
+    waiting: "ממתין לספאנים…",
+    recording: "מקליט",
+    finishedIn: "הסתיים תוך",
+    spans: (count) => <>{count} ספאנים</>,
+    finished: (time) => `ההרצה הסתיימה תוך ${ltr(time)}`,
+  },
+  ar: {
+    region: "تتبّع التشغيل",
+    kinds: { llm: "نموذج", tool: "أداة", agent: "وكيل", retrieval: "استرجاع" },
+    zoomPath: "مسار التكبير",
+    wholeRun: "التشغيل كاملًا",
+    running: "قيد التشغيل",
+    failed: "فشل",
+    block: (name, kind, duration, failed) =>
+      `${ltr(name)}، ${kind}، ${ltr(duration)}${failed ? "، فشل" : ""}. تكبير`,
+    tokensShort: (tokens) => `${ltr(tokens)} رمز`,
+    tokens: (tokens) => `${ltr(tokens)} رمز`,
+    hint: "انقر على كتلة لتكبيرها، وEsc للرجوع",
+    excluded: "استُبعدت فترات الوكلاء — فهي تغلّف ما بداخلها",
+    metric: "المقياس",
+    metrics: { time: "الوقت", tokens: "الرموز", cost: "التكلفة" },
+    errors: (count) => `فشل ${count}`,
+    share: (name, metric) => `حصة ${ltr(name)} من ${metric}`,
+    waiting: "في انتظار الفترات…",
+    recording: "جارٍ التسجيل",
+    finishedIn: "انتهى خلال",
+    spans: (count) => <>{count} فترة</>,
+    finished: (time) => `انتهى التشغيل خلال ${ltr(time)}`,
+  },
+};
 
 // A release-notes agent; the demo reveals the run over time.
 const plan: (TraceSpan & { endMs: number })[] = [
@@ -136,14 +191,23 @@ const script: MockStep<State>[] = Array.from(
 export default function RunTraceDemo({
   variant,
   autoplay = true,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
   // Paused thumbnails show the finished run; live previews start from zero.
   const { state } = useMockRun<State>(at(autoplay ? 0 : plan[0].endMs), script, {
     autoplay,
   });
 
-  return <RunTrace data={state} view={variant === "Breakdown" ? "breakdown" : "flame"} />;
+  return (
+    <RunTrace
+      data={state}
+      view={variant === "Breakdown" ? "breakdown" : "flame"}
+      locale={{ en: "en-US", he: "he-IL", ar: "ar" }[locale]}
+      labels={labels[locale]}
+    />
+  );
 }

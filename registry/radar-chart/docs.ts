@@ -74,6 +74,12 @@ export function TeamSkills({ review }: { review: SkillsReview }) {
       description: "Called when an axis is hovered or reached with the arrow keys.",
     },
     {
+      name: "labels",
+      type: "Partial<RadarChartLabels>",
+      description:
+        'Your own UI strings (screen-reader text), for translating. Right-to-left works under `dir="rtl"`; axes still run clockwise.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

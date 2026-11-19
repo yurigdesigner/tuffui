@@ -36,7 +36,54 @@ export type SlotPickerProps = {
   /** Set to show the confirmed summary from outside. */
   confirmedId?: string | null;
   onChange?: () => void;
+  /** BCP 47 locale for day names and dates, e.g. `he-IL`. */
+  locale?: string;
+  /** UI strings, for translating the picker. */
+  labels?: Partial<SlotPickerLabels>;
   className?: string;
+};
+
+export type SlotPickerLabels = {
+  /** Default title when `data.title` is not set. */
+  pickTime: string;
+  timesIn: (zone: string) => string;
+  theirTime: string;
+  day: string;
+  availableTimes: string;
+  /** Spoken name of a slot button. */
+  slot: (
+    day: string,
+    time: string,
+    state: { busy?: boolean; suggested?: boolean },
+  ) => string;
+  duration: (minutes: number) => string;
+  suggested: string;
+  busy: string;
+  confirm: string;
+  selected: (day: string, time: string) => string;
+  meetingTime: string;
+  inviteSent: string;
+  pickAnother: string;
+  confirmed: (day: string, time: string) => string;
+};
+
+const defaultLabels: SlotPickerLabels = {
+  pickTime: "Pick a time",
+  timesIn: (zone) => `Times in ${zone}`,
+  theirTime: "Their time",
+  day: "Day",
+  availableTimes: "Available times",
+  slot: (day, time, { busy, suggested }) =>
+    `${day} ${time}${busy ? ", busy" : ""}${suggested ? ", suggested" : ""}`,
+  duration: (minutes) => `${minutes} min`,
+  suggested: "Suggested",
+  busy: "Busy",
+  confirm: "Confirm",
+  selected: (day, time) => `Selected ${day} ${time}`,
+  meetingTime: "Meeting time",
+  inviteSent: "Invite sent",
+  pickAnother: "Pick another time",
+  confirmed: (day, time) => `Confirmed ${day} ${time}`,
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -46,10 +93,10 @@ const shift = (t: string, hours: number) => {
   return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 };
 const dayDate = (day: string) => new Date(`${day}T00:00:00`);
-const weekday = (day: string) =>
-  dayDate(day).toLocaleDateString("en-US", { weekday: "short" });
-const dayLabel = (day: string) =>
-  dayDate(day).toLocaleDateString("en-US", {
+const weekday = (day: string, locale: string) =>
+  dayDate(day).toLocaleDateString(locale, { weekday: "short" });
+const formatDay = (day: string, locale: string) =>
+  dayDate(day).toLocaleDateString(locale, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -66,8 +113,12 @@ export function SlotPicker({
   onConfirm,
   confirmedId: confirmedProp,
   onChange,
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: SlotPickerProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const dayLabel = (day: string) => formatDay(day, locale);
   const [innerSelected, setInnerSelected] = useState<string | null>(null);
   const selectedId = selectedProp !== undefined ? selectedProp : innerSelected;
   const [innerConfirmed, setInnerConfirmed] = useState<string | null>(null);
@@ -97,12 +148,14 @@ export function SlotPicker({
   );
 
   // Arrow keys move between slots like a grid: up/down within a day, left/right across days.
-  const onKeyDown = (e: React.KeyboardEvent) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    // Days run right to left in RTL, so the horizontal arrows swap.
+    const back = getComputedStyle(e.currentTarget).direction === "rtl" ? 1 : -1;
     const move = {
       ArrowUp: [0, -1],
       ArrowDown: [0, 1],
-      ArrowLeft: [-1, 0],
-      ArrowRight: [1, 0],
+      ArrowLeft: [back, 0],
+      ArrowRight: [-back, 0],
     }[e.key];
     const at = (document.activeElement as HTMLElement | null)?.dataset.cell
       ?.split(":")
@@ -117,7 +170,7 @@ export function SlotPicker({
   if (confirmed) {
     return (
       <MotionConfig reducedMotion="user">
-        <Shell aria-label="Meeting time" className={cn("max-w-md", className)}>
+        <Shell aria-label={labels.meetingTime} className={cn("max-w-md", className)}>
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0, transition: enter }}
@@ -127,11 +180,11 @@ export function SlotPicker({
               <div className="min-w-0 flex-1">
                 <p className="text-[0.9375rem] font-medium">{dayLabel(confirmed.day)}</p>
                 <p className="font-mono text-[0.8125rem] text-muted-foreground tabular-nums">
-                  {time(confirmed)} · {zone.label}
+                  <span dir="ltr">{time(confirmed)}</span> · {zone.label}
                 </p>
               </div>
               <StatusPill tone="positive" icon={CheckCircle}>
-                Invite sent
+                {labels.inviteSent}
               </StatusPill>
             </Panel>
           </motion.div>
@@ -144,11 +197,11 @@ export function SlotPicker({
                 onChange?.();
               }}
             >
-              Pick another time
+              {labels.pickAnother}
             </Button>
           </div>
           <p role="status" aria-live="polite" className="sr-only">
-            Confirmed {dayLabel(confirmed.day)} {time(confirmed)}
+            {labels.confirmed(dayLabel(confirmed.day), time(confirmed))}
           </p>
         </Shell>
       </MotionConfig>
@@ -158,19 +211,19 @@ export function SlotPicker({
   return (
     <MotionConfig reducedMotion="user">
       <Shell
-        aria-label={data.title ?? "Pick a time"}
+        aria-label={data.title ?? labels.pickTime}
         className={cn("max-w-xl", className)}
       >
         <ShellHeader
           icon={CalendarDots}
-          title={data.title ?? "Pick a time"}
-          subtitle={`Times in ${zone.label}`}
+          title={data.title ?? labels.pickTime}
+          subtitle={labels.timesIn(zone.label)}
           aside={
             data.attendeeZone && (
               <Switch
                 label={
                   <span className="text-[0.8125rem] text-muted-foreground">
-                    Their time
+                    {labels.theirTime}
                   </span>
                 }
                 checked={theirs}
@@ -182,21 +235,21 @@ export function SlotPicker({
         <Panel className="p-3">
           {variant === "day" && (
             <Segmented
-              label="Day"
+              label={labels.day}
               size="sm"
               className="mb-3"
               value={activeDay}
               onValueChange={(d) => setPickedDay(d)}
               options={days.map((d) => ({
                 value: d,
-                label: dayLabel(d).replace(/,.*/, ""),
+                label: weekday(d, locale),
               }))}
             />
           )}
           <div
             ref={grid}
             role="group"
-            aria-label="Available times"
+            aria-label={labels.availableTimes}
             onKeyDown={onKeyDown}
             className={cn(
               "grid gap-2",
@@ -216,7 +269,7 @@ export function SlotPicker({
                     className="pb-1 text-center text-xs text-muted-foreground"
                   >
                     <span className="block font-medium text-foreground">
-                      {weekday(slots[0]?.day ?? days[col])}
+                      {weekday(slots[0]?.day ?? days[col], locale)}
                     </span>
                     {dayDate(slots[0]?.day ?? days[col]).getDate()}
                   </p>
@@ -230,7 +283,7 @@ export function SlotPicker({
                       data-cell={`${col}:${row}`}
                       aria-pressed={active}
                       aria-disabled={slot.busy}
-                      aria-label={`${dayLabel(slot.day)} ${time(slot)}${slot.busy ? ", busy" : ""}${slot.suggested ? ", suggested" : ""}`}
+                      aria-label={labels.slot(dayLabel(slot.day), time(slot), slot)}
                       tabIndex={
                         active || (!selectedId && col === 0 && row === 0) ? 0 : -1
                       }
@@ -248,12 +301,12 @@ export function SlotPicker({
                             : "bg-foreground/[0.06] hover:bg-foreground/[0.1] active:scale-[0.97]",
                       )}
                     >
-                      <span className="truncate">
+                      <span dir="ltr" className="truncate">
                         {variant === "week" ? shift(slot.start, delta) : time(slot)}
                       </span>
                       {variant === "day" && (
                         <span className="font-sans text-[0.6875rem] opacity-70">
-                          {minutes(slot.end) - minutes(slot.start)} min
+                          {labels.duration(minutes(slot.end) - minutes(slot.start))}
                         </span>
                       )}
                       {slot.suggested && !slot.busy && (
@@ -261,7 +314,7 @@ export function SlotPicker({
                           weight="fill"
                           aria-hidden="true"
                           className={cn(
-                            "absolute top-1 right-1 size-2.5",
+                            "absolute end-1 top-1 size-2.5",
                             active ? "text-white" : "text-brand",
                           )}
                         />
@@ -275,11 +328,11 @@ export function SlotPicker({
           <p className="mt-3 flex items-center gap-3 px-1 text-[0.6875rem] text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <Sparkle weight="fill" aria-hidden="true" className="size-3 text-brand" />{" "}
-              Suggested
+              {labels.suggested}
             </span>
             <span className="flex items-center gap-1.5">
               <span aria-hidden="true" className={cn("h-2 w-3 rounded-sm", striped)} />{" "}
-              Busy
+              {labels.busy}
             </span>
           </p>
         </Panel>
@@ -295,10 +348,13 @@ export function SlotPicker({
               exit={{ height: 0, opacity: 0, transition: exit }}
               className="overflow-hidden"
             >
-              <div className="flex items-center justify-between gap-3 pt-1.5 pr-px pb-px pl-3">
+              <div className="flex items-center justify-between gap-3 ps-3 pe-px pt-1.5 pb-px">
                 <p className="min-w-0 truncate text-[0.8125rem]">
                   <span className="font-medium">{dayLabel(selected.day)}</span>{" "}
-                  <span className="font-mono text-muted-foreground tabular-nums">
+                  <span
+                    dir="ltr"
+                    className="font-mono text-muted-foreground tabular-nums"
+                  >
                     {time(selected)}
                   </span>
                 </p>
@@ -310,14 +366,14 @@ export function SlotPicker({
                     onConfirm?.(selected);
                   }}
                 >
-                  Confirm
+                  {labels.confirm}
                 </Button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
         <p role="status" aria-live="polite" className="sr-only">
-          {selected ? `Selected ${dayLabel(selected.day)} ${time(selected)}` : ""}
+          {selected ? labels.selected(dayLabel(selected.day), time(selected)) : ""}
         </p>
       </Shell>
     </MotionConfig>

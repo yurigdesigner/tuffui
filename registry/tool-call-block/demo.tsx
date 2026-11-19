@@ -1,7 +1,51 @@
 "use client";
 
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, wait, type MockStep } from "@/registry/use-mock-run/use-mock-run";
-import { ToolCallBlock, type ToolCall } from "./tool-call-block";
+import {
+  ToolCallBlock,
+  type ToolCall,
+  type ToolCallBlockLabels,
+} from "./tool-call-block";
+
+/** Tool names, arguments and results stay as they are; Hebrew and Arabic show the RTL layout. */
+const copy: Record<DemoLocale, { intro: string; labels?: Partial<ToolCallBlockLabels> }> =
+  {
+    en: {
+      intro:
+        "I'll check whether failover slots are enabled on the billing replica before changing anything.",
+    },
+    he: {
+      intro: "לפני שאני משנה משהו, אבדוק אם failover slots מופעלים ברפליקה של billing.",
+      labels: {
+        status: { pending: "בתור", running: "רץ", success: "הסתיים", error: "נכשל" },
+        arguments: "ארגומנטים",
+        result: "תוצאה",
+        failed: "הקריאה לכלי נכשלה.",
+        retry: "ניסיון חוזר",
+        copy: (section) => `העתקת ${section}`,
+        copied: (section) => `הועתק: ${section}`,
+      },
+    },
+    ar: {
+      intro:
+        "قبل أن أغيّر أي شيء، سأتحقق مما إذا كانت failover slots مفعّلة في نسخة billing المتماثلة.",
+      labels: {
+        status: {
+          pending: "في الانتظار",
+          running: "قيد التشغيل",
+          success: "تم",
+          error: "فشل",
+        },
+        arguments: "الوسائط",
+        result: "النتيجة",
+        failed: "فشل استدعاء الأداة.",
+        retry: "إعادة المحاولة",
+        copy: (section) => `نسخ ${section}`,
+        copied: (section) => `تم نسخ ${section}`,
+      },
+    },
+  };
 
 type State = ToolCall[];
 
@@ -62,10 +106,13 @@ const chatScript: MockStep<State>[] = [
 export default function ToolCallBlockDemo({
   variant,
   autoplay = true,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
+  const text = copy[locale];
   const chat = variant === "In chat";
   const { state, setState } = useMockRun<State>(
     chat ? [{ ...search, status: "success", durationMs: 1210 }, read, query] : [search],
@@ -78,21 +125,21 @@ export default function ToolCallBlockDemo({
     );
 
   if (!chat) {
-    return <ToolCallBlock key={state[0].id} data={state[0]} defaultOpen />;
+    return (
+      <ToolCallBlock key={state[0].id} data={state[0]} defaultOpen labels={text.labels} />
+    );
   }
 
   return (
     <div className="flex w-full max-w-xl flex-col gap-2">
-      <p className="mb-1 text-sm leading-6">
-        I&apos;ll check whether failover slots are enabled on the billing replica before
-        changing anything.
-      </p>
+      <p className="mb-1 text-sm leading-6">{text.intro}</p>
       {state.map((call) => (
         <ToolCallBlock
           key={call.id}
           data={call}
           defaultOpen={call.id === "query"}
           onRetry={retry}
+          labels={text.labels}
         />
       ))}
     </div>

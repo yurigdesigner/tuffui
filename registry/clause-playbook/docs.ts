@@ -185,6 +185,12 @@ export function LiabilityCapAnswer({ proposal }: { proposal: AgentProposal }) {
       description: "Shows Discard. Handles and settings go back to the baseline first.",
     },
     {
+      name: "labels",
+      type: "Partial<ClausePlaybookLabels>",
+      description:
+        'Your own UI strings (zone names, edit count, histogram caption, buttons and screen-reader text), for translating. Right-to-left works under `dir="rtl"`; the chart keeps a left-to-right axis.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

@@ -146,6 +146,12 @@ export function VoiceMode({ call }: Props) {
       description: "Called by the End button.",
     },
     {
+      name: "labels",
+      type: "Partial<VoiceSessionLabels>",
+      description:
+        'Your own UI strings (You, Mute, Hold, End, status words…), for translating. Right-to-left works under `dir="rtl"`; the level bars and the call timer stay left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

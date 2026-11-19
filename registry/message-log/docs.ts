@@ -181,6 +181,18 @@ export function WebhookLog({ deliveries, perMinute, today }: WebhookData) {
       description: "Formats the axis, the window, row times and attempt times.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for counts.",
+    },
+    {
+      name: "labels",
+      type: "Partial<MessageLogLabels>",
+      description:
+        'Your own UI strings (filters, search, columns, legend, empty state, expanded row, screen reader text), for translating. Right-to-left works under `dir="rtl"`; the timeline itself stays left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

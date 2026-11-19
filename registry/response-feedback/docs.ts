@@ -75,6 +75,12 @@ export function AnswerActions({ message }: { message: Message }) {
         "Thumbs under an answer that open reasons on a down vote, or a card with a 1–5 rating and reasons always shown.",
     },
     {
+      name: "labels",
+      type: "Partial<ResponseFeedbackLabels>",
+      description:
+        'Your own UI strings (Helpful, Send feedback, the 1–5 words…), for translating. Right-to-left works under `dir="rtl"`.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

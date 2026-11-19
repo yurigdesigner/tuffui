@@ -3,8 +3,13 @@
 import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
 
+/** Demo language: Hebrew and Arabic render right to left. */
+export type DemoLocale = "en" | "he" | "ar";
+
 export type DemoProps = {
   variant?: string;
+  /** Only passed to components marked `rtl` in the catalog. */
+  locale?: DemoLocale;
   autoplay?: boolean;
   /** Rendered small on a home-page card: demos can skip details that only make it taller. */
   thumbnail?: boolean;

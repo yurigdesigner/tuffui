@@ -4,7 +4,7 @@
 
 import { Check, Stop, StopCircle, Warning } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/action-button";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { Panel, Shell } from "@/components/ui/surface";
@@ -38,7 +38,34 @@ export type AgentStatusProps = {
   onStop?: () => void;
   /** How many finished steps to show; 0 hides them. */
   maxSteps?: number;
+  /** UI strings, for translating. */
+  labels?: Partial<AgentStatusLabels>;
   className?: string;
+};
+
+export type AgentStatusLabels = {
+  /** Screen-reader name of the whole status. */
+  region: string;
+  steps: string;
+  /** Screen-reader text on a finished step's check. */
+  stepDone: string;
+  done: string;
+  stopped: string;
+  failed: string;
+  stop: string;
+  /** Screen-reader name of the Stop button. */
+  stopAgent: string;
+};
+
+const defaultLabels: AgentStatusLabels = {
+  region: "Agent status",
+  steps: "Finished steps",
+  stepDone: "Done",
+  done: "Done",
+  stopped: "Stopped",
+  failed: "Failed",
+  stop: "Stop",
+  stopAgent: "Stop agent",
 };
 
 // Strong ease-out for things entering; exits are quicker than entrances.
@@ -46,12 +73,6 @@ const enter = { duration: 0.24, ease: EASE_OUT };
 const leave = { duration: 0.15, ease: EASE_OUT };
 // Finished steps shift up as new ones land: a critically damped spring.
 const shift = { type: "spring", duration: 0.35, bounce: 0 } as const;
-
-const finalLabel: Record<Exclude<AgentStatusState, "working">, string> = {
-  done: "Done",
-  stopped: "Stopped",
-  error: "Failed",
-};
 
 export const formatElapsed = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -126,8 +147,27 @@ function Indicator({ status }: { status: AgentStatusState }) {
   );
 }
 
-export function AgentStatus({ data, onStop, maxSteps = 3, className }: AgentStatusProps) {
+export function AgentStatus({
+  data,
+  onStop,
+  maxSteps = 3,
+  labels: labelOverrides,
+  className,
+}: AgentStatusProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const finalLabel: Record<Exclude<AgentStatusState, "working">, string> = {
+    done: labels.done,
+    stopped: labels.stopped,
+    error: labels.failed,
+  };
   const { label, detail, startedAt, steps = [], status = "working" } = data;
+  // The detail line slides in the reading direction: leftward in LTR, rightward in RTL.
+  const root = useRef<HTMLElement>(null);
+  const [rtl, setRtl] = useState(false);
+  useLayoutEffect(() => {
+    if (root.current) setRtl(getComputedStyle(root.current).direction === "rtl");
+  }, []);
+  const slide = rtl ? -6 : 6;
   const working = status === "working";
   const elapsed = useElapsed(startedAt, working);
   const recent = maxSteps > 0 ? steps.slice(-maxSteps) : [];
@@ -135,12 +175,13 @@ export function AgentStatus({ data, onStop, maxSteps = 3, className }: AgentStat
   return (
     <MotionConfig reducedMotion="user">
       <Shell
-        aria-label="Agent status"
+        ref={root}
+        aria-label={labels.region}
         aria-busy={working}
         className={cn("max-w-md", className)}
       >
         {recent.length > 0 && (
-          <ol aria-label="Finished steps" className="px-2 pt-1.5 pb-1">
+          <ol aria-label={labels.steps} className="px-2 pt-1.5 pb-1">
             <AnimatePresence initial={false}>
               {recent.map((step) => (
                 <motion.li
@@ -156,7 +197,7 @@ export function AgentStatus({ data, onStop, maxSteps = 3, className }: AgentStat
                     <Check
                       weight="bold"
                       className="size-3.5 text-positive"
-                      aria-label="Done"
+                      aria-label={labels.stepDone}
                     />
                   </span>
                   <span className="min-w-0 flex-1 truncate">{step.label}</span>
@@ -170,7 +211,7 @@ export function AgentStatus({ data, onStop, maxSteps = 3, className }: AgentStat
             </AnimatePresence>
           </ol>
         )}
-        <Panel className="flex items-center gap-3 py-2.5 pr-2.5 pl-3.5">
+        <Panel className="flex items-center gap-3 py-2.5 ps-3.5 pe-2.5">
           <Indicator status={status} />
           <div className="min-w-0 flex-1">
             <div className="relative h-5 overflow-hidden text-sm font-medium">
@@ -191,12 +232,13 @@ export function AgentStatus({ data, onStop, maxSteps = 3, className }: AgentStat
                 <AnimatePresence initial={false} mode="popLayout">
                   <motion.p
                     key={detail}
-                    initial={{ opacity: 0, x: 6 }}
+                    initial={{ opacity: 0, x: slide }}
                     animate={{ opacity: 1, x: 0, transition: enter }}
-                    exit={{ opacity: 0, x: -6, transition: leave }}
+                    exit={{ opacity: 0, x: -slide, transition: leave }}
                     className="truncate font-mono text-xs text-muted-foreground"
                   >
-                    {detail}
+                    {/* A path or command keeps its own order inside RTL text. */}
+                    <bdi>{detail}</bdi>
                   </motion.p>
                 </AnimatePresence>
               </div>
@@ -212,10 +254,10 @@ export function AgentStatus({ data, onStop, maxSteps = 3, className }: AgentStat
             <Button
               icon={StopCircle}
               onClick={onStop}
-              aria-label="Stop agent"
+              aria-label={labels.stopAgent}
               className="px-3"
             >
-              Stop
+              {labels.stop}
             </Button>
           )}
         </Panel>

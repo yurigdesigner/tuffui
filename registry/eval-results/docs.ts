@@ -60,6 +60,18 @@ export function EvalRun({ run }: { run: EvalRun }) {
         "Called on click or Enter. Arrow keys, Home and End move between cases.",
     },
     {
+      name: "locale",
+      type: "string",
+      default: '"en-US"',
+      description: "BCP 47 locale for metric values that have no `format` of their own.",
+    },
+    {
+      name: "labels",
+      type: "Partial<EvalResultsLabels>",
+      description:
+        'Your own UI strings (statuses, filters, headings, screen-reader text), for translating. Right-to-left works under `dir="rtl"`.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root element.",

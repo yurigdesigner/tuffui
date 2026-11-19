@@ -37,7 +37,36 @@ export type MatchFieldProps = {
   /** Icon in the middle, e.g. the role or request being matched. */
   icon?: Icon;
   onSelect?: (item: MatchItem) => void;
+  /** BCP 47 locale for percentages, e.g. `he-IL`. */
+  locale?: string;
+  /** UI strings, for translating the chart. */
+  labels?: Partial<MatchFieldLabels>;
   className?: string;
+};
+
+export type MatchFieldLabels = {
+  /** Header badge, e.g. "3 above 85%". */
+  above: (count: number, threshold: string) => string;
+  /** Name of the focusable chart area. */
+  chart: (title: string) => string;
+  /** Spoken summary of the chart. */
+  summary: (
+    title: string,
+    strong: number,
+    total: number,
+    threshold: string,
+    best: { name: string; score: string } | null,
+  ) => string;
+  /** Announced when moving through matches with the keyboard. */
+  status: (name: string, sector: string, score: string) => string;
+};
+
+const defaultLabels: MatchFieldLabels = {
+  above: (count, threshold) => `${count} above ${threshold}`,
+  chart: (title) => `${title}. Use arrow keys to go through matches.`,
+  summary: (title, strong, total, threshold, best) =>
+    `${title}: ${strong} of ${total} above ${threshold}${best ? `, best ${best.name} at ${best.score}` : ""}`,
+  status: (name, sector, score) => `${name}, ${sector}, ${score} match`,
 };
 
 const W = 440;
@@ -50,7 +79,6 @@ const DOT_STEP = 7.5;
 const palette = ["var(--brand)", "#1a9e8c", "#bf5af2", "#b8862b", "#0a84ff"];
 
 const round = (n: number) => Math.round(n * 100) / 100;
-const pct = (score: number) => `${Math.round(score * 100)}%`;
 
 const polar = (turn: number, r: number) => {
   const a = turn * 2 * Math.PI - Math.PI / 2;
@@ -111,8 +139,15 @@ export function MatchField({
   min = Math.max(0, Math.min(threshold, ...rings) - 0.15),
   icon: CenterIcon = Briefcase,
   onSelect,
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: MatchFieldProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const pct = (score: number) =>
+    new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 }).format(
+      score,
+    );
   const reduce = useReducedMotion();
   const [ref, width, measured] = useWidth();
   const [active, setActive] = useState<string | null>(null);
@@ -218,7 +253,7 @@ export function MatchField({
           subtitle={subtitle}
           aside={
             <span className="rounded-full bg-foreground/[0.06] px-2.5 py-1 text-xs text-muted-foreground tabular-nums">
-              {strong.length} above {pct(threshold)}
+              {labels.above(strong.length, pct(threshold))}
             </span>
           }
         />
@@ -227,7 +262,9 @@ export function MatchField({
             ref={ref}
             tabIndex={0}
             role="group"
-            aria-label={`${title}. Use arrow keys to go through matches.`}
+            aria-label={labels.chart(title)}
+            // A polar plot: sectors run clockwise and positions are physical in any language.
+            dir="ltr"
             onKeyDown={onKeyDown}
             onBlur={() => fromKeyboard && setActive(null)}
             onPointerLeave={() => select(null, false)}
@@ -238,7 +275,13 @@ export function MatchField({
               visibility={measured ? undefined : "hidden"}
               viewBox={`0 0 ${W} ${H}`}
               role="img"
-              aria-label={`${title}: ${strong.length} of ${placed.length} above ${pct(threshold)}${best ? `, best ${best.name} at ${pct(best.score)}` : ""}`}
+              aria-label={labels.summary(
+                title,
+                strong.length,
+                placed.length,
+                pct(threshold),
+                best && { name: best.name, score: pct(best.score) },
+              )}
               className="absolute inset-0 block size-full overflow-visible"
             >
               <circle
@@ -433,7 +476,7 @@ export function MatchField({
 
           <p role="status" aria-live="polite" className="sr-only">
             {fromKeyboard && current
-              ? `${current.name}, ${sectors[current.sector]}, ${pct(current.score)} match`
+              ? labels.status(current.name, sectors[current.sector], pct(current.score))
               : ""}
           </p>
         </Panel>

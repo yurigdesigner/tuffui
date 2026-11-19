@@ -49,8 +49,14 @@ export const docs: ComponentDocs = {
       description:
         "DropOverlay: force the overlay, e.g. for a page-level drag you track.",
     },
+    {
+      name: "labels",
+      type: "Partial<DropZoneLabels>",
+      description:
+        'Your own UI strings (browse button, drag state, rejection reasons, default hint), for translating. Right-to-left works under `dir="rtl"`.',
+    },
   ],
-  types: `function checkFiles(files: File[], rules: FileRules): {
+  types: `function checkFiles(files: File[], rules: FileRules, labels?: Partial<DropZoneLabels>): {
   accepted: File[];
   rejected: { file: File; reason: string }[];
 };`,

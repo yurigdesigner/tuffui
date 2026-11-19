@@ -4,7 +4,7 @@
 
 import { ClockCountdown, type Icon } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
-import { useId, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/action-button";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -74,7 +74,60 @@ export type RenewalRingsProps = {
   formatDate?: (date: Date) => string;
   /** One or two letters for the month labels around the face. */
   formatMonth?: (date: Date) => string;
+  /** BCP 47 locale for the default money, date and month formats, e.g. `he-IL`. */
+  locale?: string;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<RenewalRingsLabels>;
   className?: string;
+};
+
+export type RenewalRingsLabels = {
+  title: string;
+  heading: string;
+  subtitle: (months: number) => string;
+  /** Header pill, e.g. "4 in 90 d". */
+  pill: (count: number, windowDays: number) => string;
+  shown: (shown: number, total: number) => string;
+  today: string;
+  /** Under the center number. */
+  daysLeft: (days: number) => string;
+  inDays: (windowDays: number) => string;
+  term: string;
+  notice: string;
+  windowDays: (windowDays: number) => string;
+  /** Next to the selected contract's name. */
+  dLeft: (days: number) => string;
+  ends: string;
+  acv: string;
+  autoRenew: string;
+  yes: string;
+  no: string;
+  noticeDue: string;
+  noNotice: string;
+  /** Notice deadline: `days` is negative once passed. */
+  noticeAt: (date: string, days: number) => string;
+  hint: string;
+  empty: string;
+  noticeUnit: (days: number) => string;
+  autoRenewUnit: (total: number) => string;
+  upForRenewal: string;
+  /** Screen-reader text. */
+  chart: (heading: string) => string;
+  contract: (c: {
+    name: string;
+    ends: string;
+    days: number;
+    value: string;
+    autoRenew: boolean;
+    notice: string;
+  }) => string;
+  summary: (
+    heading: string,
+    total: number,
+    months: number,
+    inWindow: number,
+    windowDays: number,
+  ) => string;
 };
 
 const DAY = 86_400_000;
@@ -85,26 +138,26 @@ const R_LABEL = 151;
 const R_OUTER = 127;
 const R_INNER = 58;
 
-const usd = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
-const dateFormat = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-});
-const monthFormat = new Intl.DateTimeFormat("en-US", {
-  month: "narrow",
-  timeZone: "UTC",
-});
-
-const defaultValue = (n: number) => usd.format(n);
-const defaultDate = (d: Date) => dateFormat.format(d);
-const defaultMonth = (d: Date) => monthFormat.format(d);
+function formats(locale: string) {
+  const usd = new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
+  const date = new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  const month = new Intl.DateTimeFormat(locale, { month: "narrow", timeZone: "UTC" });
+  return {
+    value: (n: number) => usd.format(n),
+    date: (d: Date) => date.format(d),
+    month: (d: Date) => month.format(d),
+  };
+}
 
 /** Calendar day as UTC midnight, so arithmetic ignores time zones and DST. */
 function toDay(d: string | Date): number {
@@ -144,6 +197,9 @@ function point(r: number, deg: number) {
   return [C + r * Math.sin(a), C - r * Math.cos(a)] as const;
 }
 
+/** Hebrew or Arabic letters, or a right-to-left mark. */
+const RTL_TEXT = /[\u0590-\u08ff\u200f]/;
+
 const n2 = (v: number) => Math.round(v * 100) / 100;
 
 function arc(r: number, from: number, to: number) {
@@ -170,6 +226,40 @@ function sector(r0: number, r1: number, to: number) {
 
 const short = (name: string) => (name.length > 13 ? `${name.slice(0, 12)}…` : name);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+const defaultLabels: RenewalRingsLabels = {
+  title: "Renewals",
+  heading: "Term left",
+  subtitle: (months) => `Next ${months} months · from today`,
+  pill: (count, days) => `${count} in ${days} d`,
+  shown: (shown, total) => `${shown} of ${total} shown`,
+  today: "Today",
+  daysLeft: (days) => (days === 1 ? "day left" : "days left"),
+  inDays: (days) => `in ${days} days`,
+  term: "Term",
+  notice: "Notice",
+  windowDays: (days) => `${days} days`,
+  dLeft: (days) => `${days} d left`,
+  ends: "Ends",
+  acv: "ACV",
+  autoRenew: "Auto-renew",
+  yes: "Yes",
+  no: "No",
+  noticeDue: "Notice due",
+  noNotice: "None",
+  noticeAt: (date, d) =>
+    d < 0 ? `${date}, passed` : d === 0 ? `${date}, today` : `${date}, in ${d} d`,
+  hint: "Point at a ring, or tab to it, to see the contract.",
+  empty: "Nothing renews in this window.",
+  noticeUnit: (days) => `in ${days} d`,
+  autoRenewUnit: (total) => `of ${total}`,
+  upForRenewal: "Up for renewal",
+  chart: (heading) => `${heading}. Arrow keys move between contracts, Enter selects.`,
+  contract: (c) =>
+    `${c.name}: ends ${c.ends}, ${plural(c.days, "day")} left, ${c.value} ACV, ${c.autoRenew ? "auto-renews" : "does not auto-renew"}, notice ${c.notice}.`,
+  summary: (heading, total, months, inWindow, days) =>
+    `${heading}: ${plural(total, "contract")} end in the next ${months} months, ${inWindow} within ${days} days.`,
+};
 
 type Row = {
   contract: RenewalContract;
@@ -198,17 +288,26 @@ export function RenewalRings({
   defaultSelectedId = null,
   onSelectedChange,
   actions,
-  title = "Renewals",
+  title: titleProp,
   subtitle,
-  heading = "Term left",
+  heading: headingProp,
   details = true,
   stats = true,
   intro = true,
-  formatValue = defaultValue,
-  formatDate = defaultDate,
-  formatMonth = defaultMonth,
+  formatValue: formatValueProp,
+  formatDate: formatDateProp,
+  formatMonth: formatMonthProp,
+  locale = "en-US",
+  labels: labelOverrides,
   className,
 }: RenewalRingsProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
+  const title = titleProp ?? labels.title;
+  const heading = headingProp ?? labels.heading;
+  const intl = useMemo(() => formats(locale), [locale]);
+  const formatValue = formatValueProp ?? intl.value;
+  const formatDate = formatDateProp ?? intl.date;
+  const formatMonth = formatMonthProp ?? intl.month;
   const reduce = useReducedMotion();
   const summaryId = useId();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -313,15 +412,21 @@ export function RenewalRings({
     : -1;
 
   const noticeText = (r: Row) => {
-    if (!r.noticeDays) return "None";
+    if (!r.noticeDays) return labels.noNotice;
     const date = formatDate(new Date(r.noticeAt));
-    const d = Math.round((r.noticeAt - today) / DAY);
-    return d < 0 ? `${date}, passed` : d === 0 ? `${date}, today` : `${date}, in ${d} d`;
+    return labels.noticeAt(date, Math.round((r.noticeAt - today) / DAY));
   };
   const describe = (r: Row) =>
-    `${r.contract.name}: ends ${formatDate(new Date(r.end))}, ${plural(r.days, "day")} left, ${formatValue(r.contract.value)} ACV, ${r.contract.autoRenew ? "auto-renews" : "does not auto-renew"}, notice ${noticeText(r)}.`;
+    labels.contract({
+      name: r.contract.name,
+      ends: formatDate(new Date(r.end)),
+      days: r.days,
+      value: formatValue(r.contract.value),
+      autoRenew: r.contract.autoRenew ?? false,
+      notice: noticeText(r),
+    });
 
-  const summary = `${heading}: ${plural(rows.length, "contract")} end in the next ${horizonMonths} months, ${inWindow.length} within ${windowDays} days. ${shown.map(describe).join(" ")}`;
+  const summary = `${labels.summary(heading, rows.length, horizonMonths, inWindow.length, windowDays)} ${shown.map(describe).join(" ")}`;
 
   const sweepIn = intro && !reduce;
   const fast = keyboard || reduce ? instant : enter;
@@ -332,14 +437,14 @@ export function RenewalRings({
         <ShellHeader
           icon={ClockCountdown}
           title={title}
-          subtitle={subtitle ?? `Next ${horizonMonths} months · from today`}
+          subtitle={subtitle ?? labels.subtitle(horizonMonths)}
           aside={
             <StatusPill
               tone={inWindow.length ? "warning" : "neutral"}
               size="sm"
               className="tabular-nums"
             >
-              {inWindow.length} in {windowDays} d
+              {labels.pill(inWindow.length, windowDays)}
             </StatusPill>
           }
         />
@@ -347,7 +452,7 @@ export function RenewalRings({
           <div className="mb-1 flex items-baseline justify-between gap-3">
             <h4 className="text-sm font-medium">{heading}</h4>
             <p className="shrink-0 text-xs text-muted-foreground tabular-nums">
-              {n} of {rows.length} shown
+              {labels.shown(n, rows.length)}
             </p>
           </div>
 
@@ -362,9 +467,11 @@ export function RenewalRings({
               <div className="relative mx-auto aspect-square w-full max-w-[21rem]">
                 <svg
                   ref={svgRef}
+                  // A clock face: clockwise in every language.
+                  direction="ltr"
                   viewBox={`0 0 ${SIZE} ${SIZE}`}
                   role="group"
-                  aria-label={`${heading}. Arrow keys move between contracts, Enter selects.`}
+                  aria-label={labels.chart(heading)}
                   aria-describedby={summaryId}
                   onKeyDown={onKeyDown}
                   onPointerLeave={() => setHoverId(null)}
@@ -636,7 +743,7 @@ export function RenewalRings({
                         dominantBaseline="central"
                         className="fill-brand text-[9.5px] font-medium"
                       >
-                        Today
+                        {labels.today}
                       </text>
                     </g>
                   )}
@@ -651,11 +758,7 @@ export function RenewalRings({
                     <RollingNumber value={active ? active.days : inWindow.length} />
                   </span>
                   <span className="mt-1 text-[0.6875rem] leading-tight text-muted-foreground">
-                    {active
-                      ? active.days === 1
-                        ? "day left"
-                        : "days left"
-                      : `in ${windowDays} days`}
+                    {active ? labels.daysLeft(active.days) : labels.inDays(windowDays)}
                   </span>
                 </div>
               </div>
@@ -666,7 +769,7 @@ export function RenewalRings({
               >
                 <li className="flex items-center gap-1.5">
                   <span className="h-1.5 w-3.5 rounded-full bg-foreground/55" />
-                  Term
+                  {labels.term}
                 </li>
                 <li className="flex items-center gap-1.5">
                   <svg
@@ -681,7 +784,7 @@ export function RenewalRings({
                       className="stroke-warning"
                     />
                   </svg>
-                  Notice
+                  {labels.notice}
                 </li>
                 <li className="flex items-center gap-1.5">
                   <svg viewBox="0 0 14 6" className="h-1.5 w-3.5">
@@ -693,7 +796,7 @@ export function RenewalRings({
                       className="stroke-foreground/60"
                     />
                   </svg>
-                  {windowDays} days
+                  {labels.windowDays(windowDays)}
                 </li>
               </ul>
             </div>
@@ -714,17 +817,21 @@ export function RenewalRings({
                           {active.contract.name}
                         </p>
                         <p className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                          {active.days} d left
+                          {labels.dLeft(active.days)}
                         </p>
                       </div>
                       <dl className="mt-2.5 grid gap-1.5 text-xs">
-                        <Detail label="Ends">{formatDate(new Date(active.end))}</Detail>
-                        <Detail label="ACV">{formatValue(active.contract.value)}</Detail>
-                        <Detail label="Auto-renew">
-                          {active.contract.autoRenew ? "Yes" : "No"}
+                        <Detail label={labels.ends}>
+                          {formatDate(new Date(active.end))}
+                        </Detail>
+                        <Detail label={labels.acv}>
+                          {formatValue(active.contract.value)}
+                        </Detail>
+                        <Detail label={labels.autoRenew}>
+                          {active.contract.autoRenew ? labels.yes : labels.no}
                         </Detail>
                         <Detail
-                          label="Notice due"
+                          label={labels.noticeDue}
                           className={cn(
                             active.noticeDays > 0 &&
                               active.noticeAt - today <= noticeSoonDays * DAY &&
@@ -766,9 +873,7 @@ export function RenewalRings({
                       exit={{ opacity: 0, transition: keyboard ? instant : exit }}
                       className="m-auto max-w-[15rem] py-1 text-center text-xs text-muted-foreground"
                     >
-                      {n
-                        ? "Point at a ring, or tab to it, to see the contract."
-                        : "Nothing renews in this window."}
+                      {n ? labels.hint : labels.empty}
                     </motion.p>
                   )}
                 </AnimatePresence>
@@ -784,18 +889,23 @@ export function RenewalRings({
         {stats && (
           <dl className="grid grid-cols-3 gap-x-3 px-3.5 pt-3.5 pb-2 @sm:flex @sm:gap-x-10">
             <Stat
-              label="Notice due"
+              label={labels.noticeDue}
               value={noticeSoon}
-              unit={`in ${noticeSoonDays} d`}
+              unit={labels.noticeUnit(noticeSoonDays)}
               tone="warning"
             />
             <Stat
-              label="Auto-renew"
+              label={labels.autoRenew}
               value={autoRenew}
-              unit={`of ${inWindow.length}`}
+              unit={labels.autoRenewUnit(inWindow.length)}
               tone="brand"
             />
-            <Stat label="Up for renewal" value={acv} unit="ACV" format={formatValue} />
+            <Stat
+              label={labels.upForRenewal}
+              value={acv}
+              unit={labels.acv}
+              format={formatValue}
+            />
           </dl>
         )}
       </Shell>
@@ -814,8 +924,8 @@ function Detail({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className={cn("text-right text-foreground tabular-nums", className)}>
+      <dt className="whitespace-nowrap text-muted-foreground">{label}</dt>
+      <dd className={cn("text-end text-foreground tabular-nums", className)}>
         {children}
       </dd>
     </div>
@@ -849,7 +959,12 @@ function Stat({
           />
         )}
         <span className="text-[0.9375rem] font-medium text-foreground tabular-nums @sm:text-lg">
-          <RollingNumber value={value} format={format} />
+          {/* Rolling digits read left to right; RTL-formatted money is shown as is. */}
+          {format && RTL_TEXT.test(format(value)) ? (
+            format(value)
+          ) : (
+            <RollingNumber value={value} format={format} />
+          )}
         </span>
         <span className="truncate text-xs text-muted-foreground">{unit}</span>
       </dd>

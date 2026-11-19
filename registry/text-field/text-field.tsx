@@ -76,9 +76,18 @@ export function TextField({
   );
 }
 
+export type SearchFieldLabels = {
+  /** Screen-reader name of the clear button. */
+  clear: string;
+};
+
+const defaultSearchLabels: SearchFieldLabels = { clear: "Clear search" };
+
 export type SearchFieldProps = Omit<TextFieldProps, "type"> & {
   /** Shows a clear button while there is text. */
   onClear?: () => void;
+  /** UI strings, for translating. */
+  labels?: Partial<SearchFieldLabels>;
 };
 
 export function SearchField({
@@ -89,8 +98,10 @@ export function SearchField({
   onClear,
   value,
   placeholder = "Search",
+  labels: labelOverrides,
   ...props
 }: SearchFieldProps) {
+  const labels = { ...defaultSearchLabels, ...labelOverrides };
   return (
     <Field label={label} description={description} error={error} className={className}>
       {(ids) => (
@@ -98,7 +109,7 @@ export function SearchField({
           <MagnifyingGlass
             weight="fill"
             aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute start-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
           />
           <input
             {...ids}
@@ -109,15 +120,15 @@ export function SearchField({
             {...props}
             className={cn(
               control,
-              "h-9 rounded-full pr-9 pl-8 [&::-webkit-search-cancel-button]:hidden",
+              "h-9 rounded-full ps-8 pe-9 [&::-webkit-search-cancel-button]:hidden",
             )}
           />
           {onClear && value !== undefined && value !== "" && (
             <button
               type="button"
-              aria-label="Clear search"
+              aria-label={labels.clear}
               onClick={onClear}
-              className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-[background-color,color,scale] duration-150 hover:bg-foreground/[0.08] hover:text-foreground active:scale-[0.92]"
+              className="absolute end-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-[background-color,color,scale] duration-150 hover:bg-foreground/[0.08] hover:text-foreground active:scale-[0.92]"
             >
               <X weight="bold" className="size-3" aria-hidden="true" />
             </button>

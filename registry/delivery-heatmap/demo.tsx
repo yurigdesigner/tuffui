@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, wait, type MockStep } from "@/registry/use-mock-run/use-mock-run";
 import {
   DeliveryHeatmap,
   type DeliveryBucket,
   type DeliveryEndpoint,
+  type DeliveryHeatmapLabels,
   type DeliveryRange,
 } from "./delivery-heatmap";
 
@@ -132,14 +134,113 @@ const VIEWS: Record<
   "7d": { labels: DAYS, date: "Oct 29 – Nov 4 · UTC", data: days },
 };
 
+/** Keeps a Latin name, time or code in reading order inside RTL text. */
+const ltr = (text: string) => `\u2066${text}\u2069`;
+
+const dayLabels = (locale: string) =>
+  [29, 30, 31, 1, 2, 3, 4].map((d, i) =>
+    new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    }).format(Date.UTC(2026, i < 3 ? 9 : 10, d)),
+  );
+
+/** Arabic plural for endpoints and columns. */
+const arCount = (n: number, one: string, two: string, few: string, many: string) =>
+  n === 1 ? one : n === 2 ? two : n <= 10 ? `${n} ${few}` : `${n} ${many}`;
+
+/** Endpoint names and hours stay as they are; Hebrew and Arabic show the RTL layout. */
+const copy: Record<
+  DemoLocale,
+  {
+    locale?: string;
+    title?: string;
+    section?: string;
+    heading?: string;
+    days?: string[];
+    dates?: Record<DeliveryRange, string>;
+    strings?: Partial<DeliveryHeatmapLabels>;
+  }
+> = {
+  en: {},
+  he: {
+    locale: "he-IL",
+    title: "מסירות",
+    section: "Webhooks",
+    heading: "ניסיונות לפי נקודת קצה",
+    days: dayLabels("he-IL"),
+    dates: {
+      "1h": `4 בנוב׳ · ${ltr("11:00–12:00 UTC")}`,
+      "24h": `4 בנוב׳ · ${ltr("UTC")}`,
+      "7d": `29 באוק׳ – 4 בנוב׳ · ${ltr("UTC")}`,
+    },
+    strings: {
+      range: "טווח",
+      ranges: { "1h": "שעה", "24h": "24 שעות", "7d": "7 ימים" },
+      failing: { "1h": "5 דקות עם כשלים", "24h": "שעה עם כשלים", "7d": "יום עם כשלים" },
+      fewer: "פחות",
+      more: "יותר",
+      attempts: "ניסיונות",
+      delivered: "נמסרו",
+      failed: "נכשלו",
+      tipFailed: (failed) => `${failed} נכשלו`,
+      tipOf: (attempts) => `מתוך ${attempts}`,
+      tipDelivered: (attempts) => `${attempts} נמסרו`,
+      gridHint: "מעבר בין התאים בעזרת מקשי החיצים.",
+      cell: (c) =>
+        `${ltr(c.endpoint)}, ${ltr(c.column)}: ${c.attempts} ניסיונות, ${c.failed} נכשלו${c.status !== undefined ? `, סטטוס ${c.status}` : ""}${c.failing ? ", בכשל" : ""}`,
+      summary: (s) =>
+        `${s.heading}${s.date ? `, ${s.date}` : ""}: ${s.endpoints} נקודות קצה לאורך ${s.columns} עמודות, ${s.attempts} ניסיונות, ${s.failed} נכשלו.${s.failing.length ? ` בכשל: ${s.failing.map((f) => `${ltr(f.endpoint)} ב־${ltr(f.column)}`).join(", ")}.` : " אין כשלים."}`,
+    },
+  },
+  ar: {
+    locale: "ar",
+    title: "عمليات التسليم",
+    section: "Webhooks",
+    heading: "المحاولات حسب نقطة النهاية",
+    days: dayLabels("ar"),
+    dates: {
+      "1h": `4 نوفمبر · ${ltr("11:00–12:00 UTC")}`,
+      "24h": `4 نوفمبر · ${ltr("UTC")}`,
+      "7d": `29 أكتوبر – 4 نوفمبر · ${ltr("UTC")}`,
+    },
+    strings: {
+      range: "النطاق",
+      ranges: { "1h": "ساعة", "24h": "24 ساعة", "7d": "7 أيام" },
+      failing: {
+        "1h": "5 دقائق فيها إخفاقات",
+        "24h": "ساعة فيها إخفاقات",
+        "7d": "يوم فيه إخفاقات",
+      },
+      fewer: "أقل",
+      more: "أكثر",
+      attempts: "المحاولات",
+      delivered: "تم التسليم",
+      failed: "فشلت",
+      tipFailed: (failed) => `فشلت ${failed}`,
+      tipOf: (attempts) => `من ${attempts}`,
+      tipDelivered: (attempts) => `تم تسليم ${attempts}`,
+      gridHint: "استخدم مفاتيح الأسهم للتنقل بين الخلايا.",
+      cell: (c) =>
+        `${ltr(c.endpoint)}، ${ltr(c.column)}: ${c.attempts} محاولة، فشلت ${c.failed}${c.status !== undefined ? `، الحالة ${c.status}` : ""}${c.failing ? "، متعثّرة" : ""}`,
+      summary: (s) =>
+        `${s.heading}${s.date ? `، ${s.date}` : ""}: ${arCount(s.endpoints, "نقطة نهاية واحدة", "نقطتا نهاية", "نقاط نهاية", "نقطة نهاية")} على ${arCount(s.columns, "عمود واحد", "عمودان", "أعمدة", "عمودًا")}، ${s.attempts} محاولة، فشلت ${s.failed}.${s.failing.length ? ` متعثّرة: ${s.failing.map((f) => `${ltr(f.endpoint)} عند ${ltr(f.column)}`).join("، ")}.` : " لا توجد إخفاقات."}`,
+    },
+  },
+};
+
 type State = { level: number };
 
 export default function DeliveryHeatmapDemo({
   autoplay = true,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
+  const text = copy[locale];
   const [range, setRange] = useState<DeliveryRange>("24h");
   // Cells fill in first, then the billing outage spreads hour by hour.
   const steps: MockStep<State>[] = autoplay
@@ -156,8 +257,13 @@ export default function DeliveryHeatmapDemo({
   return (
     <DeliveryHeatmap
       endpoints={view.data(state.level)}
-      labels={view.labels}
-      date={view.date}
+      labels={range === "7d" && text.days ? text.days : view.labels}
+      date={text.dates?.[range] ?? view.date}
+      title={text.title}
+      section={text.section}
+      heading={text.heading}
+      locale={text.locale}
+      strings={text.strings}
       range={range}
       onRangeChange={setRange}
       intro={autoplay}

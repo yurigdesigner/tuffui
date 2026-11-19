@@ -65,17 +65,44 @@ const common: Record<string, string> = {
   space: "Space",
   backspace: "⌫",
 };
-const spoken: Record<string, string> = {
-  "⌘": "Command",
-  "⌃": "Control",
-  "⌥": "Option",
-  "⇧": "Shift",
-  "↵": "Enter",
-  "↑": "Up",
-  "↓": "Down",
-  "←": "Left",
-  "→": "Right",
-  "⌫": "Backspace",
+/** Spoken names for the key symbols, read by screen readers. */
+export type KeyHintLabels = {
+  command: string;
+  control: string;
+  option: string;
+  shift: string;
+  enter: string;
+  up: string;
+  down: string;
+  left: string;
+  right: string;
+  backspace: string;
+};
+
+const defaultLabels: KeyHintLabels = {
+  command: "Command",
+  control: "Control",
+  option: "Option",
+  shift: "Shift",
+  enter: "Enter",
+  up: "Up",
+  down: "Down",
+  left: "Left",
+  right: "Right",
+  backspace: "Backspace",
+};
+
+const spoken: Record<string, keyof KeyHintLabels> = {
+  "⌘": "command",
+  "⌃": "control",
+  "⌥": "option",
+  "⇧": "shift",
+  "↵": "enter",
+  "↑": "up",
+  "↓": "down",
+  "←": "left",
+  "→": "right",
+  "⌫": "backspace",
 };
 
 /** Turns "mod+shift+k" into the keys for this platform. */
@@ -91,18 +118,33 @@ export type KeyComboProps = Omit<React.ComponentProps<"span">, "children"> & {
   /** Keys joined by "+", e.g. "mod+k", "shift+enter". `mod` is ⌘ on Mac and Ctrl elsewhere. */
   keys: string;
   size?: keyof typeof sizes;
+  /** Spoken key names, for translating. */
+  labels?: Partial<KeyHintLabels>;
 };
 
-/** A shortcut as separate key chips, adapted to the viewer's platform. */
-export function KeyCombo({ keys, size = "sm", className, ...props }: KeyComboProps) {
+/**
+ * A shortcut as separate key chips, adapted to the viewer's platform. The chips
+ * stay left to right in RTL text, since the keys are Latin.
+ */
+export function KeyCombo({
+  keys,
+  size = "sm",
+  labels: labelOverrides,
+  className,
+  ...props
+}: KeyComboProps) {
   const onMac = useIsMac();
   const parts = formatKeys(keys, onMac);
+  const labels = { ...defaultLabels, ...labelOverrides };
   return (
     <span
+      dir="ltr"
       className={cn("inline-flex items-center gap-0.5 align-middle", className)}
       {...props}
     >
-      <span className="sr-only">{parts.map((p) => spoken[p] ?? p).join(" ")}</span>
+      <span className="sr-only">
+        {parts.map((p) => (spoken[p] ? labels[spoken[p]] : p)).join(" ")}
+      </span>
       {parts.map((part, i) => (
         <Kbd key={i} size={size} aria-hidden="true">
           {part}

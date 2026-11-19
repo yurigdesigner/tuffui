@@ -29,6 +29,12 @@ export const docs: ComponentDocs = {
       description: "Shows a clear button while there is text.",
     },
     {
+      name: "SearchField.labels",
+      type: "Partial<SearchFieldLabels>",
+      description:
+        'Your own UI strings (the clear button), for translating. Right-to-left works under `dir="rtl"`.',
+    },
+    {
       name: "...rest",
       type: "<input> / <textarea> props",
       description: "Passed to the native control.",

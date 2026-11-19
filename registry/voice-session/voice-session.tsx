@@ -16,7 +16,15 @@ import {
 } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
 import { Select as SelectPrimitive } from "radix-ui";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Button } from "@/components/ui/action-button";
 import { StatusPill, type StatusTone } from "@/components/ui/status-pill";
 import { Inset, Panel, Shell, ShellHeader } from "@/components/ui/surface";
@@ -75,8 +83,59 @@ export type VoiceSessionProps = {
   defaultVoice?: string;
   onVoiceChange?: (voice: string) => void;
   onEnd?: () => void;
+  /** UI strings, for translating. */
+  labels?: Partial<VoiceSessionLabels>;
   className?: string;
 };
+
+export type VoiceSessionLabels = {
+  /** The user, on transcript lines, in the legend and in the status pill. */
+  you: string;
+  thinking: string;
+  listening: string;
+  connecting: string;
+  muted: string;
+  onHold: string;
+  /** Status pill while the agent talks. */
+  speaking: (agentName: string) => string;
+  /** Default subtitle suffix for the chosen voice. */
+  voice: (voiceLabel: string) => string;
+  /** Screen-reader name of the voice selector. */
+  voicePicker: (voiceLabel: string) => string;
+  callTime: (time: string) => string;
+  emptyTranscript: string;
+  interrupted: string;
+  /** Added to a finished line read to screen readers when it was cut off. */
+  interruptedNote: string;
+  mute: string;
+  unmute: string;
+  hold: string;
+  resume: string;
+  end: string;
+};
+
+const defaultLabels: VoiceSessionLabels = {
+  you: "You",
+  thinking: "Thinking",
+  listening: "Listening",
+  connecting: "Connecting",
+  muted: "Muted",
+  onHold: "On hold",
+  speaking: (agentName) => `${agentName} speaking`,
+  voice: (voiceLabel) => `${voiceLabel} voice`,
+  voicePicker: (voiceLabel) => `Voice: ${voiceLabel}`,
+  callTime: (time) => `Call time ${time}`,
+  emptyTranscript: "The transcript shows up here as you talk.",
+  interrupted: "Interrupted",
+  interruptedNote: " (interrupted)",
+  mute: "Mute",
+  unmute: "Unmute",
+  hold: "Hold",
+  resume: "Resume",
+  end: "End",
+};
+
+const Labels = createContext(defaultLabels);
 
 type Mode = "idle" | "muted" | "user" | "agent" | "thinking" | "hold";
 
@@ -153,8 +212,10 @@ export function VoiceSession({
   defaultVoice,
   onVoiceChange,
   onEnd,
+  labels: labelOverrides,
   className,
 }: VoiceSessionProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const reduce = useReducedMotion();
   const [muted, setMuted] = useControllable(mutedProp, onMutedChange, defaultMuted);
   const [held, setHeld] = useControllable(heldProp, onHeldChange, defaultHeld);
@@ -179,17 +240,17 @@ export function VoiceSession({
             : "idle";
 
   const status: { label: string; tone: StatusTone } = held
-    ? { label: "On hold", tone: "warning" }
+    ? { label: labels.onHold, tone: "warning" }
     : activity === "connecting"
-      ? { label: "Connecting", tone: "neutral" }
+      ? { label: labels.connecting, tone: "neutral" }
       : activity === "user"
-        ? { label: muted ? "Muted" : "You", tone: muted ? "warning" : "brand" }
+        ? { label: muted ? labels.muted : labels.you, tone: muted ? "warning" : "brand" }
         : activity === "thinking"
-          ? { label: "Thinking", tone: "neutral" }
+          ? { label: labels.thinking, tone: "neutral" }
           : activity === "agent"
-            ? { label: "Speaking", tone: "neutral" }
+            ? { label: labels.speaking(agentName), tone: "neutral" }
             : {
-                label: muted ? "Muted" : "Listening",
+                label: muted ? labels.muted : labels.listening,
                 tone: muted ? "warning" : "positive",
               };
 
@@ -206,113 +267,119 @@ export function VoiceSession({
   // Screen readers hear finished lines, not every word.
   const lastDone = [...turns].reverse().find((t) => t.spoken === undefined);
   const announce = lastDone
-    ? `${lastDone.speaker === "user" ? "You" : agentName}: ${lastDone.text}${lastDone.interrupted ? " (interrupted)" : ""}`
+    ? `${lastDone.speaker === "user" ? labels.you : agentName}: ${lastDone.text}${lastDone.interrupted ? labels.interruptedNote : ""}`
     : "";
 
   return (
-    <MotionConfig reducedMotion="user">
-      <Shell className={cn("max-w-xl", className)}>
-        <ShellHeader
-          icon={Waveform}
-          title={title}
-          subtitle={
-            subtitle ??
-            `${agentName}${currentVoice ? ` · ${currentVoice.label} voice` : ""}`
-          }
-          aside={
-            <>
-              <StatusPill tone={status.tone} size="sm" aria-live="polite">
-                {status.label === "Speaking" ? `${agentName} speaking` : status.label}
-              </StatusPill>
-              <span
-                className="w-10 text-right font-mono text-xs text-muted-foreground tabular-nums"
-                aria-label={`Call time ${clock(elapsed)}`}
-              >
-                {clock(elapsed)}
-              </span>
-            </>
-          }
-        />
-        <Panel className="p-4 @max-sm:p-3">
-          <Levels mode={mode} getLevel={getLevel} />
-          <ul
-            aria-hidden="true"
-            className="mt-2.5 flex items-center gap-4 text-xs text-muted-foreground"
-          >
-            <Legend dot="bg-brand" on={mode === "user"}>
-              You
-            </Legend>
-            <Legend dot="bg-foreground" on={mode === "agent"}>
-              {agentName}
-            </Legend>
-            <Legend dot="bg-foreground/45" on={mode === "thinking"}>
-              Thinking
-            </Legend>
-          </ul>
-
-          <Inset className="relative mt-4">
-            <div
-              ref={scroller}
-              onScroll={(event) => {
-                const el = event.currentTarget;
-                stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
-              }}
-              className="flex h-[12rem] [scrollbar-width:none] flex-col overflow-y-auto [mask-image:linear-gradient(transparent,black_1.5rem)] px-3.5 py-3"
+    <Labels.Provider value={labels}>
+      <MotionConfig reducedMotion="user">
+        <Shell className={cn("max-w-xl", className)}>
+          <ShellHeader
+            icon={Waveform}
+            title={title}
+            subtitle={
+              subtitle ??
+              `${agentName}${currentVoice ? ` · ${labels.voice(currentVoice.label)}` : ""}`
+            }
+            aside={
+              <>
+                <StatusPill tone={status.tone} size="sm" aria-live="polite">
+                  {status.label}
+                </StatusPill>
+                {/* The call timer reads left to right in every language, like media time. */}
+                <span
+                  dir="ltr"
+                  className="w-10 text-right font-mono text-xs text-muted-foreground tabular-nums"
+                  aria-label={labels.callTime(clock(elapsed))}
+                >
+                  {clock(elapsed)}
+                </span>
+              </>
+            }
+          />
+          <Panel className="p-4 @max-sm:p-3">
+            <Levels mode={mode} getLevel={getLevel} />
+            <ul
+              aria-hidden="true"
+              className="mt-2.5 flex items-center gap-4 text-xs text-muted-foreground"
             >
-              <ol className="mt-auto flex flex-col gap-3 pt-2">
-                {turns.map((turn) => (
-                  <Line key={turn.id} turn={turn} agentName={agentName} />
-                ))}
-              </ol>
-              {turns.length === 0 && (
-                <p className="m-auto text-center text-xs text-muted-foreground">
-                  The transcript shows up here as you talk.
-                </p>
-              )}
-            </div>
-          </Inset>
-          <p role="status" className="sr-only">
-            {announce}
-          </p>
-        </Panel>
+              <Legend dot="bg-brand" on={mode === "user"}>
+                {labels.you}
+              </Legend>
+              <Legend dot="bg-foreground" on={mode === "agent"}>
+                {agentName}
+              </Legend>
+              <Legend dot="bg-foreground/45" on={mode === "thinking"}>
+                {labels.thinking}
+              </Legend>
+            </ul>
 
-        <div className="flex items-center gap-1.5 px-1.5 pt-1.5 pb-0.5">
-          <Button
-            icon={muted ? MicrophoneSlash : Microphone}
-            aria-pressed={muted}
-            aria-label={muted ? "Unmute" : "Mute"}
-            onClick={() => setMuted(!muted)}
-            className={cn(
-              "@max-sm:w-8 @max-sm:px-0",
-              muted &&
-                "bg-warning/15 bg-none text-warning hover:bg-warning/25 hover:bg-none",
+            <Inset className="relative mt-4">
+              <div
+                ref={scroller}
+                onScroll={(event) => {
+                  const el = event.currentTarget;
+                  stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+                }}
+                className="flex h-[12rem] [scrollbar-width:none] flex-col overflow-y-auto [mask-image:linear-gradient(transparent,black_1.5rem)] px-3.5 py-3"
+              >
+                <ol className="mt-auto flex flex-col gap-3 pt-2">
+                  {turns.map((turn) => (
+                    <Line key={turn.id} turn={turn} agentName={agentName} />
+                  ))}
+                </ol>
+                {turns.length === 0 && (
+                  <p className="m-auto text-center text-xs text-muted-foreground">
+                    {labels.emptyTranscript}
+                  </p>
+                )}
+              </div>
+            </Inset>
+            <p role="status" className="sr-only">
+              {announce}
+            </p>
+          </Panel>
+
+          <div className="flex items-center gap-1.5 px-1.5 pt-1.5 pb-0.5">
+            <Button
+              icon={muted ? MicrophoneSlash : Microphone}
+              aria-pressed={muted}
+              aria-label={muted ? labels.unmute : labels.mute}
+              onClick={() => setMuted(!muted)}
+              className={cn(
+                "@max-sm:w-8 @max-sm:px-0",
+                muted &&
+                  "bg-warning/15 bg-none text-warning hover:bg-warning/25 hover:bg-none",
+              )}
+            >
+              <span className="@max-sm:hidden">
+                {muted ? labels.unmute : labels.mute}
+              </span>
+            </Button>
+            <Button
+              icon={held ? Play : Pause}
+              aria-pressed={held}
+              aria-label={held ? labels.resume : labels.hold}
+              onClick={() => setHeld(!held)}
+              className="@max-sm:w-8 @max-sm:px-0"
+            >
+              <span className="@max-sm:hidden">{held ? labels.resume : labels.hold}</span>
+            </Button>
+            {voices.length > 0 && (
+              <VoiceSelect options={voices} value={voice} onChange={setVoice} />
             )}
-          >
-            <span className="@max-sm:hidden">{muted ? "Unmute" : "Mute"}</span>
-          </Button>
-          <Button
-            icon={held ? Play : Pause}
-            aria-pressed={held}
-            aria-label={held ? "Resume" : "Hold"}
-            onClick={() => setHeld(!held)}
-            className="@max-sm:w-8 @max-sm:px-0"
-          >
-            <span className="@max-sm:hidden">{held ? "Resume" : "Hold"}</span>
-          </Button>
-          {voices.length > 0 && (
-            <VoiceSelect options={voices} value={voice} onChange={setVoice} />
-          )}
-          <Button
-            variant="danger"
-            icon={PhoneDisconnect}
-            onClick={onEnd}
-            className="ml-auto"
-          >
-            End
-          </Button>
-        </div>
-      </Shell>
-    </MotionConfig>
+            <Button
+              variant="danger"
+              icon={PhoneDisconnect}
+              onClick={onEnd}
+              className="ms-auto"
+            >
+              {labels.end}
+            </Button>
+          </div>
+        </Shell>
+      </MotionConfig>
+    </Labels.Provider>
   );
 }
 
@@ -345,6 +412,7 @@ function Line({ turn, agentName }: { turn: VoiceTurn; agentName: string }) {
   const shown = all.slice(0, count);
   const user = turn.speaker === "user";
   const cut = !!turn.interrupted;
+  const labels = useContext(Labels);
 
   return (
     <motion.li
@@ -359,9 +427,10 @@ function Line({ turn, agentName }: { turn: VoiceTurn; agentName: string }) {
           user ? "text-brand" : "text-muted-foreground",
         )}
       >
-        {user ? "You" : agentName}
+        {user ? labels.you : agentName}
       </span>
       <p
+        dir="auto"
         className={cn(
           "text-sm leading-relaxed",
           user ? "text-muted-foreground" : "text-foreground",
@@ -380,7 +449,7 @@ function Line({ turn, agentName }: { turn: VoiceTurn; agentName: string }) {
                   "transition-colors duration-200",
                   current && "text-brand",
                   last &&
-                    "[mask-image:linear-gradient(to_right,black_35%,transparent_105%)]",
+                    "[mask-image:linear-gradient(to_right,black_35%,transparent_105%)] rtl:[mask-image:linear-gradient(to_left,black_35%,transparent_105%)]",
                 )}
               >
                 {word}
@@ -400,10 +469,10 @@ function Line({ turn, agentName }: { turn: VoiceTurn; agentName: string }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.2, ease: EASE_OUT }}
-              className="ml-1.5 inline-flex translate-y-[-1px] align-middle"
+              className="ms-1.5 inline-flex translate-y-[-1px] align-middle"
             >
               <StatusPill tone="warning" size="sm" icon={HandPalm}>
-                Interrupted
+                {labels.interrupted}
               </StatusPill>
             </motion.span>
           )}
@@ -532,7 +601,14 @@ function Levels({ mode, getLevel }: { mode: Mode; getLevel?: () => number }) {
   }, [cols, reduce]);
 
   return (
-    <div ref={ref} aria-hidden="true" className="w-full" style={{ height: HEIGHT }}>
+    // Like other media, the level strip runs left to right in every language.
+    <div
+      ref={ref}
+      dir="ltr"
+      aria-hidden="true"
+      className="w-full"
+      style={{ height: HEIGHT }}
+    >
       {width !== null && (
         <svg width={width} height={HEIGHT} className="block">
           <defs>
@@ -615,10 +691,11 @@ function VoiceSelect({
   // Opened from the keyboard, the menu shows at once.
   const [viaKeyboard, setViaKeyboard] = useState(false);
   const selected = options.find((o) => o.value === value);
+  const labels = useContext(Labels);
   return (
     <SelectPrimitive.Root value={value} onValueChange={onChange}>
       <SelectPrimitive.Trigger
-        aria-label={`Voice: ${selected?.label ?? value}`}
+        aria-label={labels.voicePicker(selected?.label ?? value)}
         onPointerDown={() => setViaKeyboard(false)}
         onKeyDown={() => setViaKeyboard(true)}
         className="inline-flex h-8 min-w-0 shrink items-center gap-1.5 rounded-full bg-foreground/[0.06] pr-2.5 pl-2.5 text-[0.8125rem] font-medium text-foreground transition-colors duration-150 outline-none select-none hover:bg-foreground/[0.1] focus-visible:bg-foreground/[0.14] data-[state=open]:bg-foreground/[0.12]"
@@ -660,7 +737,7 @@ function VoiceSelect({
                 <SelectPrimitive.Item
                   key={o.value}
                   value={o.value}
-                  className="flex cursor-default items-center gap-2 rounded-xl py-1.5 pr-3 pl-2 text-[0.8125rem] outline-none select-none data-[highlighted]:bg-foreground/[0.07]"
+                  className="flex cursor-default items-center gap-2 rounded-xl py-1.5 ps-2 pe-3 text-[0.8125rem] outline-none select-none data-[highlighted]:bg-foreground/[0.07]"
                 >
                   <span className="flex w-4 shrink-0 justify-center">
                     <SelectPrimitive.ItemIndicator>
@@ -669,7 +746,7 @@ function VoiceSelect({
                   </span>
                   <SelectPrimitive.ItemText>{o.label}</SelectPrimitive.ItemText>
                   {o.hint && (
-                    <span className="ml-auto pl-4 text-xs whitespace-nowrap text-muted-foreground">
+                    <span className="ms-auto ps-4 text-xs whitespace-nowrap text-muted-foreground">
                       {o.hint}
                     </span>
                   )}

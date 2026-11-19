@@ -39,7 +39,38 @@ export type IsoBarsProps = {
   /** Formats values in the tooltip and the table. */
   format?: (value: number) => string;
   onSelect?: (point: { row: IsoRow; index: number }) => void;
+  /** Your own UI strings, for translating. `labels` is taken by the periods. */
+  strings?: Partial<IsoBarsLabels>;
   className?: string;
+};
+
+export type IsoBarsLabels = {
+  /** Tooltip total row. */
+  total: string;
+  /** First column of the screen-reader table. */
+  period: string;
+  /** Screen-reader hint on the chart. */
+  instructions: (title: string) => string;
+  /** Screen-reader summary. `highest` is the period with the tallest main stack. */
+  summary: (
+    title: string,
+    series: string[],
+    from: string,
+    to: string,
+    highest?: string,
+  ) => string;
+  /** Screen-reader reading of one prism. `values` is "label value" pairs, joined. */
+  reading: (period: string, row: IsoRow, values: string) => string;
+};
+
+const defaultLabels: IsoBarsLabels = {
+  total: "Total",
+  period: "Period",
+  instructions: (title) =>
+    `${title}. Use left and right arrows to read periods, up and down to switch rows.`,
+  summary: (title, series, from, to, highest) =>
+    `${title}: ${series.join(", ")} from ${from} to ${to}${highest ? `, highest ${highest}` : ""}`,
+  reading: (period, row, values) => `${period}, ${row} row: ${values}`,
 };
 
 // Validated for both themes. The front row defaults to the alert colors.
@@ -150,8 +181,10 @@ export function IsoBars({
   aside,
   format = compact,
   onSelect,
+  strings,
   className,
 }: IsoBarsProps) {
+  const text = { ...defaultLabels, ...strings };
   const uid = useId().replace(/:/g, "");
   const reduce = useReducedMotion();
   const [ref, width, measured] = useWidth();
@@ -272,11 +305,13 @@ export function IsoBars({
 
   const mainTotals = labels.map((_, i) => totalOf(rows[0]?.series ?? [], i));
   const peakIndex = mainTotals.indexOf(Math.max(...mainTotals));
-  const summary = `${title}: ${rows
-    .flatMap((r) => r.series.map((s) => s.label))
-    .join(
-      ", ",
-    )} from ${labels[0]} to ${labels.at(-1)}${peakIndex >= 0 ? `, highest ${labels[peakIndex]}` : ""}`;
+  const summary = text.summary(
+    title,
+    rows.flatMap((r) => r.series.map((s) => s.label)),
+    labels[0],
+    labels.at(-1) ?? "",
+    peakIndex >= 0 ? labels[peakIndex] : undefined,
+  );
 
   const all = rows.flatMap((r) => r.series);
   const tip = current && {
@@ -296,11 +331,11 @@ export function IsoBars({
           subtitle={subtitle}
           aside={
             aside && (
-              <div className="text-right">
+              <div className="text-end">
                 <p className="text-xl font-medium tracking-tight tabular-nums">
                   {aside.value}
                   {aside.caption && (
-                    <span className="ml-1 text-xs font-normal tracking-normal text-muted-foreground">
+                    <span className="ms-1 text-xs font-normal tracking-normal text-muted-foreground">
                       {aside.caption}
                     </span>
                   )}
@@ -324,18 +359,20 @@ export function IsoBars({
             ref={ref}
             tabIndex={0}
             role="group"
-            aria-label={`${title}. Use left and right arrows to read periods, up and down to switch rows.`}
+            aria-label={text.instructions(title)}
             onKeyDown={onKeyDown}
             onBlur={() => fromKeyboard && setActive(null)}
             className="relative rounded-xl outline-offset-4"
           >
+            {/* The floor runs left to right in every language; labels keep their own direction. */}
             <svg
+              direction="ltr"
               key={measured ? "measured" : "guess"}
               visibility={measured ? undefined : "hidden"}
               role="img"
               aria-label={summary}
               viewBox={`${round(minX)} ${round(minY)} ${vbW} ${vbH}`}
-              className="block h-auto w-full"
+              className="block h-auto w-full [&_text]:[unicode-bidi:plaintext]"
               onPointerLeave={() => select(null, false)}
             >
               <defs>
@@ -510,7 +547,7 @@ export function IsoBars({
                           </p>
                         ))}
                         <p className="mt-1 flex justify-between gap-2 font-medium">
-                          Total
+                          {text.total}
                           <span className="font-mono tabular-nums">
                             {format(current.total)}
                           </span>
@@ -547,7 +584,7 @@ export function IsoBars({
             <caption>{title}</caption>
             <thead>
               <tr>
-                <th scope="col">Period</th>
+                <th scope="col">{text.period}</th>
                 {all.map((s) => (
                   <th key={s.id} scope="col">
                     {s.label}
@@ -568,12 +605,16 @@ export function IsoBars({
           </table>
           <p role="status" aria-live="polite" className="sr-only">
             {fromKeyboard && current
-              ? `${labels[current.index]}, ${current.row} row: ${current.segments
-                  .map(
-                    ({ series: s }) =>
-                      `${s.label} ${format(s.values[current.index] ?? 0)}`,
-                  )
-                  .join(", ")}`
+              ? text.reading(
+                  labels[current.index],
+                  current.row,
+                  current.segments
+                    .map(
+                      ({ series: s }) =>
+                        `${s.label} ${format(s.values[current.index] ?? 0)}`,
+                    )
+                    .join(", "),
+                )
               : ""}
           </p>
         </Panel>

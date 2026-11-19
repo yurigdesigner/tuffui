@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, type MockStep } from "@/registry/use-mock-run/use-mock-run";
 import {
   MessageLog,
   type MessageAttempt,
   type MessageBucket,
   type MessageEvent,
+  type MessageLogLabels,
 } from "./message-log";
 
 const MIN = 60_000;
@@ -219,17 +221,180 @@ const totalAt = (now: number) =>
     0,
   );
 
+/** Keeps a Latin name, time range or query in reading order inside RTL text. */
+const ltr = (text: string) => `\u2066${text}\u2069`;
+
+/** Arabic counted noun: 1, 2, 3–10, 11+. */
+const ar = (n: number, one: string, two: string, few: string, many: string) =>
+  n === 0
+    ? `0 ${many}`
+    : n === 1
+      ? one
+      : n === 2
+        ? two
+        : n <= 10
+          ? `${n} ${few}`
+          : `${n} ${many}`;
+
+/** Event types, endpoints, ids, codes and bodies stay as they are. */
+const copy: Record<
+  DemoLocale,
+  {
+    title?: string;
+    totalLabel: string;
+    locale?: string;
+    labels?: Partial<MessageLogLabels>;
+  }
+> = {
+  en: { totalLabel: "today" },
+  he: {
+    title: "יומן הודעות",
+    totalLabel: "היום",
+    locale: "he-IL",
+    labels: {
+      showEvents: "הצגת אירועים",
+      filters: { all: "הכול", failed: "נכשלו", retrying: "בניסיון חוזר" },
+      search: "חיפוש אירועים",
+      searchQuery: (q) => `חיפוש: ${ltr(q)}`,
+      closeSearch: "סגירת החיפוש",
+      last: (m) => `${m} הדקות האחרונות`,
+      lastShort: (m) => `${m} דק׳ אחרונות`,
+      perDot: (n) => `נקודה = ${n} אירועים`,
+      clearWindow: "ניקוי חלון הזמן",
+      dragHint: "גוררים כדי לבחור חלון זמן",
+      failingSince: (time) => `נכשל מאז ${time}`,
+      timeWindow: "חלון זמן",
+      windowText: (range) =>
+        `${ltr(range)}. החיצים מזיזים, Shift עם החיצים משנה גודל, Escape מנקה.`,
+      allText: (m) => `כל ${m} הדקות. לחיצה על מקש חץ בוחרת חלון.`,
+      summary: (m, delivered, failed) =>
+        `${m} הדקות האחרונות: ${delivered} נמסרו, ${failed} נכשלו.`,
+      mostly: (detail) => `, בעיקר ${ltr(detail)}`,
+      columns: {
+        event: "אירוע",
+        status: "סטטוס",
+        attempts: "ניסיונות",
+        latency: "זמן תגובה",
+        time: "שעה",
+      },
+      retrying: "בניסיון חוזר",
+      failed: "נכשל",
+      tries: (count, max, list) => `${count} מתוך ${max} ניסיונות: ${list}`,
+      attemptStatus: (status, code) =>
+        ({
+          delivered: "נמסר",
+          failed: `נכשל${code ? ` ${code}` : ""}`,
+          scheduled: "מתוזמן",
+          sending: "בשליחה",
+        })[status],
+      noMatch: "אין אירועים תואמים",
+      nothingMatches: (q, range) =>
+        `אין תוצאות עבור „${ltr(q)}”${range ? ` בין ${ltr(range)}` : ""}.`,
+      noEvents: (filter, range) =>
+        `${filter === "failed" ? "אין אירועים שנכשלו" : filter === "retrying" ? "אין אירועים בניסיון חוזר" : "אין אירועים"}${range ? ` בין ${ltr(range)}` : ""}.`,
+      delivered: "נמסרו",
+      scheduled: "מתוזמנים",
+      of: (shown, total) => `${shown} מתוך ${total}`,
+      eventsCount: (n, range) =>
+        `${n === 1 ? "אירוע אחד" : `${n} אירועים`}${range ? ` בין ${ltr(range)}` : ""}`,
+      attempts: "ניסיונות",
+      sending: "בשליחה…",
+      tryAt: (n, time) => `ניסיון ${n} · ${time}`,
+      responseBody: "גוף התגובה",
+      tryN: (n) => `ניסיון ${n}`,
+      copied: "הועתק",
+      copyBody: "העתקת גוף התגובה",
+      noResponse: "עדיין אין תגובה.",
+      emptyBody: "גוף התגובה ריק.",
+      copyCurl: "העתקת cURL",
+      replay: "שליחה חוזרת",
+      sendingButton: "שולח",
+      bodyCopied: "גוף התגובה הועתק",
+      curlCopied: "פקודת cURL הועתקה",
+    },
+  },
+  ar: {
+    title: "سجل الرسائل",
+    totalLabel: "اليوم",
+    locale: "ar",
+    labels: {
+      showEvents: "عرض الأحداث",
+      filters: { all: "الكل", failed: "فشلت", retrying: "قيد الإعادة" },
+      search: "ابحث في الأحداث",
+      searchQuery: (q) => `بحث: ${ltr(q)}`,
+      closeSearch: "إغلاق البحث",
+      last: (m) => `آخر ${m} دقيقة`,
+      lastShort: (m) => `آخر ${m} د`,
+      perDot: (n) => `النقطة = ${n} حدثًا`,
+      clearWindow: "مسح النافذة الزمنية",
+      dragHint: "اسحب لاختيار نافذة زمنية",
+      failingSince: (time) => `يفشل منذ ${time}`,
+      timeWindow: "النافذة الزمنية",
+      windowText: (range) =>
+        `${ltr(range)}. الأسهم تحرّكها، وShift مع الأسهم يغيّر حجمها، وEscape يمسحها.`,
+      allText: (m) => `كل الدقائق الـ${m}. اضغط مفتاح سهم لاختيار نافذة.`,
+      summary: (m, delivered, failed) =>
+        `آخر ${m} دقيقة: تم تسليم ${delivered}، وفشل ${failed}.`,
+      mostly: (detail) => `، أغلبها ${ltr(detail)}`,
+      columns: {
+        event: "الحدث",
+        status: "الحالة",
+        attempts: "المحاولات",
+        latency: "زمن الاستجابة",
+        time: "الوقت",
+      },
+      retrying: "قيد الإعادة",
+      failed: "فشل",
+      tries: (count, max, list) => `${count} من ${max} محاولات: ${list}`,
+      attemptStatus: (status, code) =>
+        ({
+          delivered: "تم التسليم",
+          failed: `فشل${code ? ` ${code}` : ""}`,
+          scheduled: "مجدولة",
+          sending: "قيد الإرسال",
+        })[status],
+      noMatch: "لا توجد أحداث مطابقة",
+      nothingMatches: (q, range) =>
+        `لا شيء يطابق «${ltr(q)}»${range ? ` بين ${ltr(range)}` : ""}.`,
+      noEvents: (filter, range) =>
+        `${filter === "failed" ? "لا توجد أحداث فاشلة" : filter === "retrying" ? "لا توجد أحداث قيد الإعادة" : "لا توجد أحداث"}${range ? ` بين ${ltr(range)}` : ""}.`,
+      delivered: "تم التسليم",
+      scheduled: "مجدولة",
+      of: (shown, total) => `${shown} من ${total}`,
+      eventsCount: (n, range) =>
+        `${ar(n, "حدث واحد", "حدثان", "أحداث", "حدثًا")}${range ? ` بين ${ltr(range)}` : ""}`,
+      attempts: "المحاولات",
+      sending: "جارٍ الإرسال…",
+      tryAt: (n, time) => `المحاولة ${n} · ${time}`,
+      responseBody: "نص الاستجابة",
+      tryN: (n) => `المحاولة ${n}`,
+      copied: "تم النسخ",
+      copyBody: "نسخ نص الاستجابة",
+      noResponse: "لا توجد استجابة بعد.",
+      emptyBody: "نص الاستجابة فارغ.",
+      copyCurl: "نسخ cURL",
+      replay: "إعادة الإرسال",
+      sendingButton: "جارٍ الإرسال",
+      bodyCopied: "تم نسخ نص الاستجابة",
+      curlCopied: "تم نسخ أمر cURL",
+    },
+  },
+};
+
 type Replay = { at: number; done: boolean };
 type State = { tick: number };
 
 export default function MessageLogDemo({
   autoplay = true,
   thumbnail = false,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
   thumbnail?: boolean;
+  locale?: DemoLocale;
 }) {
+  const text = copy[locale];
   const steps: MockStep<State>[] = autoplay
     ? CLOCK.slice(1).map((t, i) => ({
         delay: i < 7 ? 1500 : i === 7 ? 1600 : 900,
@@ -287,7 +452,10 @@ export default function MessageLogDemo({
       // On a home-page card the open row would double the height and shrink it.
       defaultSelectedId={thumbnail ? null : "msg_2Fk8pZ"}
       total={totalAt(now)}
-      totalLabel="today"
+      totalLabel={text.totalLabel}
+      title={text.title}
+      locale={text.locale}
+      labels={text.labels}
       onReplay={replay}
       onCopyCurl={(e) =>
         `curl -X POST https://hooks.example.com/${e.endpoint} \\\n  -H "Content-Type: application/json" \\\n  -H "Webhook-Id: ${e.id}" \\\n  -d '{"type":"${e.type}"}'`

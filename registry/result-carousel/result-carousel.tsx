@@ -35,7 +35,31 @@ export type ResultCarouselProps = {
   compact?: boolean;
   onAction?: (item: ResultItem) => void;
   onOpen?: (item: ResultItem) => void;
+  /** UI strings, for translating the carousel. */
+  labels?: Partial<ResultCarouselLabels>;
   className?: string;
+};
+
+export type ResultCarouselLabels = {
+  /** Follows the result count in the default subtitle. */
+  results: string;
+  previous: string;
+  next: string;
+  /** Screen-reader name of the scrolling track. */
+  track: (title: string) => string;
+  /** Screen-reader name of one card. */
+  slide: (index: number, total: number, title: string) => string;
+  /** Read after the rating. */
+  outOfFive: string;
+};
+
+const defaultLabels: ResultCarouselLabels = {
+  results: "results",
+  previous: "Previous results",
+  next: "Next results",
+  track: (title) => `${title}, scroll horizontally`,
+  slide: (index, total, title) => `${index} of ${total}: ${title}`,
+  outOfFive: "out of 5",
 };
 
 export function ResultCarousel({
@@ -45,17 +69,21 @@ export function ResultCarousel({
   compact = false,
   onAction,
   onOpen,
+  labels: labelOverrides,
   className,
 }: ResultCarouselProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const track = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: true, end: false });
 
   const measure = useCallback(() => {
     const el = track.current;
     if (!el) return;
+    // scrollLeft runs negative in RTL, so measure distance from the start edge.
+    const from = Math.abs(el.scrollLeft);
     setEdges({
-      start: el.scrollLeft <= 2,
-      end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2,
+      start: from <= 2,
+      end: from + el.clientWidth >= el.scrollWidth - 2,
     });
   }, []);
 
@@ -74,8 +102,9 @@ export function ResultCarousel({
     const card = el?.querySelector<HTMLElement>("[data-card]");
     if (!el || !card) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const rtl = getComputedStyle(el).direction === "rtl";
     el.scrollBy({
-      left: dir * (card.offsetWidth + 6),
+      left: dir * (rtl ? -1 : 1) * (card.offsetWidth + 6),
       behavior: reduce ? "auto" : "smooth",
     });
   };
@@ -93,7 +122,7 @@ export function ResultCarousel({
           subtitle={
             subtitle ?? (
               <>
-                <RollingNumber value={data.length} /> results
+                <RollingNumber value={data.length} /> {labels.results}
               </>
             )
           }
@@ -102,19 +131,21 @@ export function ResultCarousel({
               <IconButton
                 icon={CaretLeft}
                 iconWeight="bold"
-                label="Previous results"
+                label={labels.previous}
                 size="sm"
                 variant="secondary"
                 disabled={edges.start}
+                className="rtl:[&_svg]:-scale-x-100"
                 onClick={() => page(-1)}
               />
               <IconButton
                 icon={CaretRight}
                 iconWeight="bold"
-                label="Next results"
+                label={labels.next}
                 size="sm"
                 variant="secondary"
                 disabled={edges.end}
+                className="rtl:[&_svg]:-scale-x-100"
                 onClick={() => page(1)}
               />
             </>
@@ -125,7 +156,7 @@ export function ResultCarousel({
           onScroll={measure}
           tabIndex={0}
           role="group"
-          aria-label={`${title}, scroll horizontally`}
+          aria-label={labels.track(title)}
           className="flex snap-x snap-mandatory scroll-px-0 [scrollbar-width:none] gap-1.5 overflow-x-auto rounded-2xl outline-offset-2 [&::-webkit-scrollbar]:hidden"
         >
           {data.map((item, i) => (
@@ -133,7 +164,7 @@ export function ResultCarousel({
               key={item.id}
               data-card
               aria-roledescription="slide"
-              aria-label={`${i + 1} of ${data.length}: ${item.title}`}
+              aria-label={labels.slide(i + 1, data.length, item.title)}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -160,7 +191,7 @@ export function ResultCarousel({
                   }}
                 >
                   {item.badge && (
-                    <span className="absolute top-2 left-2 rounded-full bg-surface-inset/90 px-2 py-0.5 text-[0.6875rem] font-medium">
+                    <span className="absolute start-2 top-2 rounded-full bg-surface-inset/90 px-2 py-0.5 text-[0.6875rem] font-medium">
                       {item.badge}
                     </span>
                   )}
@@ -172,7 +203,7 @@ export function ResultCarousel({
                     <button
                       type="button"
                       onClick={() => onOpen(item)}
-                      className="max-w-full truncate text-left hover:underline"
+                      className="max-w-full truncate text-start hover:underline"
                     >
                       {item.title}
                     </button>
@@ -192,11 +223,11 @@ export function ResultCarousel({
                         aria-hidden="true"
                       />
                       {item.rating.toFixed(1)}
-                      <span className="sr-only">out of 5</span>
+                      <span className="sr-only">{labels.outOfFive}</span>
                     </span>
                   )}
                   {item.price && (
-                    <span className="ml-auto text-[0.8125rem] font-medium tabular-nums">
+                    <span className="ms-auto text-[0.8125rem] font-medium tabular-nums">
                       {item.price}
                     </span>
                   )}

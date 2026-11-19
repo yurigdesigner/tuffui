@@ -13,9 +13,13 @@ import {
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { IconButton } from "@/components/ui/action-button";
-import { AgentComposer } from "@/components/ui/agent-composer";
+import { AgentComposer, type AgentComposerLabels } from "@/components/ui/agent-composer";
 import { Avatar } from "@/components/ui/agent-avatar";
-import { ChatThread, type ThreadMessage } from "@/components/ui/chat-thread";
+import {
+  ChatThread,
+  type ChatThreadLabels,
+  type ThreadMessage,
+} from "@/components/ui/chat-thread";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { RollingNumber } from "@/components/ui/rolling-number";
 import { Tag } from "@/components/ui/status-pill";
@@ -41,6 +45,51 @@ export type BookingAssistantData = {
   user: { name: string; avatar?: string };
 };
 
+export type BookingAssistantLabels = {
+  /** Tooltip on the summary toggle. */
+  hideSummary: string;
+  showSummary: string;
+  /** Screen-reader names built from the summary title. */
+  hide: (title: string) => string;
+  show: (title: string) => string;
+  close: (title: string) => string;
+  /** The drawer's close button. */
+  closeButton: string;
+  placeholder: string;
+  /** Rolling count in the panel, e.g. "2 of 5". */
+  decidedOf: (decided: number, total: number) => string;
+  /** Rolling count in the header, e.g. "2/5". */
+  decidedShort: (decided: number, total: number) => string;
+  /** Word after either count. */
+  decided: string;
+  /** Screen-reader name of the progress bar. */
+  decisionsMade: string;
+  notDecided: string;
+  /** Read after a decided value. */
+  decidedStatus: string;
+  estimate: string;
+  /** Passed through to the components the screen is built from. */
+  chatThread?: Partial<ChatThreadLabels>;
+  composer?: Partial<AgentComposerLabels>;
+};
+
+const defaultLabels: BookingAssistantLabels = {
+  hideSummary: "Hide summary",
+  showSummary: "Show summary",
+  hide: (title) => `Hide ${title.toLowerCase()}`,
+  show: (title) => `Show ${title.toLowerCase()}`,
+  close: (title) => `Close ${title.toLowerCase()}`,
+  closeButton: "Close",
+  placeholder: "Ask for changes…",
+  decidedOf: (decided, total) => `${decided} of ${total}`,
+  decidedShort: (decided, total) => `${decided}/${total}`,
+  decided: "decided",
+  decisionsMade: "Decisions made",
+  notDecided: "Not decided yet",
+  decidedStatus: ", decided",
+  estimate: "Estimate",
+};
+
 export type BookingAssistantProps = {
   data: BookingAssistantData;
   status?: "idle" | "streaming";
@@ -49,6 +98,10 @@ export type BookingAssistantProps = {
   /** Controls the summary panel; uncontrolled by default (open). */
   summaryOpen?: boolean;
   onSummaryOpenChange?: (open: boolean) => void;
+  /** Your own UI strings, plus labels for the inner components, for translating. */
+  labels?: Partial<BookingAssistantLabels>;
+  /** Intl locale for message times and the progress bar. */
+  locale?: string;
   className?: string;
 };
 
@@ -66,8 +119,11 @@ export function BookingAssistant({
   onStop,
   summaryOpen: openProp,
   onSummaryOpenChange,
+  labels: labelOverrides,
+  locale,
   className,
 }: BookingAssistantProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const reduce = useReducedMotion();
   const [draft, setDraft] = useState("");
   const [openState, setOpenState] = useState(true);
@@ -77,6 +133,12 @@ export function BookingAssistant({
   const [instant, setInstant] = useState(false);
   const dock = useRef<HTMLDivElement>(null);
   const [inset, setInset] = useState(140);
+  const root = useRef<HTMLDivElement>(null);
+  // The drawer comes in from the end edge, which is the left in RTL.
+  const [rtl, setRtl] = useState(false);
+  useEffect(() => {
+    if (root.current) setRtl(getComputedStyle(root.current).direction === "rtl");
+  }, []);
 
   useEffect(() => {
     const el = dock.current;
@@ -102,11 +164,14 @@ export function BookingAssistant({
 
   const { items } = data.summary;
   const decided = items.filter((item) => item.value).length;
-  const summary = <Summary data={data.summary} decided={decided} />;
+  const summary = (
+    <Summary data={data.summary} decided={decided} labels={labels} locale={locale} />
+  );
 
   return (
     <MotionConfig reducedMotion="user">
       <div
+        ref={root}
         data-screen
         className={cn(
           "@container relative flex h-full w-full overflow-hidden bg-background text-foreground",
@@ -119,21 +184,27 @@ export function BookingAssistant({
               {data.title}
             </h2>
             <Tag className="hidden shrink-0 @md:inline-flex">{data.model}</Tag>
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="ms-auto flex items-center gap-1.5">
               <span className="hidden text-[0.8125rem] text-muted-foreground tabular-nums @md:inline @5xl:hidden">
-                <RollingNumber value={`${decided}/${items.length}`} /> decided
+                <RollingNumber value={labels.decidedShort(decided, items.length)} />
+                {` ${labels.decided}`}
               </span>
               <Tooltip
-                content={open ? "Hide summary" : "Show summary"}
+                content={open ? labels.hideSummary : labels.showSummary}
                 align="end"
                 side="bottom"
               >
                 <IconButton
                   icon={SidebarSimple}
-                  label={`${open ? "Hide" : "Show"} ${data.summary.title.toLowerCase()}`}
+                  label={
+                    open
+                      ? labels.hide(data.summary.title)
+                      : labels.show(data.summary.title)
+                  }
                   aria-expanded={open}
                   onClick={toggle}
-                  className="-scale-x-100"
+                  // The panel sits at the end edge: the icon's bar faces it in either direction.
+                  className="-scale-x-100 rtl:scale-x-100"
                 />
               </Tooltip>
               <Avatar name={data.user.name} src={data.user.avatar} size="sm" />
@@ -147,6 +218,8 @@ export function BookingAssistant({
               data={{ messages: data.messages }}
               agentName={data.model}
               userName={data.user.name}
+              locale={locale}
+              labels={labels.chatThread}
               bottomInset={inset}
               contentClassName="mx-auto w-full max-w-3xl @md:px-5"
             />
@@ -166,7 +239,8 @@ export function BookingAssistant({
                     setDraft("");
                   }}
                   onStop={onStop}
-                  placeholder="Ask for changes…"
+                  placeholder={labels.placeholder}
+                  labels={labels.composer}
                   className="max-w-none"
                 />
               </div>
@@ -182,7 +256,7 @@ export function BookingAssistant({
           className="hidden shrink-0 overflow-hidden @5xl:block"
         >
           <div
-            className="h-full overflow-y-auto py-3 pr-3"
+            className="h-full overflow-y-auto py-3 pe-3"
             style={{ width: PANEL }}
             inert={!open}
           >
@@ -194,6 +268,8 @@ export function BookingAssistant({
           open={drawer}
           onClose={() => setDrawer(false)}
           label={data.summary.title}
+          rtl={rtl}
+          labels={labels}
         >
           {summary}
         </SummaryDrawer>
@@ -205,20 +281,25 @@ export function BookingAssistant({
 function Summary({
   data,
   decided,
+  labels,
+  locale,
 }: {
   data: BookingAssistantData["summary"];
   decided: number;
+  labels: BookingAssistantLabels;
+  locale?: string;
 }) {
   return (
     <section className="flex flex-col gap-1.5 rounded-[1.375rem] bg-surface p-1.5">
-      <div className="flex items-center gap-3 pt-1.5 pr-3.5 pb-2 pl-1.5">
+      <div className="flex items-center gap-3 ps-1.5 pe-3.5 pt-1.5 pb-2">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.06] text-muted-foreground">
           <ListChecks weight="fill" className="size-4" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="text-[0.9375rem] font-medium">{data.title}</h3>
           <p className="text-[0.8125rem] text-muted-foreground tabular-nums">
-            <RollingNumber value={`${decided} of ${data.items.length}`} /> decided
+            <RollingNumber value={labels.decidedOf(decided, data.items.length)} />
+            {` ${labels.decided}`}
           </p>
         </div>
       </div>
@@ -228,7 +309,8 @@ function Summary({
         tone="positive"
         striped
         size="sm"
-        label="Decisions made"
+        label={labels.decisionsMade}
+        locale={locale}
         className="mx-1.5 mb-1.5"
       />
       <ul className="flex flex-col gap-1 rounded-2xl bg-surface-inset p-1.5">
@@ -264,8 +346,10 @@ function Summary({
                     !item.value && "text-muted-foreground/70",
                   )}
                 >
-                  {item.value ?? "Not decided yet"}
-                  <span className="sr-only">{item.value ? ", decided" : ""}</span>
+                  {item.value ?? labels.notDecided}
+                  <span className="sr-only">
+                    {item.value ? labels.decidedStatus : ""}
+                  </span>
                 </motion.p>
               </AnimatePresence>
             </div>
@@ -274,7 +358,7 @@ function Summary({
       </ul>
       {data.estimate && (
         <div className="flex items-baseline justify-between px-3.5 py-2.5 text-[0.8125rem]">
-          <span className="text-muted-foreground">Estimate</span>
+          <span className="text-muted-foreground">{labels.estimate}</span>
           <RollingNumber value={data.estimate} className="text-base font-medium" />
         </div>
       )}
@@ -282,18 +366,23 @@ function Summary({
   );
 }
 
-/** The summary as a drawer from the right that stays inside the screen. */
+/** The summary as a drawer from the end edge that stays inside the screen. */
 function SummaryDrawer({
   open,
   onClose,
   label,
+  rtl,
+  labels,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   label: string;
+  rtl: boolean;
+  labels: BookingAssistantLabels;
   children: React.ReactNode;
 }) {
+  const offscreen = rtl ? "-105%" : "105%";
   const panel = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
 
@@ -311,7 +400,7 @@ function SummaryDrawer({
         <div className="absolute inset-0 z-20 @5xl:hidden">
           <motion.button
             type="button"
-            aria-label={`Close ${label.toLowerCase()}`}
+            aria-label={labels.close(label)}
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { duration: 0.2, ease: EASE_OUT } }}
@@ -324,7 +413,7 @@ function SummaryDrawer({
             aria-modal="true"
             aria-label={label}
             tabIndex={-1}
-            initial={reduce ? { opacity: 0 } : { x: "105%" }}
+            initial={reduce ? { opacity: 0 } : { x: offscreen }}
             animate={{
               x: 0,
               opacity: 1,
@@ -333,12 +422,20 @@ function SummaryDrawer({
             exit={
               reduce
                 ? { opacity: 0, transition: { duration: 0.15 } }
-                : { x: "105%", transition: { duration: 0.22, ease: [0.32, 0.72, 0, 1] } }
+                : {
+                    x: offscreen,
+                    transition: { duration: 0.22, ease: [0.32, 0.72, 0, 1] },
+                  }
             }
-            className="absolute inset-y-2 right-2 flex w-[min(20rem,calc(100%-3rem))] flex-col overflow-y-auto rounded-[1.5rem] bg-background outline-none"
+            className="absolute inset-y-2 end-2 flex w-[min(20rem,calc(100%-3rem))] flex-col overflow-y-auto rounded-[1.5rem] bg-background outline-none"
           >
             <div className="flex justify-end px-1.5 pt-1.5">
-              <IconButton icon={X} iconWeight="bold" label="Close" onClick={onClose} />
+              <IconButton
+                icon={X}
+                iconWeight="bold"
+                label={labels.closeButton}
+                onClick={onClose}
+              />
             </div>
             {children}
           </motion.div>

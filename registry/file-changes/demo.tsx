@@ -1,8 +1,81 @@
 "use client";
 
 import { useState } from "react";
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, wait, type MockStep } from "@/registry/use-mock-run/use-mock-run";
-import { FileChanges, type FileChange } from "./file-changes";
+import { FileChanges, type FileChange, type FileChangesLabels } from "./file-changes";
+
+/** Arabic noun after a numeral: 1, 2 and 3–10 pick their forms; 11+ the singular. */
+const arCount = (n: number, one: string, two: string, few: string, many: string) =>
+  n === 1 ? one : n === 2 ? two : n >= 3 && n <= 10 ? few : many;
+
+/** Code and paths stay as they are; Hebrew and Arabic show the RTL layout. */
+const labels: Record<DemoLocale, Partial<FileChangesLabels> | undefined> = {
+  en: undefined,
+  he: {
+    status: { added: "נוסף", modified: "שונה", deleted: "נמחק", renamed: "שונה שם" },
+    line: (n) => `שורה ${n}`,
+    reverted: "בוטל",
+    hunk: (n) => `שורות החל מ־${n}`,
+    keepOrRevert: "לשמור או לבטל את הקטע",
+    keep: "לשמור",
+    revert: "לבטל",
+    added: "נוסף: ",
+    removed: "הוסר: ",
+    root: "תיקיית השורש",
+    from: (path) => `לשעבר ${path}`,
+    files: "קבצים ששונו",
+    region: "שינויים בקבצים",
+    empty: "אין שינויים לבדיקה",
+    kept: "הקטע נשמר",
+    revertedStatus: "הקטע בוטל",
+    applyingStatus: (kept, total) => `מחילים ${kept} מתוך ${total} קטעים`,
+    summary: (kept, total, files, roll) => (
+      <>
+        יוחלו {roll(String(kept), true)} מתוך {roll(String(total), true)} קטעים ב־
+        {roll(String(files))} {files === 1 ? "קובץ" : "קבצים"}
+      </>
+    ),
+    discard: "לבטל הכול",
+    apply: "החלה",
+    applying: "מחילים…",
+  },
+  ar: {
+    status: {
+      added: "مُضاف",
+      modified: "مُعدَّل",
+      deleted: "محذوف",
+      renamed: "مُعاد تسميته",
+    },
+    line: (n) => `السطر ${n}`,
+    reverted: "تم التراجع",
+    hunk: (n) => `الأسطر بدءًا من ${n}`,
+    keepOrRevert: "الإبقاء على هذا المقطع أو التراجع عنه",
+    keep: "إبقاء",
+    revert: "تراجع",
+    added: "مُضاف: ",
+    removed: "محذوف: ",
+    root: "الجذر",
+    from: (path) => `سابقًا ${path}`,
+    files: "الملفات المعدّلة",
+    region: "تغييرات الملفات",
+    empty: "لا توجد تغييرات للمراجعة",
+    kept: "تم الإبقاء على المقطع",
+    revertedStatus: "تم التراجع عن المقطع",
+    applyingStatus: (kept, total) =>
+      `جارٍ تطبيق ${kept} من ${total} ${arCount(total, "مقطع", "مقاطع", "مقاطع", "مقطعًا")}`,
+    summary: (kept, total, files, roll) => (
+      <>
+        سيُطبَّق {roll(String(kept), true)} من {roll(String(total), true)}{" "}
+        {arCount(total, "مقطع", "مقاطع", "مقاطع", "مقطعًا")} في {roll(String(files))}{" "}
+        {arCount(files, "ملف", "ملفات", "ملفات", "ملفًا")}
+      </>
+    ),
+    discard: "تجاهل الكل",
+    apply: "تطبيق",
+    applying: "جارٍ التطبيق…",
+  },
+};
 
 // An agent migrating a CLI from yargs to commander.
 const files: FileChange[] = [
@@ -140,9 +213,11 @@ const script: MockStep<State>[] = [
 export default function FileChangesDemo({
   variant,
   autoplay = true,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
+  locale?: DemoLocale;
 }) {
   // The paused thumbnail shows the finished list.
   const { state, setState } = useMockRun<State>(
@@ -164,6 +239,7 @@ export default function FileChangesDemo({
         setTimeout(() => setApplying(false), 1400);
       }}
       onDiscard={() => setState((s) => ({ ...s, files: [] }))}
+      labels={labels[locale]}
     />
   );
 }

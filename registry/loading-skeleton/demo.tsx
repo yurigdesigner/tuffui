@@ -6,23 +6,37 @@ import {
   Skeleton,
   SkeletonGroup,
 } from "@/components/ui/loading-skeleton";
+import type { DemoLocale } from "@/components/docs/demo";
 
-export default function LoadingSkeletonDemo({ variant }: { variant?: string }) {
+const copy: Record<DemoLocale, { message: string; card: string }> = {
+  en: { message: "Loading message", card: "Loading card" },
+  he: { message: "טוען הודעה", card: "טוען כרטיס" },
+  ar: { message: "جارٍ تحميل الرسالة", card: "جارٍ تحميل البطاقة" },
+};
+
+export default function LoadingSkeletonDemo({
+  variant,
+  locale = "en",
+}: {
+  variant?: string;
+  locale?: DemoLocale;
+}) {
+  const text = copy[locale];
   if (variant === "Cards") {
     return (
       <div className="grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-3">
-        <CardSkeleton />
-        <CardSkeleton />
-        <CardSkeleton />
+        <CardSkeleton label={text.card} />
+        <CardSkeleton label={text.card} />
+        <CardSkeleton label={text.card} />
       </div>
     );
   }
   return (
     <div className="flex w-full max-w-md flex-col gap-6">
-      <SkeletonGroup label="Loading message" className="flex justify-end">
+      <SkeletonGroup label={text.message} className="flex justify-end">
         <Skeleton className="h-9 w-48 rounded-2xl" />
       </SkeletonGroup>
-      <MessageSkeleton />
+      <MessageSkeleton label={text.message} />
     </div>
   );
 }

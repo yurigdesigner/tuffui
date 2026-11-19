@@ -40,6 +40,16 @@ function useToday() {
   return stamp ? new Date(stamp) : null;
 }
 
+export type CalendarLabels = {
+  previousMonth: string;
+  nextMonth: string;
+};
+
+const defaultLabels: CalendarLabels = {
+  previousMonth: "Previous month",
+  nextMonth: "Next month",
+};
+
 type Common = {
   min?: Date;
   max?: Date;
@@ -47,6 +57,8 @@ type Common = {
   isDisabled?: (date: Date) => boolean;
   /** BCP 47 locale for month and weekday names. */
   locale?: string;
+  /** UI strings, for translating the month buttons. */
+  labels?: Partial<CalendarLabels>;
   className?: string;
 };
 
@@ -59,6 +71,7 @@ export type CalendarProps = Common &
 /** Month grid with single or range selection and full keyboard navigation. */
 export function Calendar(props: CalendarProps) {
   const { min, max, isDisabled, locale, className } = props;
+  const labels = { ...defaultLabels, ...props.labels };
   const range = props.mode === "range";
   const reduce = useReducedMotion();
   const selected = range ? (props.value as DateRange | undefined) : undefined;
@@ -79,7 +92,9 @@ export function Calendar(props: CalendarProps) {
     (min && d < startOfDay(min)) || (max && d > startOfDay(max)) || !!isDisabled?.(d);
 
   const showMonth = (next: Date, keys: boolean) => {
-    setDirection(next > month ? 1 : -1);
+    // Later months enter from the end side: the right in LTR, the left in RTL.
+    const rtl = !!frame.current && getComputedStyle(frame.current).direction === "rtl";
+    setDirection((next > month ? 1 : -1) * (rtl ? -1 : 1));
     setViaKeys(keys);
     setMonth(addMonths(next, 0));
   };
@@ -105,9 +120,11 @@ export function Calendar(props: CalendarProps) {
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    // The grid mirrors under dir="rtl", so left and right swap meaning.
+    const back = getComputedStyle(e.currentTarget).direction === "rtl" ? 1 : -1;
     const moves: Record<string, () => Date> = {
-      ArrowLeft: () => addDays(focus, -1),
-      ArrowRight: () => addDays(focus, 1),
+      ArrowLeft: () => addDays(focus, back),
+      ArrowRight: () => addDays(focus, -back),
       ArrowUp: () => addDays(focus, -7),
       ArrowDown: () => addDays(focus, 7),
       Home: () => addDays(focus, -((focus.getDay() + 6) % 7)),
@@ -149,6 +166,7 @@ export function Calendar(props: CalendarProps) {
       new Date(2024, 0, 1 + i),
     ),
   );
+  const dayNumber = new Intl.DateTimeFormat(locale, { day: "numeric" });
   const monthLabel = new Intl.DateTimeFormat(locale, {
     month: "long",
     year: "numeric",
@@ -158,22 +176,24 @@ export function Calendar(props: CalendarProps) {
   return (
     <MotionConfig reducedMotion="user">
       <div className={cn("w-[17.5rem] select-none", className)}>
-        <div className="mb-2 flex items-center gap-1 pl-2">
+        <div className="mb-2 flex items-center gap-1 ps-2">
           <p id={titleId} aria-live="polite" className="flex-1 text-sm font-medium">
             {monthLabel}
           </p>
           <IconButton
             icon={CaretLeft}
             iconWeight="bold"
-            label="Previous month"
+            label={labels.previousMonth}
             size="sm"
+            className="rtl:[&_svg]:-scale-x-100"
             onClick={(e) => showMonth(addMonths(month, -1), e.detail === 0)}
           />
           <IconButton
             icon={CaretRight}
             iconWeight="bold"
-            label="Next month"
+            label={labels.nextMonth}
             size="sm"
+            className="rtl:[&_svg]:-scale-x-100"
             onClick={(e) => showMonth(addMonths(month, 1), e.detail === 0)}
           />
         </div>
@@ -227,8 +247,8 @@ export function Calendar(props: CalendarProps) {
                           range &&
                             isStart &&
                             (selected?.to || hover) &&
-                            "rounded-l-full bg-brand/12",
-                          isEnd && "rounded-r-full bg-brand/12",
+                            "rounded-s-full bg-brand/12",
+                          isEnd && "rounded-e-full bg-brand/12",
                         )}
                       >
                         <button
@@ -253,7 +273,7 @@ export function Calendar(props: CalendarProps) {
                               "cursor-default line-through opacity-35 hover:bg-transparent active:scale-100",
                           )}
                         >
-                          {d.getDate()}
+                          {dayNumber.format(d)}
                           {sameDay(d, today) && (
                             <span
                               aria-hidden="true"
@@ -321,7 +341,7 @@ export function DatePicker({
             type="button"
             aria-labelledby={label ? labelId : undefined}
             aria-haspopup="dialog"
-            className="flex h-10 w-full items-center gap-2 rounded-full bg-foreground/[0.06] px-4 text-left text-sm transition-[background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-foreground/[0.08] focus-visible:bg-foreground/[0.1]"
+            className="flex h-10 w-full items-center gap-2 rounded-full bg-foreground/[0.06] px-4 text-start text-sm transition-[background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-foreground/[0.08] focus-visible:bg-foreground/[0.1]"
           >
             <CalendarBlank
               weight="fill"

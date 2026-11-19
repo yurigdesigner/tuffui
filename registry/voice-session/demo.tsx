@@ -1,41 +1,116 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
+import type { DemoLocale } from "@/components/docs/demo";
 import { useMockRun, wait, type MockStep } from "@/registry/use-mock-run/use-mock-run";
 import {
   VoiceSession,
   type VoiceActivity,
   type VoiceOption,
+  type VoiceSessionLabels,
   type VoiceTurn,
 } from "./voice-session";
 
-const VOICES: VoiceOption[] = [
-  { value: "ember", label: "Ember", hint: "warm" },
-  { value: "slate", label: "Slate", hint: "calm" },
-  { value: "juniper", label: "Juniper", hint: "bright" },
-  { value: "basalt", label: "Basalt", hint: "low" },
-];
+const VOICE_IDS = ["ember", "slate", "juniper", "basalt"];
+const VOICE_NAMES = ["Ember", "Slate", "Juniper", "Basalt"];
 
-const EARLIER: VoiceTurn[] = [
-  {
-    id: "t1",
-    speaker: "agent",
-    text: "Hi Maya, this is Wren from billing. What can I help with?",
-  },
-  {
-    id: "t2",
-    speaker: "user",
-    text: "I was charged twice for the Pro plan this month.",
-  },
-];
+/** Keeps an amount or card number in reading order inside RTL text. */
+const ltr = (text: string) => `\u2066${text}\u2069`;
 
-const ANSWER =
-  "I can see two charges of $24 on November 3. The second is a pending hold from your card update, and it usually drops off within five business days, so you won't need to do anything.";
-/** Words Wren gets out before Maya talks over her. */
-const CUT_AT = 21;
-const BARGE = "Can you just refund it now? Rent comes out Friday.";
-const FIX =
-  "Of course. I've refunded the duplicate $24 to your Visa ending 4417. It should show up in three to five days.";
+/** The same call in each demo language; Hebrew and Arabic show the RTL layout. */
+const copy: Record<
+  DemoLocale,
+  {
+    title: string;
+    /** Voice hints, in `VOICE_IDS` order. */
+    hints: [string, string, string, string];
+    earlier: [string, string];
+    answer: string;
+    /** Words Wren gets out before Maya talks over her. */
+    cutAt: number;
+    barge: string;
+    fix: string;
+    labels?: Partial<VoiceSessionLabels>;
+  }
+> = {
+  en: {
+    title: "Billing call",
+    hints: ["warm", "calm", "bright", "low"],
+    earlier: [
+      "Hi Maya, this is Wren from billing. What can I help with?",
+      "I was charged twice for the Pro plan this month.",
+    ],
+    answer:
+      "I can see two charges of $24 on November 3. The second is a pending hold from your card update, and it usually drops off within five business days, so you won't need to do anything.",
+    cutAt: 21,
+    barge: "Can you just refund it now? Rent comes out Friday.",
+    fix: "Of course. I've refunded the duplicate $24 to your Visa ending 4417. It should show up in three to five days.",
+  },
+  he: {
+    title: "שיחת חיובים",
+    hints: ["חם", "רגוע", "בהיר", "עמוק"],
+    earlier: [
+      "היי Maya, כאן Wren ממחלקת החיובים. איך אפשר לעזור?",
+      "חויבתי פעמיים על חבילת Pro החודש.",
+    ],
+    answer: `אני רואה שני חיובים של ${ltr("$24")} מה־3 בנובמבר. השני הוא חיוב זמני שנוצר כשעדכנת את הכרטיס, ובדרך כלל הוא נעלם תוך חמישה ימי עסקים, כך שלא צריך לעשות כלום.`,
+    cutAt: 19,
+    barge: "אפשר פשוט להחזיר את זה עכשיו? שכר הדירה יורד ביום שישי.",
+    fix: `בטח. החזרתי את החיוב הכפול של ${ltr("$24")} לכרטיס ה־Visa שמסתיים ב־${ltr("4417")}. הכסף אמור להופיע תוך שלושה עד חמישה ימים.`,
+    labels: {
+      you: "אתה",
+      thinking: "חושבת",
+      listening: "מקשיבה",
+      connecting: "מתחבר",
+      muted: "מושתק",
+      onHold: "בהמתנה",
+      speaking: (agentName) => `${agentName} מדברת`,
+      voice: (voiceLabel) => `קול ${voiceLabel}`,
+      voicePicker: (voiceLabel) => `קול: ${voiceLabel}`,
+      callTime: (time) => `משך השיחה ${time}`,
+      emptyTranscript: "התמלול יופיע כאן כשתדברו.",
+      interrupted: "נקטע",
+      interruptedNote: " (נקטע)",
+      mute: "השתקה",
+      unmute: "ביטול השתקה",
+      hold: "המתנה",
+      resume: "חזרה לשיחה",
+      end: "סיום",
+    },
+  },
+  ar: {
+    title: "مكالمة الفوترة",
+    hints: ["دافئ", "هادئ", "مشرق", "عميق"],
+    earlier: [
+      "مرحبًا Maya، معك Wren من قسم الفوترة. كيف أساعدك؟",
+      "خُصم مني مرتين مقابل باقة Pro هذا الشهر.",
+    ],
+    answer: `أرى رسمين بقيمة ${ltr("$24")} في 3 نوفمبر. الثاني حجز مؤقت ناتج عن تحديث بطاقتك، وعادةً يختفي خلال خمسة أيام عمل، فلن تحتاج إلى فعل أي شيء.`,
+    cutAt: 18,
+    barge: "هل يمكنك استرداده الآن فقط؟ الإيجار يُخصم يوم الجمعة.",
+    fix: `بالتأكيد. استرددت الرسم المكرر بقيمة ${ltr("$24")} إلى بطاقة Visa المنتهية بـ ${ltr("4417")}. سيظهر خلال ثلاثة إلى خمسة أيام.`,
+    labels: {
+      you: "أنت",
+      thinking: "تفكّر",
+      listening: "تستمع",
+      connecting: "جارٍ الاتصال",
+      muted: "مكتوم",
+      onHold: "في الانتظار",
+      speaking: (agentName) => `${agentName} تتحدث`,
+      voice: (voiceLabel) => `صوت ${voiceLabel}`,
+      voicePicker: (voiceLabel) => `الصوت: ${voiceLabel}`,
+      callTime: (time) => `مدة المكالمة ${time}`,
+      emptyTranscript: "سيظهر النص المكتوب هنا أثناء حديثك.",
+      interrupted: "مقاطعة",
+      interruptedNote: " (مقاطعة)",
+      mute: "كتم",
+      unmute: "إلغاء الكتم",
+      hold: "انتظار",
+      resume: "استئناف",
+      end: "إنهاء",
+    },
+  },
+};
 
 type State = { activity: VoiceActivity; turns: VoiceTurn[] };
 
@@ -85,11 +160,16 @@ const set = (activity: VoiceActivity, delay = 0): MockStep<State> => ({
   apply: (s) => ({ ...s, activity }),
 });
 
-function script(): MockStep<State>[] {
+function script({
+  answer,
+  cutAt,
+  barge,
+  fix,
+}: (typeof copy)[DemoLocale]): MockStep<State>[] {
   return [
     set("thinking", 600),
     wait(1100),
-    ...speak("t3", "agent", ANSWER, { upTo: CUT_AT }),
+    ...speak("t3", "agent", answer, { upTo: cutAt }),
     // Maya talks over Wren: the line is cut where it was and marked.
     {
       delay: 160,
@@ -99,7 +179,7 @@ function script(): MockStep<State>[] {
           t.id === "t3"
             ? {
                 ...t,
-                text: ANSWER.split(" ").slice(0, CUT_AT).join(" "),
+                text: answer.split(" ").slice(0, cutAt).join(" "),
                 spoken: undefined,
                 interrupted: true,
               }
@@ -108,30 +188,35 @@ function script(): MockStep<State>[] {
       }),
     },
     wait(120),
-    ...speak("t4", "user", BARGE, { pace: 250 }),
+    ...speak("t4", "user", barge, { pace: 250 }),
     finish("t4"),
     set("thinking", 200),
     wait(1000),
-    ...speak("t5", "agent", FIX),
+    ...speak("t5", "agent", fix),
     finish("t5"),
     set("listening", 100),
   ];
 }
 
+const earlier = (text: (typeof copy)[DemoLocale]): VoiceTurn[] => [
+  { id: "t1", speaker: "agent", text: text.earlier[0] },
+  { id: "t2", speaker: "user", text: text.earlier[1] },
+];
+
 /** The barge-in moment, for the still thumbnail. */
-const STILL: State = {
+const still = (text: (typeof copy)[DemoLocale]): State => ({
   activity: "user",
   turns: [
-    ...EARLIER,
+    ...earlier(text),
     {
       id: "t3",
       speaker: "agent",
-      text: ANSWER.split(" ").slice(0, CUT_AT).join(" "),
+      text: text.answer.split(" ").slice(0, text.cutAt).join(" "),
       interrupted: true,
     },
-    { id: "t4", speaker: "user", text: BARGE, spoken: 6 },
+    { id: "t4", speaker: "user", text: text.barge, spoken: 6 },
   ],
-};
+});
 
 /** A believable speech envelope: syllables, phrase swells and short gaps. */
 function speech(t: number, seed: number) {
@@ -144,14 +229,22 @@ function speech(t: number, seed: number) {
 export default function VoiceSessionDemo({
   autoplay = true,
   thumbnail = false,
+  locale = "en",
 }: {
   variant?: string;
   autoplay?: boolean;
   thumbnail?: boolean;
+  locale?: DemoLocale;
 }) {
+  const text = copy[locale];
+  const voices: VoiceOption[] = VOICE_IDS.map((value, i) => ({
+    value,
+    label: VOICE_NAMES[i],
+    hint: text.hints[i],
+  }));
   const { state } = useMockRun<State>(
-    autoplay ? { activity: "listening", turns: EARLIER } : STILL,
-    autoplay ? script() : [],
+    autoplay ? { activity: "listening", turns: earlier(text) } : still(text),
+    autoplay ? script(text) : [],
     { autoplay },
   );
   const [startedAt] = useState(() => Date.now() - 154_000);
@@ -175,7 +268,7 @@ export default function VoiceSessionDemo({
   return (
     <VoiceSession
       agentName="Wren"
-      title="Billing call"
+      title={text.title}
       activity={state.activity}
       getLevel={getLevel}
       turns={thumbnail ? state.turns.slice(1) : state.turns}
@@ -184,7 +277,8 @@ export default function VoiceSessionDemo({
       onMutedChange={setMuted}
       held={held}
       onHeldChange={setHeld}
-      voices={VOICES}
+      voices={voices}
+      labels={text.labels}
       defaultVoice="ember"
       onEnd={() => {}}
     />

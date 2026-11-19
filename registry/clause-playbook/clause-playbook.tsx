@@ -13,7 +13,7 @@ import {
 } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
 import { Select as SelectPrimitive } from "radix-ui";
-import { useId, useRef, useState } from "react";
+import { createContext, useContext, useId, useRef, useState } from "react";
 import { Switch } from "@/components/ui/choice-controls";
 import { Button } from "@/components/ui/action-button";
 import { RollingNumber } from "@/components/ui/rolling-number";
@@ -64,6 +64,61 @@ export type ClauseZoneLabels = {
   preferred?: string;
 };
 
+export type ClausePlaybookLabels = {
+  walkAway: string;
+  fallback: string;
+  preferred: string;
+  /** The word after the edit count. */
+  edits: (count: number) => string;
+  noEdits: string;
+  market: string;
+  /** Histogram scale, e.g. "1 dot ≈ 9 MSAs". */
+  perDot: (count: number, sampleNoun: string) => string;
+  /** After the percentile, e.g. "p66 of market". */
+  ofMarket: string;
+  /** Screen-reader summary of the histogram. */
+  chart: (
+    total: number,
+    sampleNoun: string,
+    preferred: string,
+    percentile: number,
+  ) => string;
+  /** Screen-reader name of the handle pair. */
+  thresholds: (clause: string) => string;
+  /** Screen-reader name of a handle, from its zone name. */
+  handle: (zone: string) => string;
+  pending: string;
+  live: string;
+  discard: string;
+  apply: string;
+  decrease: string;
+  increase: string;
+};
+
+const defaultLabels: ClausePlaybookLabels = {
+  walkAway: "Walk-away",
+  fallback: "Fallback",
+  preferred: "Preferred",
+  edits: (count) => (count === 1 ? "edit" : "edits"),
+  noEdits: "No edits",
+  market: "Market",
+  perDot: (count, noun) =>
+    `1 dot ≈ ${count.toLocaleString("en-US")} ${count === 1 ? noun.replace(/s$/, "") : noun}`,
+  ofMarket: "of market",
+  chart: (total, noun, preferred, percentile) =>
+    `Market distribution of ${total.toLocaleString("en-US")} ${noun}. Preferred ${preferred} sits at p${percentile}.`,
+  thresholds: (clause) => `${clause} thresholds`,
+  handle: (zone) => `${zone} from`,
+  pending: "Not live until applied",
+  live: "Live in the playbook",
+  discard: "Discard",
+  apply: "Apply",
+  decrease: "Decrease",
+  increase: "Increase",
+};
+
+const Labels = createContext(defaultLabels);
+
 export type ClausePlaybookProps = {
   /** Clause name, e.g. "Liability cap". */
   clause: string;
@@ -90,6 +145,7 @@ export type ClausePlaybookProps = {
   onThresholdsChange?: (thresholds: ClauseThresholds) => void;
   /** Smallest distance between the two handles. Defaults to `step`. */
   minGap?: number;
+  /** Zone names. Overrides the same keys in `labels`. */
   zoneLabels?: ClauseZoneLabels;
   /** Rows under the chart: steppers, selects and toggles. */
   settings?: ClauseSetting[];
@@ -104,6 +160,8 @@ export type ClausePlaybookProps = {
   onApply?: (thresholds: ClauseThresholds, values: Record<string, ClauseValue>) => void;
   /** Shows Discard. Values go back to the baseline before this is called. */
   onDiscard?: () => void;
+  /** Your own UI strings, for translating. */
+  labels?: Partial<ClausePlaybookLabels>;
   className?: string;
 };
 
@@ -153,6 +211,7 @@ export function ClausePlaybook({
   sampleNoun = "contracts",
   onApply,
   onDiscard,
+  labels: labelOverrides,
   className,
 }: ClausePlaybookProps) {
   const [min, max] = domain;
@@ -162,10 +221,12 @@ export function ClausePlaybook({
   const fmt = (v: number) => (format ? format(v) : String(+v.toFixed(2)));
   const withUnit = (v: number) => (unit ? `${fmt(v)} ${unit}` : fmt(v));
   const pct = (v: number) => ((clamp(v, min, max) - min) / span) * 100;
+  const merged = { ...defaultLabels, ...labelOverrides };
   const labels = {
-    walkAway: zoneLabels?.walkAway ?? "Walk-away",
-    fallback: zoneLabels?.fallback ?? "Fallback",
-    preferred: zoneLabels?.preferred ?? "Preferred",
+    ...merged,
+    walkAway: zoneLabels?.walkAway ?? merged.walkAway,
+    fallback: zoneLabels?.fallback ?? merged.fallback,
+    preferred: zoneLabels?.preferred ?? merged.preferred,
   };
 
   // Thresholds: controlled or not, against a baseline that Apply moves forward.
@@ -299,297 +360,318 @@ export function ClausePlaybook({
     typeof note === "string" || typeof note === "number" ? String(note) : "note";
 
   return (
-    <MotionConfig reducedMotion="user">
-      <Shell className={cn("max-w-2xl", className)}>
-        <ShellHeader
-          icon={icon}
-          title={
-            <>
-              {number && (
-                <span className="mr-1.5 font-mono text-muted-foreground">§ {number}</span>
-              )}
-              {clause}
-            </>
-          }
-          subtitle={subtitle}
-          aside={
-            <StatusPill tone={edits ? "brand" : "neutral"} className="font-mono">
-              {edits ? (
-                <>
-                  <RollingNumber value={edits} />
-                  {edits === 1 ? "edit" : "edits"}
-                </>
-              ) : (
-                "No edits"
-              )}
-            </StatusPill>
-          }
-        />
+    <Labels.Provider value={labels}>
+      <MotionConfig reducedMotion="user">
+        <Shell className={cn("max-w-2xl", className)}>
+          <ShellHeader
+            icon={icon}
+            title={
+              <>
+                {number && (
+                  <span className="me-1.5 font-mono text-muted-foreground">
+                    <span dir="ltr">§ {number}</span>
+                  </span>
+                )}
+                {clause}
+              </>
+            }
+            subtitle={subtitle}
+            aside={
+              <StatusPill tone={edits ? "brand" : "neutral"} className="font-mono">
+                {edits ? (
+                  <>
+                    <RollingNumber value={edits} />
+                    {labels.edits(edits)}
+                  </>
+                ) : (
+                  labels.noEdits
+                )}
+              </StatusPill>
+            }
+          />
 
-        <Panel className="p-4 @max-sm:p-3 @lg:p-5">
-          {note && (
-            <div className="mb-4 flex min-h-5 items-start gap-2 text-[0.8125rem]">
-              <Sparkle
-                weight="fill"
-                aria-hidden="true"
-                className="mt-0.5 size-4 shrink-0 text-brand"
-              />
-              <div aria-live="polite" className="relative min-w-0 flex-1 overflow-hidden">
-                <AnimatePresence mode="popLayout" initial={false}>
-                  <motion.p
-                    key={noteKey}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0, transition: enter }}
-                    exit={{ opacity: 0, y: -6, transition: exit }}
-                    className="text-pretty"
-                  >
-                    {note}
-                  </motion.p>
-                </AnimatePresence>
+          <Panel className="p-4 @max-sm:p-3 @lg:p-5">
+            {note && (
+              <div className="mb-4 flex min-h-5 items-start gap-2 text-[0.8125rem]">
+                <Sparkle
+                  weight="fill"
+                  aria-hidden="true"
+                  className="mt-0.5 size-4 shrink-0 text-brand"
+                />
+                <div
+                  aria-live="polite"
+                  className="relative min-w-0 flex-1 overflow-hidden"
+                >
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.p
+                      key={noteKey}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0, transition: enter }}
+                      exit={{ opacity: 0, y: -6, transition: exit }}
+                      className="text-pretty"
+                    >
+                      {note}
+                    </motion.p>
+                  </AnimatePresence>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="mb-2 flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
-            <span>Market</span>
-            <span className="font-mono tabular-nums">
-              1 dot ≈ {perDot.toLocaleString("en-US")}{" "}
-              {perDot === 1 ? sampleNoun.replace(/s$/, "") : sampleNoun}
-            </span>
-          </div>
-
-          {/* Chart, track and axis share one inset so values line up. */}
-          <div className="px-1.5">
-            <div className="relative h-5">
-              <span
-                className="absolute bottom-1 font-mono text-[0.6875rem] whitespace-nowrap text-brand tabular-nums"
-                style={{
-                  left: `${pp}%`,
-                  transform: `translateX(-${pp}%)`,
-                  transition: glide("left", "transform"),
-                }}
-              >
-                p<RollingNumber value={percentile} />
-                <span className="text-muted-foreground"> of market</span>
+            <div className="mb-2 flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
+              <span>{labels.market}</span>
+              <span className="font-mono tabular-nums">
+                {labels.perDot(perDot, sampleNoun)}
               </span>
             </div>
-            <div
-              role="img"
-              aria-label={`Market distribution of ${total.toLocaleString("en-US")} ${sampleNoun}. Preferred ${withUnit(t.preferred)} sits at p${percentile}.`}
-              className="relative h-24 @md:h-[7.5rem]"
-            >
-              <span
-                aria-hidden="true"
-                className="absolute inset-y-0 w-px -translate-x-1/2 text-brand"
-                style={{ left: `${pp}%`, background: DOTTED, transition: glide("left") }}
-              />
-              {distribution.map((b) => {
-                const dots = b.count > 0 ? Math.max(1, Math.round(b.count / perDot)) : 0;
-                const tone =
-                  b.value >= t.preferred
-                    ? "bg-brand"
-                    : b.value >= t.fallback
-                      ? "bg-foreground/40"
-                      : "bg-foreground/20";
-                return (
-                  <span
-                    key={b.value}
-                    aria-hidden="true"
-                    className="absolute bottom-0 flex -translate-x-1/2 flex-col-reverse gap-0.5 @md:gap-[2.5px]"
-                    style={{ left: `${pct(b.value)}%` }}
-                  >
-                    {/* Empty slots stay faintly visible, so the chart reads as a grid. */}
-                    {Array.from({ length: MAX_ROWS }, (_, k) => (
+
+            {/* Chart, track and axis share one inset so values line up. */}
+            {/* The plot keeps a left-to-right axis; its text labels follow the page direction. */}
+            <div dir="ltr" className="px-1.5">
+              <div className="relative h-5">
+                <span
+                  className="absolute bottom-1 font-mono text-[0.6875rem] whitespace-nowrap text-brand tabular-nums rtl:[direction:rtl]"
+                  style={{
+                    left: `${pp}%`,
+                    transform: `translateX(-${pp}%)`,
+                    transition: glide("left", "transform"),
+                  }}
+                >
+                  <span dir="ltr">
+                    p<RollingNumber value={percentile} />
+                  </span>
+                  <span className="text-muted-foreground"> {labels.ofMarket}</span>
+                </span>
+              </div>
+              <div
+                role="img"
+                aria-label={labels.chart(
+                  total,
+                  sampleNoun,
+                  withUnit(t.preferred),
+                  percentile,
+                )}
+                className="relative h-24 @md:h-[7.5rem]"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-y-0 w-px -translate-x-1/2 text-brand"
+                  style={{
+                    left: `${pp}%`,
+                    background: DOTTED,
+                    transition: glide("left"),
+                  }}
+                />
+                {distribution.map((b) => {
+                  const dots =
+                    b.count > 0 ? Math.max(1, Math.round(b.count / perDot)) : 0;
+                  const tone =
+                    b.value >= t.preferred
+                      ? "bg-brand"
+                      : b.value >= t.fallback
+                        ? "bg-foreground/40"
+                        : "bg-foreground/20";
+                  return (
+                    <span
+                      key={b.value}
+                      aria-hidden="true"
+                      className="absolute bottom-0 flex -translate-x-1/2 flex-col-reverse gap-0.5 @md:gap-[2.5px]"
+                      style={{ left: `${pct(b.value)}%` }}
+                    >
+                      {/* Empty slots stay faintly visible, so the chart reads as a grid. */}
+                      {Array.from({ length: MAX_ROWS }, (_, k) => (
+                        <span
+                          key={k}
+                          className={cn(
+                            "block size-1 rounded-full @md:size-[5px]",
+                            k < dots ? tone : "bg-foreground/[0.06]",
+                            mode !== "key" &&
+                              "transition-[background-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]",
+                          )}
+                        />
+                      ))}
+                    </span>
+                  );
+                })}
+              </div>
+
+              <div
+                ref={track}
+                role="group"
+                aria-labelledby={labelId}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
+                className="relative mt-2 h-8 cursor-pointer touch-none select-none"
+              >
+                <span id={labelId} className="sr-only">
+                  {labels.thresholds(clause)}
+                </span>
+                <span
+                  className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-l-full bg-foreground/[0.05]"
+                  style={{
+                    width: `${fp}%`,
+                    backgroundImage: HATCH,
+                    transition: glide("width"),
+                  }}
+                />
+                <span
+                  className="absolute top-1/2 h-2 -translate-y-1/2 bg-foreground/20"
+                  style={{
+                    left: `${fp}%`,
+                    right: `${100 - pp}%`,
+                    transition: glide("left", "right"),
+                  }}
+                />
+                <span
+                  className="absolute top-1/2 right-0 h-2 -translate-y-1/2 rounded-r-full bg-brand"
+                  style={{ left: `${pp}%`, transition: glide("left") }}
+                />
+                {([0, 1] as const).map((i) => {
+                  const v = i === 0 ? t.fallback : t.preferred;
+                  return (
+                    <div
+                      key={i}
+                      role="slider"
+                      tabIndex={0}
+                      aria-label={labels.handle(
+                        i === 0 ? labels.fallback : labels.preferred,
+                      )}
+                      aria-valuemin={i === 0 ? min : t.fallback + gap}
+                      aria-valuemax={i === 0 ? t.preferred - gap : max}
+                      aria-valuenow={v}
+                      aria-valuetext={withUnit(v)}
+                      onKeyDown={onKeyDown(i)}
+                      onBlur={() => mode === "key" && setMode("idle")}
+                      className="group absolute top-0 flex h-8 w-7 -translate-x-1/2 items-center justify-center outline-none"
+                      style={{ left: `${i === 0 ? fp : pp}%`, transition: glide("left") }}
+                    >
                       <span
-                        key={k}
+                        aria-hidden="true"
                         className={cn(
-                          "block size-1 rounded-full @md:size-[5px]",
-                          k < dots ? tone : "bg-foreground/[0.06]",
-                          mode !== "key" &&
-                            "transition-[background-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]",
+                          "absolute size-7 rounded-full bg-brand/0 transition-[background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-focus-visible:bg-brand/20",
+                          active === i && "bg-foreground/[0.08]",
                         )}
                       />
-                    ))}
-                  </span>
-                );
-              })}
-            </div>
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "relative h-5 w-2.5 rounded-full transition-[height] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
+                          i === 0 ? "bg-foreground" : "bg-brand",
+                          active === i && "h-6",
+                        )}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
 
-            <div
-              ref={track}
-              role="group"
-              aria-labelledby={labelId}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={onPointerUp}
-              onPointerCancel={onPointerUp}
-              className="relative mt-2 h-8 cursor-pointer touch-none select-none"
-            >
-              <span id={labelId} className="sr-only">
-                {clause} thresholds
-              </span>
-              <span
-                className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-l-full bg-foreground/[0.05]"
-                style={{
-                  width: `${fp}%`,
-                  backgroundImage: HATCH,
-                  transition: glide("width"),
-                }}
-              />
-              <span
-                className="absolute top-1/2 h-2 -translate-y-1/2 bg-foreground/20"
-                style={{
-                  left: `${fp}%`,
-                  right: `${100 - pp}%`,
-                  transition: glide("left", "right"),
-                }}
-              />
-              <span
-                className="absolute top-1/2 right-0 h-2 -translate-y-1/2 rounded-r-full bg-brand"
-                style={{ left: `${pp}%`, transition: glide("left") }}
-              />
-              {([0, 1] as const).map((i) => {
-                const v = i === 0 ? t.fallback : t.preferred;
-                return (
-                  <div
-                    key={i}
-                    role="slider"
-                    tabIndex={0}
-                    aria-label={`${i === 0 ? labels.fallback : labels.preferred} from`}
-                    aria-valuemin={i === 0 ? min : t.fallback + gap}
-                    aria-valuemax={i === 0 ? t.preferred - gap : max}
-                    aria-valuenow={v}
-                    aria-valuetext={withUnit(v)}
-                    onKeyDown={onKeyDown(i)}
-                    onBlur={() => mode === "key" && setMode("idle")}
-                    className="group absolute top-0 flex h-8 w-7 -translate-x-1/2 items-center justify-center outline-none"
-                    style={{ left: `${i === 0 ? fp : pp}%`, transition: glide("left") }}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "absolute size-7 rounded-full bg-brand/0 transition-[background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-focus-visible:bg-brand/20",
-                        active === i && "bg-foreground/[0.08]",
-                      )}
-                    />
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "relative h-5 w-2.5 rounded-full transition-[height] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
-                        i === 0 ? "bg-foreground" : "bg-brand",
-                        active === i && "h-6",
-                      )}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-
-            <div
-              aria-hidden="true"
-              className="relative mt-1 h-4 font-mono text-[0.6875rem] tabular-nums"
-            >
-              {tickValues.map((v, i) => (
-                <span
-                  key={v}
-                  className={cn(
-                    "absolute whitespace-nowrap text-muted-foreground transition-opacity duration-150",
-                    nearHandle(v) && "opacity-0",
-                  )}
-                  style={{ left: `${pct(v)}%`, transform: `translateX(-${pct(v)}%)` }}
-                >
-                  {i === tickValues.length - 1 ? withUnit(v) : fmt(v)}
-                </span>
-              ))}
-              {([0, 1] as const).map((i) => {
-                const v = i === 0 ? t.fallback : t.preferred;
-                const p = pct(v);
-                return (
+              <div
+                aria-hidden="true"
+                className="relative mt-1 h-4 font-mono text-[0.6875rem] tabular-nums"
+              >
+                {tickValues.map((v, i) => (
                   <span
-                    key={i}
+                    key={v}
                     className={cn(
-                      "absolute font-medium whitespace-nowrap",
-                      i === 0 ? "text-foreground" : "text-brand",
+                      "absolute whitespace-nowrap text-muted-foreground transition-opacity duration-150 rtl:[direction:rtl]",
+                      nearHandle(v) && "opacity-0",
                     )}
-                    style={{
-                      left: `${p}%`,
-                      transform: `translateX(-${p}%)`,
-                      transition: glide("left", "transform"),
-                    }}
+                    style={{ left: `${pct(v)}%`, transform: `translateX(-${pct(v)}%)` }}
                   >
-                    {v >= max ? withUnit(v) : fmt(v)}
+                    {i === tickValues.length - 1 ? withUnit(v) : fmt(v)}
                   </span>
-                );
-              })}
+                ))}
+                {([0, 1] as const).map((i) => {
+                  const v = i === 0 ? t.fallback : t.preferred;
+                  const p = pct(v);
+                  return (
+                    <span
+                      key={i}
+                      className={cn(
+                        "absolute font-medium whitespace-nowrap rtl:[direction:rtl]",
+                        i === 0 ? "text-foreground" : "text-brand",
+                      )}
+                      style={{
+                        left: `${p}%`,
+                        transform: `translateX(-${p}%)`,
+                        transition: glide("left", "transform"),
+                      }}
+                    >
+                      {v >= max ? withUnit(v) : fmt(v)}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-            <Legend
-              swatch={<Swatch hatched />}
-              label={labels.walkAway}
-              value={`<${fmt(t.fallback)}`}
-            />
-            <Legend
-              swatch={<Swatch className="bg-foreground/20" />}
-              label={labels.fallback}
-              value={`${fmt(t.fallback)}–${fmt(t.preferred)}`}
-            />
-            <Legend
-              swatch={<Swatch className="bg-brand" />}
-              label={labels.preferred}
-              value={`${fmt(t.preferred)}+`}
-            />
-          </ul>
-        </Panel>
-
-        {settings.length > 0 && (
-          <Panel className="mt-1.5 p-1.5">
-            {settings.map((s) => (
-              <SettingRow
-                key={s.id}
-                setting={s}
-                value={valueOf(s)}
-                thresholds={t}
-                onChange={(v) => setValue(s.id, v)}
+            <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+              <Legend
+                swatch={<Swatch hatched />}
+                label={labels.walkAway}
+                value={`<${fmt(t.fallback)}`}
               />
-            ))}
+              <Legend
+                swatch={<Swatch className="bg-foreground/20" />}
+                label={labels.fallback}
+                value={`${fmt(t.fallback)}–${fmt(t.preferred)}`}
+              />
+              <Legend
+                swatch={<Swatch className="bg-brand" />}
+                label={labels.preferred}
+                value={`${fmt(t.preferred)}+`}
+              />
+            </ul>
           </Panel>
-        )}
 
-        {(onApply || onDiscard) && (
-          <div className="flex items-center gap-2 pt-2 pr-1 pb-0.5 pl-3">
-            <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-              {edits ? "Not live until applied" : "Live in the playbook"}
-            </p>
-            {onDiscard && (
-              <button
-                type="button"
-                disabled={!edits}
-                onClick={discard}
-                className={cn(
-                  pressable,
-                  "px-3.5 text-foreground hover:bg-foreground/[0.06]",
-                )}
-              >
-                Discard
-              </button>
-            )}
-            {onApply && (
-              <Button
-                variant="primary"
-                icon={Check}
-                iconWeight="bold"
-                disabled={!edits}
-                onClick={apply}
-              >
-                Apply
-              </Button>
-            )}
-          </div>
-        )}
-      </Shell>
-    </MotionConfig>
+          {settings.length > 0 && (
+            <Panel className="mt-1.5 p-1.5">
+              {settings.map((s) => (
+                <SettingRow
+                  key={s.id}
+                  setting={s}
+                  value={valueOf(s)}
+                  thresholds={t}
+                  onChange={(v) => setValue(s.id, v)}
+                />
+              ))}
+            </Panel>
+          )}
+
+          {(onApply || onDiscard) && (
+            <div className="flex items-center gap-2 ps-3 pe-1 pt-2 pb-0.5">
+              <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                {edits ? labels.pending : labels.live}
+              </p>
+              {onDiscard && (
+                <button
+                  type="button"
+                  disabled={!edits}
+                  onClick={discard}
+                  className={cn(
+                    pressable,
+                    "px-3.5 text-foreground hover:bg-foreground/[0.06]",
+                  )}
+                >
+                  {labels.discard}
+                </button>
+              )}
+              {onApply && (
+                <Button
+                  variant="primary"
+                  icon={Check}
+                  iconWeight="bold"
+                  disabled={!edits}
+                  onClick={apply}
+                >
+                  {labels.apply}
+                </Button>
+              )}
+            </div>
+          )}
+        </Shell>
+      </MotionConfig>
+    </Labels.Provider>
   );
 }
 
@@ -623,7 +705,9 @@ function Legend({
     <li className="flex items-center gap-1.5">
       {swatch}
       {label}
-      <span className="font-mono text-foreground tabular-nums">{value}</span>
+      <span dir="ltr" className="font-mono text-foreground tabular-nums">
+        {value}
+      </span>
     </li>
   );
 }
@@ -711,6 +795,7 @@ function Stepper({
   labelId: string;
   onChange: (value: number) => void;
 }) {
+  const labels = useContext(Labels);
   const { min = -Infinity, max = Infinity, step = 1, format = String } = setting;
   const button =
     "flex size-7 items-center justify-center rounded-full text-muted-foreground outline-none transition-[background-color,color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-foreground/[0.07] hover:text-foreground focus-visible:bg-foreground/[0.1] active:scale-[0.97] disabled:pointer-events-none disabled:opacity-35";
@@ -723,7 +808,7 @@ function Stepper({
     >
       <button
         type="button"
-        aria-label="Decrease"
+        aria-label={labels.decrease}
         disabled={value <= min}
         onClick={() => onChange(next(-step))}
         className={button}
@@ -735,7 +820,7 @@ function Stepper({
       </span>
       <button
         type="button"
-        aria-label="Increase"
+        aria-label={labels.increase}
         disabled={value >= max}
         onClick={() => onChange(next(step))}
         className={button}
@@ -767,7 +852,7 @@ function Menu({
         aria-labelledby={labelId}
         onPointerDown={() => setViaKeyboard(false)}
         onKeyDown={() => setViaKeyboard(true)}
-        className="flex h-8 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-full bg-foreground/[0.06] pr-2.5 pl-3.5 text-[0.8125rem] transition-[background-color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] outline-none hover:bg-foreground/[0.09] focus-visible:bg-foreground/[0.12] active:scale-[0.97] data-[state=open]:bg-foreground/[0.12]"
+        className="flex h-8 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-full bg-foreground/[0.06] ps-3.5 pe-2.5 text-[0.8125rem] transition-[background-color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] outline-none hover:bg-foreground/[0.09] focus-visible:bg-foreground/[0.12] active:scale-[0.97] data-[state=open]:bg-foreground/[0.12]"
       >
         <span className="relative min-w-0 flex-1 overflow-hidden">
           <SelectPrimitive.Value>
@@ -813,7 +898,7 @@ function Menu({
                 <SelectPrimitive.Item
                   key={o.value}
                   value={o.value}
-                  className="flex cursor-default items-center gap-2 rounded-xl py-1.5 pr-3 pl-2 text-[0.8125rem] outline-none select-none data-[highlighted]:bg-foreground/[0.07]"
+                  className="flex cursor-default items-center gap-2 rounded-xl py-1.5 ps-2 pe-3 text-[0.8125rem] outline-none select-none data-[highlighted]:bg-foreground/[0.07]"
                 >
                   <span className="flex w-4 shrink-0 justify-center">
                     <SelectPrimitive.ItemIndicator>
@@ -822,7 +907,7 @@ function Menu({
                   </span>
                   <SelectPrimitive.ItemText>{o.label}</SelectPrimitive.ItemText>
                   {o.hint && (
-                    <span className="ml-auto pl-4 text-xs whitespace-nowrap text-muted-foreground">
+                    <span className="ms-auto ps-4 text-xs whitespace-nowrap text-muted-foreground">
                       {o.hint}
                     </span>
                   )}

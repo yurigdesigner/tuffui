@@ -48,11 +48,62 @@ export type ResponseFeedbackProps = {
   reasons?: string[];
   /** `inline` thumbs under an answer; `detailed` a 1–5 rating with reasons always shown. */
   variant?: "inline" | "detailed";
+  /** UI strings, for translating. Reasons come from the `reasons` prop. */
+  labels?: Partial<ResponseFeedbackLabels>;
   className?: string;
 };
 
+export type ResponseFeedbackLabels = {
+  helpful: string;
+  notHelpful: string;
+  copy: string;
+  copied: string;
+  regenerate: string;
+  /** Next to the thumbs after a thumbs up. */
+  thanks: string;
+  whatWentWrong: string;
+  whatStoodOut: string;
+  reasons: string;
+  note: string;
+  notePlaceholder: string;
+  cancel: string;
+  send: string;
+  sentThanks: string;
+  undo: string;
+  question: string;
+  rating: string;
+  /** Words under 1–5 in the detailed rating. */
+  scale: [string, string, string, string, string];
+  announceSent: string;
+  announceHelpful: string;
+  announceOpen: string;
+};
+
+const defaultLabels: ResponseFeedbackLabels = {
+  helpful: "Helpful",
+  notHelpful: "Not helpful",
+  copy: "Copy",
+  copied: "Copied",
+  regenerate: "Regenerate",
+  thanks: "Thanks",
+  whatWentWrong: "What went wrong?",
+  whatStoodOut: "What stood out?",
+  reasons: "Reasons",
+  note: "Add a note",
+  notePlaceholder: "Add a note (optional)",
+  cancel: "Cancel",
+  send: "Send feedback",
+  sentThanks: "Thanks — we'll use this to improve.",
+  undo: "Undo",
+  question: "How was this answer?",
+  rating: "Rating",
+  scale: ["Poor", "Weak", "Okay", "Good", "Great"],
+  announceSent: "Feedback sent",
+  announceHelpful: "Marked as helpful",
+  announceOpen: "Tell us what went wrong",
+};
+
 const defaultReasons = ["Inaccurate", "Not helpful", "Too long", "Unsafe", "Other"];
-const scale = ["Poor", "Weak", "Okay", "Good", "Great"];
 export const emptyFeedback: Feedback = {
   rating: null,
   reasons: [],
@@ -74,8 +125,10 @@ export function ResponseFeedback({
   onRegenerate,
   reasons = defaultReasons,
   variant = "inline",
+  labels: labelOverrides,
   className,
 }: ResponseFeedbackProps) {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const [own, setOwn] = useState<Feedback>(emptyFeedback);
   const fb = value ?? own;
   const set = (next: Feedback) => {
@@ -86,6 +139,8 @@ export function ResponseFeedback({
   const [copied, setCopied] = useState(false);
   const [undoable, setUndoable] = useState(false);
   const [pop, setPop] = useState(0);
+  // "Thanks" slides in from the start side, so its offset flips in RTL.
+  const [rtl, setRtl] = useState(false);
   const detailed = variant === "detailed";
   // The detailed card is a shell; the inline row sits bare under an answer.
   const Root = detailed ? Shell : "div";
@@ -107,6 +162,7 @@ export function ResponseFeedback({
       return;
     }
     if (e.detail !== 0) setPop((n) => n + 1); // no pop from the keyboard
+    setRtl(getComputedStyle(e.currentTarget).direction === "rtl");
     onRate?.(rating);
     set({ ...emptyFeedback, rating, status: rating === "down" ? "open" : "idle" });
   };
@@ -169,9 +225,9 @@ export function ResponseFeedback({
   const form = (
     <div className="flex flex-col gap-3 pt-3">
       <p className="text-[0.8125rem] text-muted-foreground">
-        {detailed ? "What stood out?" : "What went wrong?"}
+        {detailed ? labels.whatStoodOut : labels.whatWentWrong}
       </p>
-      <div role="group" aria-label="Reasons" className="flex flex-wrap gap-1.5">
+      <div role="group" aria-label={labels.reasons} className="flex flex-wrap gap-1.5">
         {reasons.map((reason) => {
           const on = fb.reasons.includes(reason);
           return (
@@ -195,20 +251,21 @@ export function ResponseFeedback({
         })}
       </div>
       <TextArea
-        aria-label="Add a note"
+        aria-label={labels.note}
+        dir="auto"
         rows={2}
         value={fb.note}
         onChange={(e) => set({ ...fb, note: e.target.value })}
-        placeholder="Add a note (optional)"
+        placeholder={labels.notePlaceholder}
       />
       <div className="flex items-center justify-end gap-2">
         {!detailed && (
           <Button variant="quiet" onClick={() => set(emptyFeedback)}>
-            Cancel
+            {labels.cancel}
           </Button>
         )}
         <Button variant="primary" onClick={submit} disabled={!canSend} className="px-4">
-          Send feedback
+          {labels.send}
         </Button>
       </div>
     </div>
@@ -223,26 +280,26 @@ export function ResponseFeedback({
       className="flex items-center gap-2 text-[0.8125rem]"
     >
       <Check weight="bold" className="size-3.5 text-positive" aria-hidden="true" />
-      <span>Thanks — we&apos;ll use this to improve.</span>
+      <span>{labels.sentThanks}</span>
       {undoable && (
         <Button
           icon={ArrowUUpLeft}
           iconWeight="bold"
           onClick={undo}
-          className="h-7 gap-1 px-2.5 text-xs"
+          className="h-7 gap-1 px-2.5 text-xs rtl:[&_svg]:-scale-x-100"
         >
-          Undo
+          {labels.undo}
         </Button>
       )}
     </motion.div>
   );
 
   const announcement = sent
-    ? "Feedback sent"
+    ? labels.announceSent
     : fb.rating === "up"
-      ? "Marked as helpful"
+      ? labels.announceHelpful
       : fb.status === "open"
-        ? "Tell us what went wrong"
+        ? labels.announceOpen
         : "";
 
   return (
@@ -255,18 +312,18 @@ export function ResponseFeedback({
                 thanks
               ) : (
                 <motion.div key="form" exit={{ opacity: 0, transition: exit }}>
-                  <p className="text-[0.9375rem] font-medium">How was this answer?</p>
+                  <p className="text-[0.9375rem] font-medium">{labels.question}</p>
                   <div
                     role="radiogroup"
-                    aria-label="Rating"
+                    aria-label={labels.rating}
                     className="mt-3 grid grid-cols-5 gap-1.5"
                   >
-                    {scale.map((label, i) => {
+                    {labels.scale.map((label, i) => {
                       const n = (i + 1) as FeedbackRating;
                       const on = fb.rating === n;
                       return (
                         <button
-                          key={label}
+                          key={i}
                           type="button"
                           role="radio"
                           aria-checked={on}
@@ -313,20 +370,20 @@ export function ResponseFeedback({
                     className="flex items-center gap-0.5"
                   >
                     {iconButton(
-                      "Helpful",
+                      labels.helpful,
                       fb.rating === "up",
                       (e) => thumb("up", e),
                       popIcon(ThumbsUp, fb.rating === "up"),
                     )}
                     {iconButton(
-                      "Not helpful",
+                      labels.notHelpful,
                       fb.rating === "down",
                       (e) => thumb("down", e),
                       popIcon(ThumbsDown, fb.rating === "down"),
                     )}
                     {onCopy &&
                       iconButton(
-                        copied ? "Copied" : "Copy",
+                        copied ? labels.copied : labels.copy,
                         undefined,
                         () => {
                           onCopy();
@@ -340,7 +397,7 @@ export function ResponseFeedback({
                       )}
                     {onRegenerate &&
                       iconButton(
-                        "Regenerate",
+                        labels.regenerate,
                         undefined,
                         onRegenerate,
                         <ArrowCounterClockwise
@@ -352,12 +409,12 @@ export function ResponseFeedback({
                     <AnimatePresence initial={false}>
                       {fb.rating === "up" && (
                         <motion.span
-                          initial={{ opacity: 0, x: -4 }}
+                          initial={{ opacity: 0, x: rtl ? 4 : -4 }}
                           animate={{ opacity: 1, x: 0, transition: enter }}
                           exit={{ opacity: 0, transition: exit }}
-                          className="ml-1.5 text-[0.8125rem] text-muted-foreground"
+                          className="ms-1.5 text-[0.8125rem] text-muted-foreground"
                         >
-                          Thanks
+                          {labels.thanks}
                         </motion.span>
                       )}
                     </AnimatePresence>

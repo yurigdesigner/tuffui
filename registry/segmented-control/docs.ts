@@ -28,7 +28,8 @@ export const docs: ComponentDocs = {
     {
       name: "onValueChange",
       type: "(value: T) => void",
-      description: "Called on click or arrow keys.",
+      description:
+        'Called on click or arrow keys. Under `dir="rtl"` the order mirrors and Left/Right follow it.',
     },
     {
       name: "label",

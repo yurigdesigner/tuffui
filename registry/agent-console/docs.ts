@@ -71,6 +71,17 @@ export function ConsoleScreen({ fleet }: { fleet: Fleet }) {
       description: "The incident banner's Acknowledge button.",
     },
     {
+      name: "locale",
+      type: "string",
+      description: "Intl locale for numbers, money, dates and durations in the widgets.",
+    },
+    {
+      name: "labels",
+      type: "Partial<AgentConsoleLabels>",
+      description:
+        'Your own UI strings (nav, sidebar, incident banner), plus `avatar`, `approvals`, `stats`, `agents`, `runTrace`, `evals`, `usage`, `limits`, `context` and `toasts` for the components inside, for translating. Right-to-left works under `dir="rtl"`: the nav and drawer move to the right, charts and code stay left to right.',
+    },
+    {
       name: "className",
       type: "string",
       description: "Extra classes for the root. The screen fills its parent.",
