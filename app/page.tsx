@@ -61,7 +61,10 @@ export default async function Home() {
                   <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium text-brand">
                     New
                   </span>
-                  Right-to-left support for Hebrew and Arabic
+                  <span className="whitespace-nowrap">
+                    Right-to-left support
+                    <span className="max-sm:hidden"> for Hebrew and Arabic</span>
+                  </span>
                   <ArrowRight
                     className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5"
                     aria-hidden="true"
